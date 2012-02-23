@@ -1,7 +1,9 @@
 # -*- coding: utf8 -*-
 
 """
-Global statistics
+Global statistics for pyvalid project by S.Skrypnikov-Laviolle 
+last update 02/2012
+
 
    Statistics on the whole dataset/run ... 
 """
@@ -12,7 +14,7 @@ import os,sys,shutil,ConfigParser, gc
 
 
 import matplotlib.pyplot as P
-import cdtime,  MV2
+import cdtime,  MV2, cdms2
 from pylab import figure,  show,  close, title, ylabel, ylim
 from matplotlib.dates import datestr2num
 import numpy as np
@@ -27,14 +29,41 @@ from vacumm.data.model.mars.get_cp import  get_cp_f1
 from vacumm.data.misc.handle_directories import make_directories
 from vacumm.validator.valid.ValidXYT import ValidXYT
 from vacumm.misc.plot import map,  curve, curve2,  savefigs
-from vacumm.misc.atime import add, strtime, ch_units, are_same_units, comptime
-from vacumm.misc.axes import create_time,  set_order
+from vacumm.misc.atime import add, strtime, ch_units, are_same_units, comptime, strftime
+from vacumm.misc.axes import create_time,  set_order, create_dep, create_lat, create_lon
 from vacumm.misc.grid.regridding import regrid1d, regrid2d
 from vacumm.misc.io import ncread_best_estimate
 #from vacumm.misc.grid.regridding import regrid1d,  regrid2d,  interp2d
-import glob
+import glob, time
 from vacumm.markup import html_tools
 from vacumm.misc.color import cmap_custom, StepsNorm, cmap_magic
+import matplotlib.path as mpath
+import matplotlib.patches as mpatches
+import inspect
+global SCRIPT_DIR
+SCRIPT_DIR=os.getcwd()
+print SCRIPT_DIR
+
+
+    # Pour produire du NetCDF3
+cdms2.setNetcdfShuffleFlag(0); cdms2.setNetcdfDeflateFlag(0); cdms2.setNetcdfDeflateLevelFlag(0)
+def write_nc_cf(filename,dual=False, varin1=None,varin2=None):
+    config = ConfigParser.RawConfigParser()
+    config.read(os.path.join(SCRIPT_DIR,'config.cfg'))
+    rep_ecriture= config.get('Output','rep_ecriture')
+    filename= os.path.join(rep_ecriture,filename)
+    f = cdms2.open(filename, 'w')
+    f.write(varin1) # ecriture d'une variable
+    if dual==True:
+	f.write(varin2) #ecriture
+    creation_date = time.strftime('%Y-%m-%dT%H:%M:%SZ')
+    f.creation_date = creation_date
+    f.title = config.get('Output','title')
+    #print f
+    f.close() # fermeture
+
+    #-- Probleme a voir ... comment ne pas ecrire les bounds de maniere concise.    
+
 
 __all__ = ['allstat','monthlystat','detailedstat','regionalstat']
 __all__.sort()
@@ -48,13 +77,30 @@ def allstat(model, obs, FIG_DIR, SCRIPT_DIR):
     print ' -- Validation XYT (Global) --    ' 
     print 65*'-'
     result=ValidXYT(model, obs)
-    #del model 
-    #del obs
-    #gc.collect()
+    config = ConfigParser.RawConfigParser()
+    config.read(os.path.join(SCRIPT_DIR,'config.cfg'))
+    andeb = config.getint('Time Period', 'andeb')
+    anfin = config.getint('Time Period', 'anfin')		
+    mdeb = config.getint('Time Period', 'mdeb')
+    mfin = config.getint('Time Period', 'mfin')
+    jdeb = config.getint('Time Period', 'jdeb')
+    jfin = config.getint('Time Period', 'jfin')
+    hdeb = config.getint('Time Period', 'hdeb')
+    hfin = config.getint('Time Period', 'hfin')
 
+
+    ctdeb=cdtime.comptime(andeb,mdeb,jdeb,hdeb,0,0)
+    hfin = 23
+    ctfin=cdtime.comptime(anfin,mfin,jfin,hfin,0,0)
+    
     tag = 'all'
+    tag1= strftime('%Y%m%d',ctdeb)
+    tag2= strftime('%Y%m%d',ctfin)
+    print 65*'-'
+    print  'La validation concerne les modeles et observations compris entre '+tag1+' jusqu au ' +tag2
+    print 65*'-'
 
-    detailedstat(result,tag, SCRIPT_DIR, FIG_DIR)
+    detailedstat(result,tag,tag1,tag2,SCRIPT_DIR,FIG_DIR)
     del result
     gc.collect()
 
@@ -79,7 +125,7 @@ def monthlystat(model, obs, FIG_DIR, SCRIPT_DIR):
         obs2 = obs()
         result=ValidXYT(model2,obs2)
 
-        detailedstat(result,tag,SCRIPT_DIR,FIG_DIR)
+        detailedstat(result,tag,tag1,tag2,SCRIPT_DIR,FIG_DIR)
         del result
         del model2
         del obs2
@@ -104,13 +150,34 @@ def regionalstat(model, obs, FIG_DIR, SCRIPT_DIR):
     lo_max=[5, -3.5, -1, -1, -1]
     la_max=[52.8, 52.8, 48, 47, 45]
     tags=['Manche Est','Manche Ouest','Bretagne Sud','Vendee','Basque']
+    
+    result=ValidXYT(model, obs)
+    config = ConfigParser.RawConfigParser()
+    config.read(os.path.join(SCRIPT_DIR,'config.cfg'))
+    andeb = config.getint('Time Period', 'andeb')
+    anfin = config.getint('Time Period', 'anfin')		
+    mdeb = config.getint('Time Period', 'mdeb')
+    mfin = config.getint('Time Period', 'mfin')
+    jdeb = config.getint('Time Period', 'jdeb')
+    jfin = config.getint('Time Period', 'jfin')
+    hdeb = config.getint('Time Period', 'hdeb')
+    hfin = config.getint('Time Period', 'hfin')
 
+
+    ctdeb=cdtime.comptime(andeb,mdeb,jdeb,hdeb,0,0)
+    hfin = 23
+    ctfin=cdtime.comptime(anfin,mfin,jfin,hfin,0,0)
+    
+    tag = 'regionalstat'
+    tag1= strftime('%Y%m%d',ctdeb)
+    tag2= strftime('%Y%m%d',ctfin)
+    print SCRIPT_DIR
     for i, tag in enumerate(tags):
         model2 = model(lon=[lo_min[i],lo_max[i]],lat=[la_min[i],la_max[i]])
         obs2 = obs(lon=[lo_min[i],lo_max[i]],lat=[la_min[i],la_max[i]])
         result=ValidXYT(model2,obs2)
         
-        detailedstat(result,tag,SCRIPT_DIR,FIG_DIR)
+        detailedstat(result,tag,tag1,tag2,SCRIPT_DIR,FIG_DIR)
         del result
         del model2
         del obs2
@@ -125,7 +192,6 @@ def seasonalstat(model, obs, FIG_DIR, SCRIPT_DIR):
     from global_stat import detailedstat
 
     print ' -- Validation XYT (Seasonal) -- '
-    print 65*'-'
     
     model2 = cdutil.DJF(model)
     model2.units = model.units
@@ -133,7 +199,7 @@ def seasonalstat(model, obs, FIG_DIR, SCRIPT_DIR):
     obs2.units = result.obs.units
     result=ValidXYT(model2,obs2)
     tag = 'DJF'
-    detailedstat(result,tag,SCRIPT_DIR,FIG_DIR)
+    detailedstat(result,tag,tag1,tag2,SCRIPT_DIR,FIG_DIR)
     del result
     del model2
     del obs2
@@ -184,12 +250,18 @@ def seasonalstat(model, obs, FIG_DIR, SCRIPT_DIR):
 
 
 
-def detailedstat(result,tag,SCRIPT_DIR,FIG_DIR):
+def detailedstat(result,tag,tag1,tag2,SCRIPT_DIR,FIG_DIR):
     """
     """
 
     tagforfilename = '_'.join(tag.split(' ')).lower()
-
+    tagforfiledate1 = '_'.join(tag1.split(' ')).lower()    
+    tagforfiledate2 = '_'.join(tag2.split(' ')).lower()
+    
+    #LONGITUDE = create_lon(loi, id='longitude', attributes=dict(long_name='Longitude of each location',standard_name='longitude',units='degrees_east',valid_min='-180.',valid_max='180.',axis='X'))
+    #LATITUDE = create_lat(lai, id='latitude', attributes=dict(long_name='Latitude of each location',standard_name='latitude',units='degrees_north',valid_min='-90.',valid_max='90.',axis='Y'))
+    
+    
     # Ouverture fichier config
     config = ConfigParser.RawConfigParser()
     if tag == 'all':
@@ -197,102 +269,14 @@ def detailedstat(result,tag,SCRIPT_DIR,FIG_DIR):
     elif tag == 'DJF' or tag == 'MAM' or tag == 'SON' or tag == 'JJA' or tag == 'monthly':
         config.read(os.path.join(SCRIPT_DIR,'config_s.cfg'))
     else:
-        config.read(os.path.join(SCRIPT_DIR,'config_r.cfg'))
+        config.read(os.path.join(SCRIPT_DIR,'config_r.cfg'))    
+    rep_ecriture= config.get('Output','rep_ecriture')   
 
-    if config.get('Statistics', 'delta_t') == 'True':
-        # Quantification du delta de temperature de surface entre le talus et le plateau: T(plateau) - T(talus)
-        # ==> Evolution temporelle
-        
-        # Premier couple: i=235, j=168 (5.5W/47N) --- i=267, j=168 (3.7W/47N)
-        # (-1) car tableaux commencent a zero.
-        i1=266
-        j1=167
-        i2=234
-        j2=167
-        serie1o = result.obs[:,i1,j1]-result.obs[:,i2,j2] 
-        serie1m = result.model[:,i1,j1]-result.model[:,i2,j2]
-
-        lo = result.obs.getLongitude().getValue()
-        la = result.obs.getLatitude().getValue()
-
-
-        # Trace des resultats
-        kwploto=dict(marker = 'o', color='r', ls=' ')
-        kwplotm=dict(marker = 'o', color='b', ls=' ')
-        P.figure()
-        curve2(serie1o,**kwploto)
-        curve2(serie1m,**kwplotm)
-
-        #fig = figure()
-        #ax = fig.add_axes([0.15, 0.15, 0.75, 0.75])
-        #x = datestr2num(strtime(result.obs.getTime()))
-        title('SST ( %(#)3.2fE / %(##)4.2fN ) - SST ( %(###)3.2fE / %(####)4.2fN )' %{'#':lo[i1], '##':la[j1], '###':lo[i2], '####':la[j2]})
-        #ylabel(result.obs.units)
-        #ax.plot_date(x,serie1o.data, color='r', ls='-', marker=' ')
-        #ax.plot_date(x,serie1m.data,  color='b', ls='-', marker=' ')
-        #ax.legend(('Observations',  'Model'),  loc = 'upper right',  shadow = True,  fancybox=True)
-        #fig.autofmt_xdate()
-        savefigs(FIG_DIR+'/delta_t_serie1_'+tagforfilename)
-        #close()
-        P.close()
-
-        # 2eme couple: i=282, j=111 (2.9W/45N) --- i=303, j=111 (1.8W/45N)
-        # (-1) car tableaux commencent a zero.
-        i1=302
-        j1=110
-        i2=281
-        j2=110
-        serie2o = result.obs[:,i1,j1]-result.obs[:,i2,j2]
-        serie2m = result.model[:,i1,j1]-result.model[:,i2,j2]
-
-        lo = result.obs.getLongitude().getValue()
-        la = result.obs.getLatitude().getValue()
-
-
-        # Trace des resultats
-        kwploto=dict(marker = 'o', color='r', ls=' ')
-        kwplotm=dict(marker = 'o', color='b', ls=' ')
-        P.figure()
-        curve2(serie2o,**kwploto)
-        curve2(serie2m,**kwplotm)
-
-        #fig = figure()
-        #ax = fig.add_axes([0.15, 0.15, 0.75, 0.75])
-        #x = datestr2num(strtime(result.obs.getTime()))
-        title('SST ( %(#)3.2fE / %(##)4.2fN ) - SST ( %(###)3.2fE / %(####)4.2fN )' %{'#':lo[i1], '##':la[j1], '###':lo[i2], '####':la[j2]})
-        #ylabel(result.obs.units)
-        #ax.plot_date(x,serie2o.data, color='r', ls='-', marker=' ')
-        #ax.plot_date(x,serie2m.data,  color='b', ls='-', marker=' ')
-        #ax.legend(('Observations',  'Model'),  loc = 'upper right',  shadow = True,  fancybox=True)
-        #fig.autofmt_xdate()
-        savefigs(FIG_DIR+'/delta_t_serie2_'+tagforfilename)
-        #close()
-        P.close()
-
-        
-        
-        
     if config.get('Statistics', 'temporal_mean') == 'True': 
         # -- it works !
         
         print ' - Calcul de la moyenne temporelle pour le modele et les observations - '
 	print 25*'-'
-	#Vieille version du code
-        #result.temporal_mean()        
-        #kwplot = dict(vmin=result.obs.temp_mean.min(), vmax=result.obs.temp_mean.max(), nmax = 30, colorbar_extend='both')
-        #P.figure()
-        #map(result.model.temp_mean, is !title='Mean modelled Sea Surface Temperature - '+tag,  show=False,  clabel_hide=True, **kwplot)
-        #savefigs(FIG_DIR+'/model_temporal_mean_'+tagforfilename)
-        #P.close()
-        #P.figure()
-        #map(result.obs.temp_mean, title='Mean observed Sea Surface Temperature - '+tag,  show=False,  clabel_hide=True, **kwplot)
-        #savefigs(FIG_DIR+'/obs_temporal_mean_'+tagforfilename)
-        #P.close()
-
-        ## Nettoyage
-        #result.obs.temp_mean=[]
-        #result.model.temp_mean=[]
-        #gc.collect()
 
         result.temporal_mean()  
         
@@ -328,50 +312,31 @@ def detailedstat(result,tag,SCRIPT_DIR,FIG_DIR):
 	kwplot = dict(cmap=cmap_previmer, vmin=2, vmax=24, levels=post, norm=norm, colorbar_extend='both')
         P.figure()
         map(result.model.temp_mean, title='Mean modelled Sea Surface Temperature',  show=False,  clabel_hide=True, **kwplot)
-        savefigs(FIG_DIR+'/model_temporal_mean')
+        savefigs(FIG_DIR+'/model_temporal_mean_'+ tagforfilename +'_'+tagforfiledate1+'_' +tagforfiledate2)
         P.close()
         P.figure()
         map(result.obs.temp_mean, title='Mean observed Sea Surface Temperature',  show=False,  clabel_hide=True, **kwplot)
-        savefigs(FIG_DIR+'/obs_temporal_mean')
+        savefigs(FIG_DIR+'/obs_temporal_mean_' + tagforfilename+'_' +tagforfiledate1 +'_'+tagforfiledate2)
         P.close()
         
-        #kwplot = dict(vmin=result.obs.temp_mean.min(), vmax=result.obs.temp_mean.max(), nmax = 30, colorbar_extend='both')
-        #P.figure()
-        #map(result.model.temp_mean, title='Mean modelled Sea Surface Temperature - '+tag,  show=False,  clabel_hide=True, **kwplot)
-        #savefigs(FIG_DIR+'/model_temporal_mean_'+tagforfilename)
-        #P.close()
-        #P.figure()
-        #map(result.obs.temp_mean, title='Mean observed Sea Surface Temperature - '+tag,  show=False,  clabel_hide=True, **kwplot)
-        #savefigs(FIG_DIR+'/obs_temporal_mean_'+tagforfilename)
-        
+	#Ecriture du fichier netcdf
+	#print result.model.temp_mean
+	result.model.temp_mean = cdms2.createVariable(result.model.temp_mean, typecode='f',id='TEMP', attributes=dict(long_name='Sea Surface Temp',standard_name='sst',units='degres celsius',valid_min='-20.',valid_max='30.'))
+	result.obs.temp_mean=cdms2.createVariable(result.obs.temp_mean, typecode='f',id='TEMP', attributes=dict(long_name='Sea Surface Temp',standard_name='sst',units='degres celsius',valid_min='-20.',valid_max='30.'))
+	write_nc_cf( 'model_obs_'+tagforfilename+'_temp_mean_' +tagforfiledate1 +'_'+tagforfiledate2+'.nc',True,result.model.temp_mean,result.obs.temp_mean)
+	print 65*'-'
+	print 'Temperature mean stat written to'+rep_ecriture+'/'+tagforfiledate1 +'_'+tagforfiledate2+'.nc'
 
+	
     if config.get('Statistics', 'spatial_mean') == 'True': 
         # -- it works !
-        print 25*'-'
+        print 65*'-'
         print ' - Calcul de la moyenne spatiale pour le modele et les observations - '
-
         result.spatial_mean()
-	    #Vieille version du code
-        #result.obs.spa_mean = MV2.masked_equal(result.obs.spa_mean,0)
-        #result.model.spa_mean = MV2.masked_equal(result.model.spa_mean,0)
-
-
-        ## Trace des resultats
-        #kwploto=dict(marker = ' ', color='r', ls='-', label='Observations')
-        #kwplotm=dict(marker = ' ', color='b', ls='--', label='Model')
-        #P.figure()
-        #curve2(result.obs.spa_mean,**kwploto)
-        #curve2(result.model.spa_mean,**kwplotm)
-
-        #title('Spatial average over the domain - '+tag)
-        #savefigs(FIG_DIR+'/result_spatial_statmean_'+tagforfilename)
-        #P.close()
-        #close()      
-        ## Nettoyage
-        #result.obs.spa_mean=[]
-        #result.model.spa_mean=[]
-        #gc.collect()
-    
+        
+        print 65*'-'
+        print ' - Calcul de l ecart type pour le modele et les observations pour chaque pas de temps - '
+        result.spatial_std()
         # Masque moyennes egales a zero.
         #result.model.spa_mean = MV2.masked_equal(result.model.spa_mean,0)
         result.model.spa_mean[result.model.spa_mean.data<0.1]=np.NaN
@@ -500,51 +465,54 @@ def detailedstat(result,tag,SCRIPT_DIR,FIG_DIR):
 			pathmodel.append((Path.LINETO,(tuple([xx[i],zmodel[i]]))))
 			
 		    
-	    mocodes, moverts = zip(*pathmodel)
-	    mopath = mpath.Path(moverts, mocodes)
-	    mopatch = mpatches.PathPatch(mopath, facecolor='blue', edgecolor='blue', alpha=0.3)
-	    ax.add_patch(mopatch)
+		mocodes, moverts = zip(*pathmodel)
+		mopath = mpath.Path(moverts, mocodes)
+		mopatch = mpatches.PathPatch(mopath, facecolor='blue', edgecolor='blue', alpha=0.3)
+		ax.add_patch(mopatch)
 	    
  
 	ax.grid()
 	ylim( (2,25) )
 	ax.legend(('Observations',  'Model'),  loc = 'upper right',  shadow = True,  fancybox=True)
 	fig.autofmt_xdate()
-	savefigs(FIG_DIR+'/result_spatial_statmean')
+	savefigs(FIG_DIR+'/result_spatial_statmean_'+ tagforfilename+'_'+tagforfiledate1+'_' +tagforfiledate2)
 	close()
-	      # Nettoyage
+	
+	  #Ecriture du fichier netcdf
+	result.model.spa_mean = cdms2.createVariable(result.model.spa_mean, typecode='f',id='SST_model', attributes=dict(long_name='Sea Surface Temp',standard_name='sst',units='degres celsius',valid_min='-20.',valid_max='30.'))
+	result.obs.spa_mean=cdms2.createVariable(result.obs.spa_mean, typecode='f',id='SST_obs', attributes=dict(long_name='Sea Surface Temp',standard_name='sst',units='degres celsius',valid_min='-20.',valid_max='30.'))
+	write_nc_cf('model_obs_'+tagforfilename+'_spa_mean_' +tagforfiledate1 +'_'+tagforfiledate2+'.nc',True,result.model.spa_mean,result.obs.spa_mean)
+	print 65*'-'
+	print 'Spatial mean stat written to'+rep_ecriture+'/'+tagforfilename+tagforfiledate1 +'_'+tagforfiledate2+'.nc'
+	 # Nettoyage
 	gc.collect()
         
     if config.get('Statistics', 'temporal_std') == 'True':    
         # -- it works !
-        print 25*'-'
+        print 65*'-'
         print ' Calcul de la std en chaque point geographique'
-        result.model.temporal_std()
-        print 25*'-'
-        result.obs.temporal_std()
-        
-        #kwplot = dict(vmin=0, vmax=4, nmax = 30, colorbar_extend='max')
-        #P.figure()
-        #map(result.model.temp_std, title='Model - std(SST(t)) - '+tag,  show=False,  clabel_hide=True, **kwplot)
-        #savefigs(FIG_DIR+'/model_temporal_std_'+tagforfilename)
-        #P.close()
-        #P.figure()
-        #map(result.obs.temp_std, title='Observation - std(SST(t)) - '+tag, show=False,  clabel_hide=True, **kwplot)
-        #savefigs(FIG_DIR+'/obs_temporal_std_'+tagforfilename)
-        #P.close()
-
+        result.temporal_std()
+        print 65*'-'
+     
+       
 	kwplot = dict(vmin=result.obs.temp_std.min(), vmax=result.obs.temp_std.max(), nmax = 30, colorbar_extend='max')
 	P.figure()
 	map(result.model.temp_std, title='Model - std(SST(t))',  show=False,  clabel_hide=True, **kwplot)
-	savefigs(FIG_DIR+'/model_temporal_std')
+	savefigs(FIG_DIR+'/model_temporal_std_'+ tagforfilename+'_'+tagforfiledate1+'_' +tagforfiledate2)
 	P.close()
 	P.figure()
 	map(result.obs.temp_std, title='Observation - std(SST(t))', show=False,  clabel_hide=True, **kwplot)
-	savefigs(FIG_DIR+'/obs_temporal_std')
+	savefigs(FIG_DIR+'/obs_temporal_std_'+ tagforfilename+'_'+tagforfiledate1+'_' +tagforfiledate2)
 	P.close()
-
-
-        # Nettoyage
+	
+	  #Ecriture du fichier netcdf
+	result.model.temp_std = cdms2.createVariable(result.model.temp_std, typecode='f',id='SST_model', attributes=dict(long_name='Temporal Deviation of Modelled Sea Surface Temperature',standard_name='spa_std_model_sst',units='degres celisus',valid_min='-30.',valid_max='30.'))
+	result.obs.temp_std=cdms2.createVariable(result.obs.temp_std, typecode='f',id='SST_obs', attributes=dict(long_name='Temporal Deviation of Observed Sea Surface Temperature',standard_name='spa_std_obs_sst',units='degres celsius',valid_min='-30.',valid_max='30.'))
+	write_nc_cf( 'model_obs_'+tagforfilename+'_temp_std_' +tagforfiledate1 +'_'+tagforfiledate2+'.nc',True,result.model.temp_std,result.obs.temp_std)
+	print 65*'-'
+	print 'Temperature std stat written to'+rep_ecriture+'/'+tagforfilename+tagforfiledate1 +'_'+tagforfiledate2+'.nc'
+	print 65*'-'
+	  # Nettoyage
         result.obs.temp_std=[]
         result.model.temp_std=[]
         gc.collect()
@@ -558,18 +526,6 @@ def detailedstat(result,tag,SCRIPT_DIR,FIG_DIR):
         print ' - Calcul de l ecart type pour le modele et les observations pour chaque pas de temps - '
         print 25*'-'
         result.spatial_std()       
-        # Trace des resultats
-        #fig = figure()
-        #ax = fig.add_axes([0.15, 0.15, 0.75, 0.75])
-        #x = datestr2num(strtime(result.obs.spa_std.getTime()))
-        #title('Spatial STD over the domain - '+tag)
-        #ylabel(result.obs.units)
-        #ax.plot_date(x,result.obs.spa_std.data, color='r', marker=' ', ls='-')
-        #ax.plot_date(x,result.model.spa_std.data, color='b', marker=' ', ls='--')  
-        #ax.legend(('Observations',  'Model'),  loc = 'upper right',  shadow = True,  fancybox=True)
-        #fig.autofmt_xdate()
-        #savefigs(FIG_DIR+'/result_spatial_statstd_'+tagforfilename)
-        #close()
         
         fig = figure()
 	ax = fig.add_axes([0.15, 0.15, 0.75, 0.75])
@@ -580,10 +536,17 @@ def detailedstat(result,tag,SCRIPT_DIR,FIG_DIR):
 	ax.plot_date(x,result.model.spa_std.data, marker='o', color='b',  markerfacecolor='b',xdate=True)  
 	ax.legend(('Observations',  'Model'),  loc = 'upper right',  shadow = True,  fancybox=True)
 	fig.autofmt_xdate()
-	savefigs(FIG_DIR+'/result_spatial_statstd')
+	savefigs(FIG_DIR+'/result_spatial_statstd_'+ tagforfilename+'_'+tagforfiledate1+'_' +tagforfiledate2)
 	close()
         
-        # Nettoyage
+        
+	    #Ecriture du fichier netcdf
+        result.model.spa_std = cdms2.createVariable(result.model.spa_std, typecode='f',id='SST_model', attributes=dict(long_name='Standard Deviation of Modelled Sea Surface Temperature',standard_name='std_model_sst',units='D_C',valid_min='-30.',valid_max='30.'))
+	result.obs.spa_std=cdms2.createVariable(result.obs.spa_std, typecode='f',id='SST_obs', attributes=dict(long_name='Standard Deviation of Observed Sea Surface Temperature',standard_name='std_obs_sst',units='D_C',valid_min='-30.',valid_max='30.'))
+	write_nc_cf('model_obs_'+tagforfilename+'_spa_std_' +tagforfiledate1 +'_'+tagforfiledate2+'.nc',True,result.model.spa_std,result.obs.spa_std)
+        print 'Temperature spatial std stat written to'+rep_ecriture+'/'+tagforfilename+tagforfiledate1 +'_'+tagforfiledate2+'.nc'
+                
+	    # Nettoyage
         result.obs.spa_std=[]
         result.model.spa_std=[]
         gc.collect()
@@ -608,21 +571,12 @@ def detailedstat(result,tag,SCRIPT_DIR,FIG_DIR):
 	ax.plot_date(x,np.zeros(result.obs.spa_mean.data.shape), 'k:',xdate=True)
         
 	fig.autofmt_xdate()
-	savefigs(FIG_DIR+'/result_evol_bias')
+	savefigs(FIG_DIR+'/result_evol_bias_'+ tagforfilename+'_'+tagforfiledate1+'_' +tagforfiledate2)
 	close()
-        
-        ## Trace des resultats
-        #fig = figure()
-        #ax = fig.add_axes([0.15, 0.15, 0.75, 0.75])
-        #x = datestr2num(strtime(result.obs.spa_mean.getTime()))
-        #title('Mean bias over the domain (<E> = <OBS> - <MODEL>) - '+tag)
-        #ylabel(result.obs.units)
-        #ax.plot_date(x,result.obs.spa_mean.data-result.model.spa_mean.data, marker=' ', ls='-')
-        #ax.plot_date(x,np.zeros(result.obs.spa_mean.data.shape), 'k:')
-        
-        #fig.autofmt_xdate()
-        #savefigs(FIG_DIR+'/result_evol_bias_'+tagforfilename)
-        #close()
+	
+	evol_biais=cdms2.createVariable(result.obs.spa_mean.data-result.model.spa_mean.data ,typecode='f',id='SST_bias', attributes=dict(long_name='Temporal Evolution of the Bias between Observed and Modelled Sea Surface Temperature',standard_name='bias_sst',units='D_C',valid_min='-30.',valid_max='30.'))
+	write_nc_cf('model_obs_'+tagforfilename+'_evol_biais_' +tagforfiledate1 +'_'+tagforfiledate2+'.nc',varin1=evol_biais )
+        print 'Evolution of Bias stat written to'+rep_ecriture+'/'+tagforfilename+tagforfiledate1 +'_'+tagforfiledate2+'.nc'
 
         # Nettoyage
         result.obs.spa_mean=[]
@@ -638,14 +592,7 @@ def detailedstat(result,tag,SCRIPT_DIR,FIG_DIR):
 	    result.model.temporal_mean()       
 	    result.obs.temporal_mean()
         interm = result.obs.temp_mean-result.model.temp_mean
-        
-        ##map(result.model.temp_mean, res='c', show=False)        
-        #P.figure()
-        #kwplot = dict(vmin=-2, vmax=2, nmax=20)
-        #map(interm, title='Mean bias over the domain (<E> = <OBS> - <MODEL>) - '+tag,  show=False,  clabel_hide=True,  **kwplot)
-        #savefigs(FIG_DIR+'/result_mean_bias_'+tagforfilename)
-        #P.close()             
-        
+
         bias_list=np.array([-10,-5,-4,-3,-2,-1,-0.5,0.5,1,2,3,4,5,10])        
         # - normalisation
         norm = StepsNorm(bias_list)        
@@ -655,9 +602,14 @@ def detailedstat(result,tag,SCRIPT_DIR,FIG_DIR):
         #kwplot = dict(vmin=-abs(interm).max(), vmax=abs(interm).max(), nmax=20)
         kwplot = dict(cmap=cmap_magic(bias_list,anomaly=True), vmin=bias_list.min(), vmax=bias_list.max(), levels=bias_list, norm=norm, colorbar_extend='both')
         map(interm, title='Mean bias over the domain (<E> = <OBS> - <MODEL>)',  show=False,  clabel_hide=True,  **kwplot)
-        savefigs(FIG_DIR+'/result_mean_bias')
+        savefigs(FIG_DIR+'/result_mean_bias_'+ tagforfilename+'_'+tagforfiledate1+'_' +tagforfiledate2)
         P.close()  
         
+        #Ecriture du fichier netcdf   
+	mean_biais=cdms2.createVariable(interm ,typecode='f',id='SST_bias', attributes=dict(long_name='Mean Bias between Observed and Modelled (<Obs>-<Mod>) Sea Surface Temperature',standard_name='bias_sst',units='D_C',valid_min='-30.',valid_max='30.'))
+	write_nc_cf('model_obs_'+tagforfilename+'_mean_biais_' +tagforfiledate1 +'_'+tagforfiledate2+'.nc',varin1=mean_biais)
+        print 'Mean Bias stat written to'+rep_ecriture+'/'+tagforfilename+tagforfiledate1 +'_'+tagforfiledate2+'.nc'
+	
         # Nettoyage
         result.obs.temp_mean=[]
         result.model.temp_mean=[]   
@@ -667,33 +619,27 @@ def detailedstat(result,tag,SCRIPT_DIR,FIG_DIR):
         print 25*'-'
         print ' - Calcul du biais minimum et maximum '        
         print 25*'-'
-        result.model.bias_extrema()
-        result.obs.bias_extrema()
-        #P.figure()
-        #kwplot = dict(vmin=-abs(result.biasmin).max(), vmax=abs(result.biasmin).max())
-        #map(result.biasmin, title='Minimum bias - '+tag,  show=False,  clabel_hide=True,  **kwplot)
-        #savefigs(FIG_DIR+'/result_min_bias_'+tagforfilename)        
-        #P.close()       
+        result.bias_extrema()
         
-        #P.figure()
-        #kwplot = dict(vmin=-abs(result.biasmax).max(), vmax=abs(result.biasmax).max())
-        #map(result.biasmax, title='Maximum bias - '+tag,  show=False,  clabel_hide=True,  **kwplot)
-        #savefigs(FIG_DIR+'/result_max_bias_'+tagforfilename)        
-        #P.close()  
-	
 	P.figure()
 	kwplot = dict(vmin=-abs(result.biasmin).max(), vmax=abs(result.biasmin).max())
 	map(result.biasmin, title='Minimum bias',  show=False,  clabel_hide=True,  **kwplot)
-	savefigs(FIG_DIR+'/result_min_bias')        
+	savefigs(FIG_DIR+'/result_min_bias_'+ tagforfilename+'_'+tagforfiledate1+'_' +tagforfiledate2)        
 	P.close()       
         
 	P.figure()
 	kwplot = dict(vmin=-abs(result.biasmax).max(), vmax=abs(result.biasmax).max())
 	map(result.biasmax, title='Maximum bias',  show=False,  clabel_hide=True,  **kwplot)
-	savefigs(FIG_DIR+'/result_max_bias')        
+	savefigs(FIG_DIR+'/result_max_bias_'+ tagforfilename+'_'+tagforfiledate1+'_' +tagforfiledate2)        
 	P.close()  
 	
-       
+	#Ecriture du fichier netcdf	ne marche pas
+	#print result.bias_extrema
+        result.biasmax=cdms2.createVariable(result.biasmax,typecode='f',id='SST_biasmax', attributes=dict(long_name='Maximum Bias between Observed and Modelled (<Obs>-<Mod>) Sea Surface Temperature',standard_name='max_bias',units='D_C',valid_min='-30.',valid_max='30.'))
+        result.biasmin=cdms2.createVariable(result.biasmin,typecode='f',id='SST_biasmin', attributes=dict(long_name='Minimum Bias between Observed and Modelled (<Obs>-<Mod>) Sea Surface Temperature',standard_name='min_bias',units='D_C',valid_min='-30.',valid_max='30.'))
+	write_nc_cf('model_obs_'+tagforfilename+'_extreme_biais_' +tagforfiledate1 +'_'+tagforfiledate2+'.nc',True,result.biasmin,result.biasmax)
+        print 'Extreme Bias stat written to'+rep_ecriture+'/'+tagforfilename+tagforfiledate1 +'_'+tagforfiledate2+'.nc'
+	
         # Nettoyage
         result.biasmin = []
         result.biasmax = []
@@ -703,23 +649,22 @@ def detailedstat(result,tag,SCRIPT_DIR,FIG_DIR):
         print 25*'-'
         print ' - Calcul du biais systematique '
         print 25*'-'
-        result.model.systematic_bias()
-        result.obs.systematic_bias()
-        #P.figure()
-        #kwplot = dict(vmin=-1, vmax=1,  levels=[-1, -0.1,0.1,  1], colorbar_ticks=[1,0,-1])
-        #map(result.biassyst, title='Systematic bias - '+tag+'\n (+1: model underestimation, -1: model overestimation)',  show=False,  clabel_hide=True,  **kwplot)
-        #savefigs(FIG_DIR+'/result_syst_bias_'+tagforfilename)        
-        #P.close()
-        
+        result.systematic_bias()
+
         P.figure()
 	kwplot = dict(vmin=-1, vmax=1,  levels=[-1, -0.1,0.1,  1], colorbar_ticks=[1,0,-1])
 	map(result.biassyst, title='Systematic bias\n (+1: model underestimation, -1: model overestimation)',  show=False,  clabel_hide=True,  **kwplot)
-	savefigs(FIG_DIR+'/result_syst_bias')        
+	savefigs(FIG_DIR+'/result_syst_bias_'+ tagforfilename+'_'+tagforfiledate1+'_' +tagforfiledate2)        
 	P.close()
         
+        #Ecriture du fichier netcdf
         
+	sys_bias=cdms2.createVariable(result.biassyst, typecode='f',id='SYS_BIAS', attributes=dict(long_name='Systemic bias between Observed and Modelled Sea Surface Temperature',standard_name='bias_systematic',units='D_C',valid_min='-100.',valid_max='100.'))
+	write_nc_cf('model_obs_'+tagforfilename+'_systematic_bias_' +tagforfiledate1 +'_'+tagforfiledate2+'.nc',varin1=sys_bias )
+	print 'Systematic bias stat written to'+rep_ecriture+'/'+tagforfilename+tagforfiledate1 +'_'+tagforfiledate2+'.nc'
         # Nettoyage
         result.biassyst = []
+        sys_bias=[]
         gc.collect()
 
         
@@ -729,24 +674,25 @@ def detailedstat(result,tag,SCRIPT_DIR,FIG_DIR):
         print ' - Extractions des minima et maxima - '
         print 25*'-'
         result.extrema()
-
+        
+	
     if config.get('Statistics', 'obs_coverage') == 'True':    
         # -- it works !
         print 25*'-'
         print ' - Calcul du taux de couverture des observations en chaque point geographique - '
         print 25*'-'
         result.obs_coverage()        
-        #P.figure()
-        #map(result.obs_cov,  title='Observation coverage during the period - '+tag, show=False,  clabel_hide=True, nmax=10)
-        #savefigs(FIG_DIR+'/result_obs_coverage_'+tagforfilename)
-        #P.close()
 
 	P.figure()
 	map(result.obs_cov,  title='Observation coverage during the period', show=False,  clabel_hide=True)
-	savefigs(FIG_DIR+'/result_obs_coverage')
+	savefigs(FIG_DIR+'/result_obs_coverage_'+ tagforfilename+'_'+tagforfiledate1+'_' +tagforfiledate2)
 	P.close()
     
-
+	#Ecriture du fichier netcdf
+	result.obs_cov=cdms2.createVariable(result.obs_cov, typecode='f',id='Obs_Cov', attributes=dict(long_name='Observation coverage',standard_name='observation_coverage',units='%',valid_min='0.',valid_max='100.'))
+	write_nc_cf('obs_'+tagforfilename+'_obs_coverage_' +tagforfiledate1 +'_'+tagforfiledate2+'.nc',varin1= result.obs_cov )
+	print 'Observation coverage stat written to'+rep_ecriture+'/'+tagforfilename+tagforfiledate1 +'_'+tagforfiledate2+'.nc'
+	
         # Nettoyage
         result.obs_cov = []
         gc.collect()
@@ -759,22 +705,7 @@ def detailedstat(result,tag,SCRIPT_DIR,FIG_DIR):
         print 25*'-'
         result.spatial_obs_coverage()        
         
-        # Ne fonctionne pas !!!!
-        #select = dict(color='g', shadow=True, ylabel=result.obs_spacov.units , show=False,  title='Observation coverage following the time period period')
-        #curve2(result.obs_spacov, **select)
-        
-        # Trace des resultats
-        #fig = figure()
-        #ax = fig.add_axes([0.15, 0.15, 0.75, 0.75])
-        #x = datestr2num(strtime(result.obs_spacov.getTime()))
-        #title('Observation coverage following the time period - '+tag)
-        #ylabel('Number of observations')
-        #ax.plot_date(x,result.obs_spacov.data,linestyle='-', color='r', marker=' ')
-        ##ylim(0, 100)
-        #fig.autofmt_xdate()
-        #savefigs(FIG_DIR+'/result_obs_spatial_coverage_'+tagforfilename)
-        #close()
-        
+       
         fig = figure()
 	ax = fig.add_axes([0.15, 0.15, 0.75, 0.75])
 	x = datestr2num(strtime(result.obs_spacov.getTime()))
@@ -783,9 +714,13 @@ def detailedstat(result,tag,SCRIPT_DIR,FIG_DIR):
 	ax.plot_date(x,result.obs_spacov.data,linestyle='-', marker='o', color='r',  markerfacecolor='b',xdate=True)
 	ylim()
 	fig.autofmt_xdate()
-	savefigs(FIG_DIR+'/result_obs_spatial_coverage')
+	savefigs(FIG_DIR+'/result_obs_spatial_coverage_'+ tagforfilename+'_'+tagforfiledate1+'_' +tagforfiledate2)
 	close()
         
+        #Ecriture du fichier netcdf
+        result.obs_spacov=cdms2.createVariable(result.obs_spacov, typecode='f',id='Obs_Cov', attributes=dict(long_name='Spatial observation coverage',standard_name='spatial_observation_coverage',units='%',valid_min='0.',valid_max='100.'))
+	write_nc_cf('obs_'+tagforfilename+'_spatial_obs_coverage_' +tagforfiledate1 +'_'+tagforfiledate2+'.nc',varin1=result.obs_spacov )
+	print 'Spatial observation coverage stat written to'+rep_ecriture+'/'+tagforfilename+tagforfiledate1 +'_'+tagforfiledate2+'.nc'
         # Nettoyage
         result.obs_spacov = []
         gc.collect()
@@ -798,16 +733,16 @@ def detailedstat(result,tag,SCRIPT_DIR,FIG_DIR):
         print ' - Calcul de la RMS temporelle - '
         print 25*'-'
         result.temporal_rms()
-        #P.figure()
-        #map(result.temp_rms, title='RMS - '+tag+'\n (uncentered and biased)', show=False,  clabel_hide=True, vmin=0., vmax=2.)
-        #savefigs(FIG_DIR+'/result_temporal_rms_'+tagforfilename)
-        #P.close()
          
         P.figure()
 	map(result.temp_rms, title='RMS\n (uncentered and biased)', show=False,  clabel_hide=True)
-	savefigs(FIG_DIR+'/result_temporal_rms')
+	savefigs(FIG_DIR+'/result_temporal_rms_'+ tagforfilename+'_'+tagforfiledate1+'_' +tagforfiledate2)
 	P.close()
-         
+        
+        #Ecriture du fichier netcdf
+        result.temp_rms=cdms2.createVariable(result.temp_rms, typecode='f',id='Temporal_Rms', attributes=dict(long_name='Temporal RMS',standard_name='temporal_rms',units='D_C',valid_min='-100.',valid_max='100.'))
+	write_nc_cf('model_obs_'+tagforfilename+'_temporal_rms_' +tagforfiledate1 +'_'+tagforfiledate2+'.nc',varin1=result.temp_rms )
+	print 'Temporal Rms stat written to'+rep_ecriture+'/'+tagforfilename+tagforfiledate1 +'_'+tagforfiledate2+'.nc'
         # Nettoyage
         result.temp_rms = []
         gc.collect()
@@ -819,16 +754,16 @@ def detailedstat(result,tag,SCRIPT_DIR,FIG_DIR):
         print ' - Calcul de la RMS temporelle  centree- '
         print 25*'-'
         result.temporal_rmsc()
-        #P.figure()
-        #map(result.temp_rmsc, title='RMS - '+tag+'\n (centered and biased)', show=False,  clabel_hide=True, vmin=0., vmax=2.)
-        #savefigs(FIG_DIR+'/result_temporal_rmsc_'+tagforfilename)
-        #P.close()
        
         P.figure()
 	map(result.temp_rmsc, title='RMS\n (centered and biased)', show=False,  clabel_hide=True)
-	savefigs(FIG_DIR+'/result_temporal_rmsc')
+	savefigs(FIG_DIR+'/result_temporal_rmsc_'+ tagforfilename+'_'+tagforfiledate1+'_' +tagforfiledate2)
 	P.close()
        
+        #Ecriture du fichier netcdf
+        result.temp_rmsc=cdms2.createVariable(result.temp_rmsc, typecode='f',id='Temporal_Rmsc', attributes=dict(long_name='Temporal RMSC',standard_name='temporal_rmsc',units='D_C',valid_min='-100.',valid_max='100.'))
+	write_nc_cf('model_obs_'+tagforfilename+'_temporal_rmsc_' +tagforfiledate1 +'_'+tagforfiledate2+'.nc',varin1=result.temp_rmsc )
+	print 'Temporal Rmsc stat written to'+rep_ecriture+'/'+tagforfilename+tagforfiledate1 +'_'+tagforfiledate2+'.nc'
         # Nettoyage
         result.temp_rmsc = []
         gc.collect()
@@ -841,17 +776,6 @@ def detailedstat(result,tag,SCRIPT_DIR,FIG_DIR):
         print 25*'-'
         result.spatial_rms()       
         
-        ## Trace des resultats
-        #fig = figure()
-        #ax = fig.add_axes([0.15, 0.15, 0.75, 0.75])
-        #x = datestr2num(strtime(result.spa_rms.getTime()))
-        #title('Spatial RMS over the domain - '+tag)
-        #ylabel(result.obs.units)
-        #ax.plot_date(x,result.spa_rms.data, marker='o', color='r',  markerfacecolor='r', ls='-')
-        #fig.autofmt_xdate()
-        #savefigs(FIG_DIR+'/result_spatial_statrms_'+tagforfilename)
-        #close()
-      
 	fig = figure()
 	ax = fig.add_axes([0.15, 0.15, 0.75, 0.75])
 	x = datestr2num(strtime(result.spa_rms.getTime()))
@@ -859,9 +783,13 @@ def detailedstat(result,tag,SCRIPT_DIR,FIG_DIR):
 	ylabel(result.obs.units)
 	ax.plot_date(x,result.spa_rms.data, marker='o', color='r',  markerfacecolor='r',xdate=True)
 	fig.autofmt_xdate()
-	savefigs(FIG_DIR+'/result_spatial_statrms')
+	savefigs(FIG_DIR+'/result_spatial_stat_rms_'+ tagforfilename+'_'+tagforfiledate1+'_' +tagforfiledate2)
 	close()
-      
+        
+        #Ecriture du fichier netcdf
+        result.spa_rms=cdms2.createVariable(result.spa_rms, typecode='f',id='Spatial_Rms', attributes=dict(long_name='Spatial RMS',standard_name='spatial_rms',units='D_C',valid_min='-100.',valid_max='100.'))
+	write_nc_cf('model_obs_'+tagforfilename+'_spatial_rms_' +tagforfiledate1 +'_'+tagforfiledate2+'.nc',varin1=result.spa_rms )
+	print 'Spatial Rms stat written to'+rep_ecriture+'/'+tagforfilename+tagforfiledate1 +'_'+tagforfiledate2+'.nc'        
         # Nettoyage
         result.spa_rms = []
         gc.collect()
@@ -874,16 +802,6 @@ def detailedstat(result,tag,SCRIPT_DIR,FIG_DIR):
 	print 25*'-' 
         result.spatial_rmsc()       
         
-        ## Trace des resultats
-        #fig = figure()
-        #ax = fig.add_axes([0.15, 0.15, 0.75, 0.75])
-        #x = datestr2num(strtime(result.spa_rmsc.getTime()))
-        #title('Spatial centered RMS over the domain - '+tag)
-        #ylabel(result.obs.units)
-        #ax.plot_date(x,result.spa_rmsc.data, marker='o', color='r',  markerfacecolor='r', ls='-')
-        #fig.autofmt_xdate()
-        #savefigs(FIG_DIR+'/result_spatial_statrmsc_'+tagforfilename)
-        #close()
           
         fig = figure()
 	ax = fig.add_axes([0.15, 0.15, 0.75, 0.75])
@@ -892,9 +810,13 @@ def detailedstat(result,tag,SCRIPT_DIR,FIG_DIR):
 	ylabel(result.obs.units)
 	ax.plot_date(x,result.spa_rmsc.data, marker='o', color='r',  markerfacecolor='r',xdate=True)
 	fig.autofmt_xdate()
-	savefigs(FIG_DIR+'/result_spatial_statrmsc')
+	savefigs(FIG_DIR+'/result_spatial_statrmsc_'+ tagforfilename+'_'+tagforfiledate1+'_' +tagforfiledate2)
 	close()
         
+        #Ecriture du fichier netcdf
+        result.spa_rmsc=cdms2.createVariable(result.spa_rmsc, typecode='f',id='Spatial_Rmsc', attributes=dict(long_name='Spatial RMSC',standard_name='spatial_rmsc',units='D_C',valid_min='0.',valid_max='30.'))
+	write_nc_cf('model_obs_'+tagforfilename+'_spatial_rmsc_' +tagforfiledate1 +'_'+tagforfiledate2+'.nc',varin1=result.spa_rmsc)
+	print 'Spatial Rmsc stat written to'+rep_ecriture+'/'+tagforfilename+tagforfiledate1 +'_'+tagforfiledate2+'.nc'            
         # Nettoyage
         result.spa_rmsc = []
         gc.collect()
@@ -905,19 +827,74 @@ def detailedstat(result,tag,SCRIPT_DIR,FIG_DIR):
         print 10*'-'
         print ' - Calcul de la Correlation temporelle - '
         result.temporal_corr()
-        #P.figure()
-        #map(result.temp_corr, title='Time series correlation - '+tag, show=False,  clabel_hide=True)
-        #savefigs(FIG_DIR+'/result_temporal_corr_'+tagforfilename)
-        #P.close()
 
 	P.figure()
 	map(result.temp_corr, title='Time series correlation', show=False,  clabel_hide=True)
-	savefigs(FIG_DIR+'/result_temporal_corr')
+	savefigs(FIG_DIR+'/result_temporal_corr_'+ tagforfilename+'_'+tagforfiledate1+'_' +tagforfiledate2)
 	P.close()
 	
-
+	#Ecriture du fichier netcdf
+        result.temp_corr=cdms2.createVariable(result.temp_corr, typecode='f',id='Temp_corr', attributes=dict(long_name='Temporal_correlation',standard_name='temporal_corr',units='%',valid_min='0.',valid_max='100.'))
+	write_nc_cf('model_Obs_'+tagforfilename+'_temp_corr_' +tagforfiledate1 +'_'+tagforfiledate2+'.nc',varin1=result.temp_corr)
+	print 'Temporal Correlation stat written to'+rep_ecriture+'/'+tagforfilename+tagforfiledate1 +'_'+tagforfiledate2+'.nc'       	
         # Nettoyage
         result.temp_corr = []
         gc.collect()
     
+    if config.get('Report', 'rep_html') == 'True':
+	print 65*'-'
+	print ' -- Generation du Rapport de Validation --    ' 
+	print 65*'-'
+	#title = "Test(1)"
+	#header = ""
+	#footer = ""
+	config2 = ConfigParser.RawConfigParser()
+	config2.read(os.path.join(SCRIPT_DIR,'config.cfg'))
+	rr = config2.get('Observations', 'product')
+        rr = rr.replace(' ', '_')    
+	ttforintro = '<u>Observations</u>: %(#)s <br /> <u>Model</u>: %(##)s %(###)s <br /><hr>' %{'#':result.obs.long_name, '##':config2.get('Model Description', 'name') , '###':result.model.long_name}
+	  
+	
+	if config2.get('Statistics', 'extrema') == 'True' and config2.get('Statistics', 'to_do') == 'True':
+	    mimamodel = '=> Modelled minimum and maximum: %(#)6.3f / %(##)6.3f %(u)s' %{'#':result.model.extrema[0], '##':result.model.extrema[1], 'u':result.model.units}
+	    mimaobs = '=> Observed minimum and maximum: %(###)6.3f / %(####)6.3f %(u)s'  %{'###':result.obs.extrema[0],'####':result.obs.extrema[1], 'u':result.obs.units}
+	else:
+	    mimamodel = ''
+	    mimaobs = ''
+		
+	images_control = glob.glob(os.path.join(FIG_DIR,'control_*'+tagforfiledate1 +'_'+tagforfiledate2+'.png'))
+	for i,pat in enumerate(images_control):
+	    (pa,fil)=os.path.split(images_control[i])
+	    images_control[i] = fil   
+	
+	images_results = glob.glob(os.path.join(FIG_DIR,'*_mean'+tagforfilename+'_'+tagforfiledate1 +'_'+tagforfiledate2+'.png'))
+	images_results.extend(glob.glob(os.path.join(FIG_DIR,'*_std'+tagforfilename+'_'+tagforfiledate1 +'_'+tagforfiledate2+'.png')))
+	images_results.extend(glob.glob(os.path.join(FIG_DIR,'*_statmean'+tagforfilename+'_'+tagforfiledate1 +'_'+tagforfiledate2+'.png')))
+	images_results.extend(glob.glob(os.path.join(FIG_DIR,'*_statstd'+tagforfilename+'_'+tagforfiledate1 +'_'+tagforfiledate2+'.png')))
+	images_results.extend(glob.glob(os.path.join(FIG_DIR,'*_mean_bias'+tagforfilename+'_'+tagforfiledate1 +'_'+tagforfiledate2+'.png')))
+	images_results.extend(glob.glob(os.path.join(FIG_DIR,'*_syst_bias'+tagforfilename+'_'+tagforfiledate1 +'_'+tagforfiledate2+'.png')))
+	images_results.extend(glob.glob(os.path.join(FIG_DIR,'*_min_bias'+tagforfilename+'_'+tagforfiledate1 +'_'+tagforfiledate2+'.png')))
+	images_results.extend(glob.glob(os.path.join(FIG_DIR,'*_max_bias'+tagforfilename+'_'+tagforfiledate1 +'_'+tagforfiledate2+'.png')))
+	images_results.extend(glob.glob(os.path.join(FIG_DIR,'*_evol_bias'+tagforfilename+'_'+tagforfiledate1 +'_'+tagforfiledate2+'.png')))
+	images_results.extend(glob.glob(os.path.join(FIG_DIR,'*_corr'+tagforfilename+'_'+tagforfiledate1 +'_'+tagforfiledate2+'.png')))
+	images_results.extend(glob.glob(os.path.join(FIG_DIR,'*rms'+tagforfilename+'_'+tagforfiledate1 +'_'+tagforfiledate2+'.png')))
+	images_results.extend(glob.glob(os.path.join(FIG_DIR,'*_coverage'+tagforfilename+'_'+tagforfiledate1 +'_'+tagforfiledate2+'.png')))
+	#images_results.extend(glob.glob(os.path.join(FIG_DIR,'result_*.png')))
 
+	for i,pat in enumerate(images_results):
+	    (pa,fil)=os.path.split(images_results[i])
+	    images_results[i] = fil
+
+
+	
+	if images_control == []:
+	    images_control = None
+	    
+	if images_results == []:
+	    images_results = None
+	
+	html_tools.simplereporthtml(images_results=images_results, images_control=images_control,  mimamodel=mimamodel, mimaobs=mimaobs,  intro=ttforintro,  
+				    file_out=FIG_DIR+'/'+rr+'_'+tagforfilename+'.html')
+	
+	
+    

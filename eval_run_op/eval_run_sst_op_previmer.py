@@ -32,18 +32,17 @@ from vacumm.data.model.mars.get_cp import  get_cp_f1
 from vacumm.data.misc.handle_directories import make_directories
 from vacumm.validator.valid.ValidXYT import ValidXYT
 from vacumm.misc.plot import map,  curve, curve2,  savefigs
-from vacumm.misc.atime import add, strtime, ch_units, are_same_units, comptime
+from vacumm.misc.atime import add, strtime, ch_units, are_same_units, comptime, strftime
 from vacumm.misc.axes import create_time,  set_order
 from vacumm.misc.grid.regridding import regrid1d, regrid2d
 from vacumm.misc.io import ncread_best_estimate
-#from vacumm.misc.grid.regridding import regrid1d,  regrid2d,  interp2d
+
 import glob
 from vacumm.markup import html_tools
 from vacumm.misc.color import cmap_custom, StepsNorm, cmap_magic
 from global_stat import allstat, regionalstat, detailedstat
-# Remplacer les import * par des as ....
 
-#global model, obs
+
 
 SCRIPT_DIR=os.getcwd()
 
@@ -58,7 +57,7 @@ FIG_DIR = os.path.join(SCRIPT_DIR,'Figures')
 FIG_DIR = os.path.join(FIG_DIR,rr)
 	
 andeb = config.getint('Time Period', 'andeb')
-anfin = config.getint('Time Period', 'anfin')		
+anfin = config.getint('Time Period', 'anfin')
 mdeb = config.getint('Time Period', 'mdeb')
 mfin = config.getint('Time Period', 'mfin')
 jdeb = config.getint('Time Period', 'jdeb')
@@ -72,7 +71,15 @@ print 'La derniere heure consideree est forcee 23h du dernier jour !!!'
 hfin = 23
 
 ctfin=cdtime.comptime(anfin,mfin,jfin,hfin,0,0)
-
+if config.get('Statistics', 'allstat') == 'True':
+    tag= '_all'
+if config.get('Statistics', 'regionalstat') == 'True':
+    tag= '_regional'
+tag1= strftime('%Y%m%d',ctdeb)
+tag2= strftime('%Y%m%d',ctfin)
+tagforfiledate1 = '_'.join(tag1.split(' ')).lower()    
+tagforfiledate2 = '_'.join(tag2.split(' ')).lower()
+tagforfilename = '_'.join(tag.split(' ')).lower()
 # ouverture, lecture des fichiers, extraction de la variable temperature de la couche de surface
 
 # lecture de plusieurs fichiers entre ctdeb et ctfin et chargement de la variable TEMP de la couche de surface (dernier indice : 30)
@@ -104,7 +111,7 @@ if config.get('Model Description', 'name') == 'mfs':
 # a faire : test sur le contenu du tableau ...
 # Supprime la dimension à 1 (vertical level dans ce cas)
 
-# Repositionnement dans le repertoire 'bin' de lansavefigs(FIG_DIR+'/control_interp_time')cement du script
+
 
 
 # ------------------------------------------------------------
@@ -156,7 +163,7 @@ if config.get('Control', 'tseries') == 'True':
     fig.autofmt_xdate()
     #show()
     # #P.show()
-    savefigs(FIG_DIR+'/control_interp_time')
+    savefigs(FIG_DIR+'/control_interp_time'+'_' +tagforfiledate1 +'_'+tagforfiledate2)
     close()
 
 print '-- Interpolation spatiale --'
@@ -194,7 +201,7 @@ if config.get('Control', 'interp_map') == 'True':
 	tt = 'Obs - after spatial interpolation\n (last time step)'
     map(obsregridspatial[-1, :, :], title=tt,  subplot=224,yhide=1,m=m, **kwplot)
     #add_grid(cgridi, lw=.7, alpha=.3)
-    savefigs(FIG_DIR+'/control_interp_map')
+    savefigs(FIG_DIR+'/control_interp_map'+'_' +tagforfiledate1 +'_'+tagforfiledate2)
     P.close()
 
 print 65*'-'
@@ -212,75 +219,15 @@ if config.get('Statistics', 'to_do') == 'True':
     # Le choix du Valid??? depend des champs lus ... ici SST en fonction de lon lat time => XYT
     result=ValidXYT(modelregridontime, obsregridspatial) 
     #Appel de global_stat /allstat ou /seasonalstat ou /monthlystat ou /regionalstat
-    allstat(modelregridontime, obsregridspatial, FIG_DIR, SCRIPT_DIR)  
-        
-
-if config.get('Report', 'rep_html') == 'True':
-    print 65*'-'
-    print ' -- Generation du Rapport de Validation --    ' 
-    print 65*'-'
-    #title = "Test(1)"
-    #header = ""
-    #footer = ""
-    
-    ttforintro = '<u>Observations</u>: %(#)s <br /> <u>Model</u>: %(##)s %(###)s <br /><hr>' %{'#':obs.long_name, '##':config.get('Model Description', 'name') , '###':model.long_name}
-      
-    
-    if config.get('Statistics', 'extrema') == 'True' and config.get('Statistics', 'to_do') == 'True':
-	mimamodel = '=> Modelled minimum and maximum: %(#)6.3f / %(##)6.3f %(u)s' %{'#':result.model.extrema[0], '##':result.model.extrema[1], 'u':model.units}
-	mimaobs = '=> Observed minimum and maximum: %(###)6.3f / %(####)6.3f %(u)s'  %{'###':result.obs.extrema[0],'####':result.obs.extrema[1], 'u':obs.units}
-    else:
-	mimamodel = ''
-	mimaobs = ''
-            
-    images_control = glob.glob(os.path.join(FIG_DIR,'control_*.png'))
-    for i,pat in enumerate(images_control):
-	(pa,fil)=os.path.split(images_control[i])
-	images_control[i] = fil   
-    
-    images_results = glob.glob(os.path.join(FIG_DIR,'*_mean.png'))
-    images_results.extend(glob.glob(os.path.join(FIG_DIR,'*_std.png')))
-    images_results.extend(glob.glob(os.path.join(FIG_DIR,'*_statmean.png')))
-    images_results.extend(glob.glob(os.path.join(FIG_DIR,'*_statstd.png')))
-    images_results.extend(glob.glob(os.path.join(FIG_DIR,'*_mean_bias.png')))
-    images_results.extend(glob.glob(os.path.join(FIG_DIR,'*_syst_bias.png')))
-    images_results.extend(glob.glob(os.path.join(FIG_DIR,'*_min_bias.png')))
-    images_results.extend(glob.glob(os.path.join(FIG_DIR,'*_max_bias.png')))
-    images_results.extend(glob.glob(os.path.join(FIG_DIR,'*_evol_bias.png')))
-    images_results.extend(glob.glob(os.path.join(FIG_DIR,'*_corr.png')))
-    images_results.extend(glob.glob(os.path.join(FIG_DIR,'*rms*.png')))
-    images_results.extend(glob.glob(os.path.join(FIG_DIR,'*_coverage.png')))
-    #images_results.extend(glob.glob(os.path.join(FIG_DIR,'result_*.png')))
-    
-    for i,pat in enumerate(images_results):
-	(pa,fil)=os.path.split(images_results[i])
-	images_results[i] = fil
+    os.chdir(SCRIPT_DIR)
+    if config.get('Statistics', 'allstat') == 'True':
+	allstat(modelregridontime, obsregridspatial, FIG_DIR, SCRIPT_DIR)  
+    #monthlystat(model, obs, FIG_DIR, SCRIPT_DIR)    
+    if config.get('Statistics', 'regionalstat') == 'True':
+	regionalstat(modelregridontime, obsregridspatial, FIG_DIR, SCRIPT_DIR)
+    #seasonalstat(model, obs, FIG_DIR, SCRIPT_DIR)
 
 
-    
-    if images_control == []:
-	images_control = None
-        
-    if images_results == []:
-	images_results = None
-    
-    html_tools.simplereporthtml(images_results=images_results, images_control=images_control,  mimamodel=mimamodel, mimaobs=mimaobs,  intro=ttforintro,  
-                                file_out=FIG_DIR+'/'+rr+'.html')
-    
-    
-if config.get('Output', 'net_cdf') == 'True':
-
-    # Pour produire du NetCDF3
-    cdms2.setNetcdfShuffleFlag(0); cdms2.setNetcdfDeflateFlag(0); cdms2.setNetcdfDeflateLevelFlag(0)
-    def write_nc_cf(varin1,varin2,filename):
-	f = cdms2.open(filename, 'w')
-	f.write(varin1) # ecriture d'une variable
-	f.write(varin2) # ecriture d'une variable
-	creation_date = time.strftime('%Y-%m-%dT%H:%M:%SZ')
-	f.creation_date = creation_date
-	f.title = 'MARS MANGA4000'
-	f.close() # fermeture
-	#-- Probleme a voir ... comment ne pas ecrire les bounds de maniere concise.    
 
 
     

@@ -29,6 +29,9 @@ from vacumm.data.model.mars.get_ftp import  get_ftp_f1
 from vacumm.data.model.mars.get_cp import  get_cp_f1
 from vacumm.data.misc.handle_directories import make_directories
 from vacumm.misc.atime import comptime
+from ConfigParser import SafeConfigParser
+from vacumm.misc.atime import strftime
+
 import glob
 from subprocess import call
 # Remplacer les import * par des as ....
@@ -37,6 +40,7 @@ print 65*'-'
 print ' Validation de la SST '
 print 65*'-'
 
+
 # -- Actions et Environnement de SST (Utilisation de la SST NAR)
 # ----------------------------------------------------------------
 print ' Definition des parametres d environnement '
@@ -44,6 +48,7 @@ print 65*'-'
 
 # ---------------------------------------------------------
 SCRIPT_DIR=os.getcwd()
+print SCRIPT_DIR
 
 config = ConfigParser.RawConfigParser()
 config.read(os.path.join(SCRIPT_DIR,'config.cfg'))    
@@ -51,7 +56,7 @@ model_name = config.get('Model Description', 'name')
 
 # Workdir
 WK_DIR = config.get('Env', 'workdir')
-
+print WK_DIR
 # Creation des repertoires de resultats: Figures/nom_des_donnees/
 if os.path.isdir(SCRIPT_DIR+'/Figures')==False:
         os.mkdir('Figures')
@@ -138,7 +143,14 @@ jfin = config.getint('Time Period', 'jfin')
 hdeb = config.getint('Time Period', 'hdeb')
 hfin = config.getint('Time Period', 'hfin')
 # fin lecture de config.cfg
-
+flagYear=0
+if (andeb==anfin and mdeb>mfin) or (andeb>anfin):
+    print 'la validation concerne une plage de temps non valide (debut ulterieur a la fin)'
+if andeb<anfin:
+    print 'la validation est effectuée sur plusieurs années '
+    flagYear=1
+    
+    #condition dans la lecture des model et obs pour changer de repertoires
 ctdeb=cdtime.comptime(andeb,mdeb,jdeb,hdeb,0,0)
 
 print 'La derniere heure consideree est forcee 23h du dernier jour !!!'
@@ -160,9 +172,33 @@ if config.get('Model Description', 'download') == 'nfs':
     # recuperation f1 via NFS (cp command)
     if config.get('Model Description', 'name') == 'mars_manga':
 	print 'modèle Mars_Manga4000 pris en compte'
+	    
+	if flagYear==1:
+	    diff=anfin-andeb
+	    ctfin=cdtime.comptime(andeb,12,31,23,0,0)
+	    dir_f1=os.path.join(config.get('MARS F1','dir'),config.get('Time Period','andeb')+'/')
+	    get_cp_f1(ctdeb, ctfin, dir_f1)
+	    for i in np.arange(diff):
+		
+		ctdeb=cdtime.comptime(andeb+1,01,01,0,0,0)
+		    
+		if andeb+1==anfin:
+		    ctfin=cdtime.comptime(anfin,mfin,jfin,hfin,0,0)
+		    dir_f1=os.path.join(config.get('MARS F1','dir'),config.get('Time Period','anfin')+'/')
+		    get_cp_f1(ctdeb, ctfin, dir_f1)
+		    print dir_f1
+		else :
+		    ctfin=cdtime.comptime(andeb+1,12,31,23,0,0)
+		    dir_f1=os.path.join(config.get('MARS F1','dir'),config.get('Time Period','andeb'+1)+'/')
+		    get_cp_f1(ctdeb, ctfin, dir_f1)
+		    print dir_f1
+		andeb+=andeb
+		
+	else:
+	    dir_f1= os.path.join(config.get('MARS F1','dir'),config.get('Time Period','andeb')+'/')
+	    get_cp_f1(ctdeb, ctfin, dir_f1)
 	
-	dir_f1= config.get('MARS F1','dir')
-	get_cp_f1(ctdeb, ctfin, dir_f1)
+	
 if config.get('Model Description', 'download') == 'opendap':
     print 'recup via opendap'
     # recuperation via OPENDAP (ncread_best_estimate command)
