@@ -362,39 +362,34 @@ def detailedstat(result,tag,tag1,tag2,SCRIPT_DIR,FIG_DIR):
         ifin=index[0][di>1]
         ideb=index[0][di>1]+di[di>1]
         # On entame le processing de l'image seulement si les données ne sont pas vides.
-        if ideb == [] :
-	    ideb=0
-	    ifin=len(index)
-	elif len(ideb)!=0:
-	      if index[0][0]!=ideb[0]:
+
+	if len(ideb)!=0:
+	      if (index[0][0]!=ideb[0]) or (index[0][-1]!=ideb[-1]):
 		  ideb = np.append(index[0][0],ideb)
-	      if index[0][-1]!=ideb[-1]:
 		  ifin = np.append(ifin,index[0][-1])
-	    
+		  ifin[ifin<len(result.obs.spa_mean.data)-1]=ifin[ifin<len(result.obs.spa_mean.data)-1]+1
 	    ## +1 pour les appels dans les tableaux
-	ifin[ifin<len(result.obs.spa_mean.data)-1]=ifin[ifin<len(result.obs.spa_mean.data)-1]+1
+	else :
+	    ideb= np.append(ideb,0)
+	    ifin= np.append(ifin,len(di))
 	    
 	index = np.where(~np.isnan(result.model.spa_mean.data))
 	di = np.diff(index[0][:])
 	mifin=index[0][di>1]
 	mideb=index[0][di>1]+di[di>1]
-	if mideb ==[]:
-	    mideb=0
-	    mifin=len(index)
-	elif len(ideb)!=0: 
-	    if index[0][0]!=mideb[0]:
+	if len(mideb)!=0: 
+	    if (index[0][0]!=mideb[0]) or (index[0][-1]!=mideb[-1]) :
 		mideb = np.append(index[0][0],mideb)
-	    if index[0][-1]!=mideb[-1]:
 		mifin = np.append(mifin,index[0][-1])
-	    
+		mifin[mifin<len(result.model.spa_mean.data)-1]=mifin[mifin<len(result.model.spa_mean.data)-1]+1    
 	    ## +1 pour les appels dans les tableaux
-	mifin[mifin<len(result.model.spa_mean.data)-1]=mifin[mifin<len(result.model.spa_mean.data)-1]+1                        
-	    
-	  
-	    
+	else:
+	    mideb= np.append(mideb,0)
+	    mifin= np.append(mifin,len(di))                        
 	    ## Boucle sur les differents blocs
 	for ibloc in np.arange(len(ideb)):
-		
+
+	    #if len(ifin)==len(ideb):  
 	    if ifin[ibloc]-ideb[ibloc] > 1:
 				    
 		    ## Generation du patch
@@ -434,7 +429,8 @@ def detailedstat(result,tag,tag1,tag2,SCRIPT_DIR,FIG_DIR):
 		  
 	    
 	for ibloc in np.arange(len(mideb)):
-		
+	    #if len(ifin)==len(ideb):
+		    
 	    if mifin[ibloc]-mideb[ibloc] > 1:
 		
 		    
@@ -443,7 +439,7 @@ def detailedstat(result,tag,tag1,tag2,SCRIPT_DIR,FIG_DIR):
 		interm1=result.model.spa_mean.data[mideb[ibloc]:mifin[ibloc]]
 		interm2=result.model.spa_std.data[mideb[ibloc]:mifin[ibloc]]
 		zmodel[:-1]=np.concatenate([result.model.spa_mean.data[mideb[ibloc]:mifin[ibloc]]-result.model.spa_std.data[mideb[ibloc]:mifin[ibloc]],
-					     interm1[::-1]+interm2[::-1]])
+					    interm1[::-1]+interm2[::-1]])
 		    ## Dernier point = premier point
 		zmodel[-1]=result.model.spa_mean.data[mideb[ibloc]]-result.model.spa_std.data[mideb[ibloc]]
 		    
@@ -842,9 +838,9 @@ def detailedstat(result,tag,tag1,tag2,SCRIPT_DIR,FIG_DIR):
         gc.collect()
     
     if config.get('Report', 'rep_html') == 'True':
-	print 65*'-'
+	print 86*'*'
 	print ' -- Generation du Rapport de Validation --    ' 
-	print 65*'-'
+	print 86*'*'
 	#title = "Test(1)"
 	#header = ""
 	#footer = ""
