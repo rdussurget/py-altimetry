@@ -1,0 +1,37 @@
+[Statistics] ; Statistics to compute
+to_do = True
+stat_op = True
+extrema = True
+
+
+
+[Report]
+rep_html = True
+
+[Output]
+net_cdf = False
+title = Mars_Manga4000_Regional
+rep_ecriture = /work/sskrypni/netcdf
+
+# [Domain]
+# lamax = 52
+# lomax = 4.25
+# lomin = -8
+# lamin = 43.2
+
+[Env]
+workdir = /work/sskrypni/data_test/
+
+
+
+# [Observations]
+# download = True
+# product = SEVIRI SST
+# download_detail = nfs
+# clean_data = False
+# 
+# 
+# [Model Description]
+# download = nfs
+# name = mars_manga
+

@@ -5,7 +5,7 @@
 # S.Skrypnikov-Laviolle
 #
 # Created: 02/2012
-# Last update: 02/2012
+# Last update: 03/2012
 # ________________________________________________________________
 #
 # Base sur la chaine d'evaluation des performances modele en SST
@@ -223,8 +223,6 @@ if config.get('Statistics', 'to_do') == 'True':
     if config.get('Statistics', 'allstat') == 'True':
 	allstat(modelregridontime, obsregridspatial, FIG_DIR, SCRIPT_DIR)  
     #monthlystat(model, obs, FIG_DIR, SCRIPT_DIR)    
-    del result
-    result=ValidXYT(modelregridontime, obsregridspatial) 
     if config.get('Statistics', 'regionalstat') == 'True':
 	regionalstat(modelregridontime, obsregridspatial, FIG_DIR, SCRIPT_DIR)
     #seasonalstat(model, obs, FIG_DIR, SCRIPT_DIR)

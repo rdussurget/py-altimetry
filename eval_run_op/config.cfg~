@@ -9,25 +9,11 @@ lomin = -8
 lamin = 43.2
 
 [Statistics]
-extreme_bias = True
-evol_biais = True
-mean_biais = True
-spatial_std = True
-spatial_rmsc = True
 to_do = True
-temporal_rmsc = True
-temporal_rms = True
-obs_coverage = True
-spatial_mean = True
-obs_spatialcoverage = True
+stat_op = True
 allstat = True
 regionalstat = True
 extrema = True
-temporal_corr = True
-temporal_mean = True
-temporal_std = True
-spatial_rms = True
-systematic_bias = True
 
 [Model Description]
 download = nfs
@@ -73,16 +59,16 @@ rep_html = True
 
 [Output]
 net_cdf = True
-rep_ecriture = /work/sskrypni/netcdf
 title = Mars_Manga4000
+rep_ecriture = /work/sskrypni/netcdf
 
 [Time Period]
-mdeb = 12
-andeb = 2011
-jdeb = 23
-jfin = 30
+mdeb = 03
+andeb = 2012
+jdeb = 12
+jfin = 19
 hfin = 23
-mfin = 12
-anfin = 2011
+mfin = 03
+anfin = 2012
 hdeb = 00
 
