@@ -178,6 +178,7 @@ def regionalstat(model, obs, FIG_DIR, SCRIPT_DIR):
     tag2= strftime('%Y%m%d',ctfin)
     print SCRIPT_DIR
     for i, tag in enumerate(tags):
+	
         model2 = model(lon=[lo_min[i],lo_max[i]],lat=[la_min[i],la_max[i]])
         obs2 = obs(lon=[lo_min[i],lo_max[i]],lat=[la_min[i],la_max[i]])
         result=ValidXYT(model2,obs2)
@@ -262,7 +263,8 @@ def detailedstat(result,tag,tag1,tag2,SCRIPT_DIR,FIG_DIR):
     tagforfilename = '_'.join(tag.split(' ')).lower()
     tagforfiledate1 = '_'.join(tag1.split(' ')).lower()    
     tagforfiledate2 = '_'.join(tag2.split(' ')).lower()
-    
+    #lon = create_lon( id='ni', lonid='lon') 
+
     #LONGITUDE = create_lon(loi, id='ni', attributes=dict(long_name='Longitude of each location',standard_name='longitude',units='degrees_east',valid_min='-180.',valid_max='180.',axis='X'))
     #LATITUDE = create_lat(lai, id='nj', attributes=dict(long_name='Latitude of each location',standard_name='latitude',units='degrees_north',valid_min='-90.',valid_max='90.',axis='Y'))
     
@@ -524,7 +526,12 @@ def detailedstat(result,tag,tag1,tag2,SCRIPT_DIR,FIG_DIR):
 	savefigs(FIG_DIR+'/result_obs_spatial_coverage_'+ tagforfilename+'_'+tagforfiledate1+'_' +tagforfiledate2)
 	close()
 	
-	
+	#la=result.obs.temp_mean.getLongitude
+	#la.getAxis(-1).id = 'ni'
+	#lat= result.obs.temp_mean.getLatitude()
+	#lon.
+	#lat.getAxis(-2).id = 'nj' 
+
 	
 	result.obs_cov=cdms2.createVariable(result.obs_cov, typecode='f',id='Obs_Cov', attributes=dict(long_name='Observation coverage',standard_name='observation_coverage',units='%',valid_min='0.',valid_max='100.'))
 	mean_biais=cdms2.createVariable(interm ,typecode='f',id='SST_bias', attributes=dict(long_name='Mean Bias between Observed and Modelled (<Obs>-<Mod>) Sea Surface Temperature',standard_name='bias_sst',units='D_C',valid_min='-20.',valid_max='30.'))

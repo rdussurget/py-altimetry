@@ -106,6 +106,7 @@ if config.get('Model Description', 'name') == 'mfs':
     lamin = float(config.get('Domain', 'lamin') )
     lamax = float(config.get('Domain', 'lamax') )   
     model = model(lon=(lomin, lomax), lat=(lamin, lamax))
+
 # fin modif J.Gatti
 
 # a faire : test sur le contenu du tableau ...
@@ -224,7 +225,7 @@ if config.get('Statistics', 'to_do') == 'True':
 	allstat(modelregridontime, obsregridspatial, FIG_DIR, SCRIPT_DIR)  
     #monthlystat(model, obs, FIG_DIR, SCRIPT_DIR)    
     del result
-    result=ValidXYT(modelregridontime, obsregridspatial) 
+    #result=ValidXYT(modelregridontime, obsregridspatial) 
     if config.get('Statistics', 'regionalstat') == 'True':
 	regionalstat(modelregridontime, obsregridspatial, FIG_DIR, SCRIPT_DIR)
     #seasonalstat(model, obs, FIG_DIR, SCRIPT_DIR)

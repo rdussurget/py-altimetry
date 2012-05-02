@@ -47,7 +47,7 @@ user = c1ef32
 
 [Observations]
 download = True
-product = SEVIRI SST
+product = NAR_SST
 download_detail = nfs
 clean_data = False
 
@@ -63,12 +63,12 @@ title = Mars_Manga4000
 rep_ecriture = /work/sskrypni/netcdf
 
 [Time Period]
-mdeb = 03
+mdeb = 04
 andeb = 2012
-jdeb = 12
-jfin = 19
+jdeb = 03
+jfin = 10
 hfin = 23
-mfin = 03
+mfin = 04
 anfin = 2012
 hdeb = 00
 
