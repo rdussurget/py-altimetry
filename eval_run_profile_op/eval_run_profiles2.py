@@ -98,6 +98,7 @@ import MV2
 
 # Pour les tests ... pour explorer les objets
 import inspect
+import psutil
 
 from cdms2.selectors import time
 
@@ -120,6 +121,10 @@ def write_nc_cf(filename, varin1=None,varin2=None,):
     f.close() # fermeture
 
 if __name__ == '__main__':
+
+    print '-- Au debut --'
+    print psutil.phymem_usage()
+
     # ========================================================================
     # Options d'utilisation:
 
@@ -211,6 +216,9 @@ if __name__ == '__main__':
     
     obs.read(cfg)
     
+    print '-- Apres lecture des obs --'
+    print psutil.phymem_usage()   
+ 
     #print obs.map_profiles
 
     if cfg['Env']['use_model']== 'True':
@@ -286,7 +294,10 @@ if __name__ == '__main__':
     # Création map temporaire         
     map_profiles_model = {}
     map_profiles_obs = {}
-    
+
+    print '-- Avant la boucle --'
+    print psutil.phymem_usage()    
+
     # Boucle sur les differents profils
     for it, val in obs.map_profiles.items():
         #print it
@@ -316,11 +327,17 @@ if __name__ == '__main__':
                     model2 = ncread_best_estimate('SAL',filepattern, time,select=dict(lon=(lo-scircle,lo+scircle), lat=(la-scircle,la+scircle)))
 
                 ncfiles = list_forecast_files(filepattern, time)              
+
+                print '-- Apres ncread_best_estimate --'
+                print psutil.phymem_usage()
+
                 depth=()
                 for f,t in NcIterBestEstimate(ncfiles, time):
 		    
 		    
                     sigma = NcSigma.factory(f)
+                    print psutil.phymem_usage()
+
                     d = sigma(copyaxes=True)
 		    depth+=d(lon=(lo-scircle,lo+scircle), lat=(la-scircle,la+scircle)),
 		    print type(d)
@@ -383,6 +400,9 @@ if __name__ == '__main__':
             profile2 = Profile(val.time, val.platform_name, val.lon, val.lat, cfg)
             profile2.add_time_step(val.depth, val.temp, val.sal,None,None)
             map_profiles_obs[key] = profile2
+
+            del lo, la, model, model2, depth, std_temp, std_sal, temp_model, temp_model2
+            gc.collect()
    
     
     for key in map_profiles_obs:
