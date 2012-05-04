@@ -29,6 +29,11 @@ url_cdoco = eftp.ifremer.fr
 data_dir = products/gridded/experimental-cms/netcdf/msg
 url_cersat = ftp.ifremer.fr/pub/ifremer/cersat
 compress = bz2
+# recent_dir = /home5/taveeg/cache/project/osi-saf/data/sst/l3c/seviri/osi-saf/ 
+data_dir_rt = cersat-rt/project/osi-saf/data/sst/l3c/seviri
+url_cersat_rt = eftp.ifremer.fr
+user = c1f2a8 
+pwd = top99tip
 
 [MARS F1]
 url_f1 = eftp.ifremer.fr/f1_4000/best_estimate/
@@ -47,12 +52,13 @@ user = c1ef32
 
 [Observations]
 download = True
-product = NAR_SST
+product = SEVIRI SST
 download_detail = nfs
 clean_data = False
 
 [Env]
-workdir = /work/sskrypni/data_test/
+#workdir = /work/sskrypni/data_test/
+workdir = /work/gcharria/data_vacumm/
 
 [Report]
 rep_html = True
@@ -60,15 +66,16 @@ rep_html = True
 [Output]
 net_cdf = True
 title = Mars_Manga4000
-rep_ecriture = /work/sskrypni/netcdf
+#rep_ecriture = /work/sskrypni/netcdf
+rep_ecriture = /work/gcharria/data_vacumm/netcdf
 
 [Time Period]
 mdeb = 04
 andeb = 2012
-jdeb = 03
-jfin = 10
+jdeb = 25
+jfin = 02
 hfin = 23
-mfin = 04
+mfin = 05
 anfin = 2012
 hdeb = 00
 

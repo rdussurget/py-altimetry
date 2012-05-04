@@ -11,8 +11,8 @@ module load cdat
 module load gcc
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-echo "Changing directory to /home1/caparmor/sskrypni/pyvalid/trunk/eval_run_op"
-cd /home1/caparmor/sskrypni/pyvalid/trunk/eval_run_op
+echo "Changing directory to /home1/caparmor/gcharria/PyValid/trunk/eval_run_op"
+cd /home1/caparmor/gcharria/PyValid/trunk/eval_run_op
 
 echo "Running python script"
 python eval_run_sst_op_previmer.py  || exit 1
