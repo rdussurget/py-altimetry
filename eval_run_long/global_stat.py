@@ -200,8 +200,8 @@ def regionalstat(model, obs, FIG_DIR, SCRIPT_DIR):
     tag2= strftime('%Y%m%d',ctfin)
     print SCRIPT_DIR
     for i, tag in enumerate(tags):
-        model2 = model(lon=[lo_min[i],lo_max[i]],lat=[la_min[i],la_max[i]])
-        obs2 = obs(lon=[lo_min[i],lo_max[i]],lat=[la_min[i],la_max[i]])
+        model2 = model(lon=(lo_min[i],lo_max[i]),lat=(la_min[i],la_max[i]))
+        obs2 = obs(lon=(lo_min[i],lo_max[i]),lat=(la_min[i],la_max[i]))
         result=ValidXYT(model2,obs2)
         
         detailedstat(result,tag,tag1,tag2,SCRIPT_DIR,FIG_DIR)
