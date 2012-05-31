@@ -91,7 +91,6 @@ if config.get('Model Description', 'download') == 'local_dir':
 else:
     dir_model = os.path.join(config.get('Env', 'workdir'), 'MODEL',config.get('Model Description', 'name').upper()) 
 # F1 MANGA
-
 if config.get('Model Description', 'name') == 'mars_manga':
     model = ncread_best_estimate('TEMP',os.path.join(dir_model,"PREVIMER_F1-MARS3D-MANGA4000_%Y%m%dT%H00Z.nc"), (ctdeb, ctfinplusuneheure),select=dict(level=slice(29,30)))
 # modif J.Gatti : F1 MANGA devient F2 MENOR
