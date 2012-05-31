@@ -29,7 +29,7 @@ from vacumm.data.model.mars.get_cp import  get_cp_f1
 from vacumm.data.misc.handle_directories import make_directories
 from vacumm.validator.valid.ValidXYT import ValidXYT
 from vacumm.misc.plot import map2 as map
-from vacumm.misc.plot import curve, curve2,  savefigs
+from vacumm.misc.plot import curve2,  savefigs
 from vacumm.misc.atime import add, strtime, ch_units, are_same_units, comptime, strftime
 from vacumm.misc.axes import create_time,  set_order, create_dep, create_lat, create_lon
 from vacumm.misc.grid.regridding import regrid1d, regrid2d
@@ -535,27 +535,36 @@ def detailedstat(result,tag,tag1,tag2,SCRIPT_DIR,FIG_DIR):
 	
 	result.obs_cov=cdms2.createVariable(result.obs_cov, typecode='f',id='Obs_Cov', attributes=dict(long_name='Observation coverage',standard_name='observation_coverage',units='%',valid_min='0.',valid_max='100.'))
 	mean_biais=cdms2.createVariable(interm ,typecode='f',id='SST_bias', attributes=dict(long_name='Mean Bias between Observed and Modelled (<Obs>-<Mod>) Sea Surface Temperature',standard_name='bias_sst',units='D_C',valid_min='-20.',valid_max='30.'))
-	result.model.temp_mean = cdms2.createVariable(result.model.temp_mean, typecode='f',id='TEMP', attributes=dict(long_name='Modeled Sea Surface Temp',standard_name='avg_sst',units='degres celsius',valid_min='-20.',valid_max='30.'))
-	result.obs.temp_mean=cdms2.createVariable(result.obs.temp_mean, typecode='f',id='TEMP', attributes=dict(long_name='Observed Sea Surface Temp',standard_name='avg_sst',units='degres celsius',valid_min='-20.',valid_max='30.'))
+	result.model.temp_mean = cdms2.createVariable(result.model.temp_mean, typecode='f',id='TEMP_mean_model', attributes=dict(long_name='Modeled Sea Surface Temp',standard_name='avg_sst',units='degres celsius',valid_min='-20.',valid_max='30.'))
+	result.obs.temp_mean=cdms2.createVariable(result.obs.temp_mean, typecode='f',id='TEMP_mean_obs', attributes=dict(long_name='Observed Sea Surface Temp',standard_name='avg_sst',units='degres celsius',valid_min='-20.',valid_max='30.'))
 	result.obs_spacov=cdms2.createVariable(result.obs_spacov, typecode='f',id='Obs_Cov', attributes=dict(long_name='Spatial observation coverage',standard_name='spatial_observation_coverage',units='%',valid_min='0.',valid_max='100.'))
 	result.model.spa_std = cdms2.createVariable(result.model.spa_std, typecode='f',id='SST_std_model', attributes=dict(long_name='Spatial Deviation of Modelled Sea Surface Temperature',standard_name='spa_std_model_sst',units='degres celisus',valid_min='-30.',valid_max='30.'))
 	result.obs.spa_std=cdms2.createVariable(result.obs.spa_std, typecode='f',id='SST_std_obs', attributes=dict(long_name='Spatial Deviation of Observed Sea Surface Temperature',standard_name='spa_std_obs_sst',units='degres celsius',valid_min='-30.',valid_max='30.'))
 	result.model.spa_mean = cdms2.createVariable(result.model.spa_mean, typecode='f',id='SST_model', attributes=dict(long_name='Modeled Sea Surface Temp',standard_name='sst',units='degres celsius',valid_min='-20.',valid_max='30.'))
 	result.obs.spa_mean=cdms2.createVariable(result.obs.spa_mean, typecode='f',id='SST_obs', attributes=dict(long_name='Observed Sea Surface Temp',standard_name='sst',units='degres celsius',valid_min='-20.',valid_max='30.'))
 	
-	write_nc_cf('PREVIMER_result_'+tagforfilename+'_spa_stats_' +tagforfiledate1 +'_'+tagforfiledate2+'.nc',False,result.obs.temp_mean,result.model.temp_mean,result.obs_cov,mean_biais)
-	
-	print 65*'-'
-	print 'Spatials stats written to'+rep_ecriture+'/'+'PREVIMER_result_'+tagforfilename+'_spa_stats_' +tagforfiledate1 +'_'+tagforfiledate2+'.nc'
-
-
-	
-	write_nc_cf( 'PREVIMER_result_'+tagforfilename+'_temp_stats_' +tagforfiledate1 +'_'+tagforfiledate2+'.nc',True,result.model.spa_mean, result.obs.spa_mean, result.obs_spacov, result.model.spa_std, result.obs.spa_std)
-	
-	print 65*'-'
-	print 'Temporal stats written to'+rep_ecriture+'/'+ 'PREVIMER_result_'+tagforfilename+'_temp_stats_'+tagforfilename+tagforfiledate1 +'_'+tagforfiledate2+'.nc'   	
-	print 65*'-'
-         
+	if config.get('Output', 'net_cdf') == 'True':
+	    write_nc_cf('PREVIMER_result_'+tagforfilename+'_spa_stats_' +tagforfiledate1 +'_'+tagforfiledate2+'.nc',False,result.obs.temp_mean,result.model.temp_mean,result.obs_cov,mean_biais)
+	    
+	    print 65*'-'
+	    print 'Spatials stats written to'+rep_ecriture+'/'+'PREVIMER_result_'+tagforfilename+'_spa_stats_' +tagforfiledate1 +'_'+tagforfiledate2+'.nc'
+	    print 65*'-'
+	    
+	    print 'obs cov'
+	    print result.obs_cov
+	    print 'mean_biais'
+	    print mean_biais
+	    print 'result.obs.temp_mean'
+	    print result.obs.temp_mean
+	    print 'result.model.temp_mean'
+	    print result.model.temp_mean
+	    
+	    #write_nc_cf( 'PREVIMER_result_'+tagforfilename+'_temp_stats_' +tagforfiledate1 +'_'+tagforfiledate2+'.nc',True,result.model.spa_mean, result.obs.spa_mean, result.obs_spacov, result.model.spa_std, result.obs.spa_std)
+	    
+	    print 65*'-'
+	    print 'Temporal stats written to'+rep_ecriture+'/'+ 'PREVIMER_result_'+tagforfilename+'_temp_stats_'+tagforfilename+tagforfiledate1 +'_'+tagforfiledate2+'.nc'   	
+	    print 65*'-'
+	    
 
 	# Nettoyage
 	result.obs_cov = []
