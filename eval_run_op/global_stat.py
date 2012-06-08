@@ -63,7 +63,6 @@ def write_nc_cf(filename,dual=False, varin1=None,varin2=None,varin3=None,varin4=
     creation_date = time.strftime('%Y-%m-%dT%H:%M:%SZ')
     f.creation_date = creation_date
     f.title = config.get('Output','title')
-    #print f
     f.close() # fermeture
 
     #-- Probleme a voir ... comment ne pas ecrire les bounds de maniere concise.    
@@ -176,7 +175,6 @@ def regionalstat(model, obs, FIG_DIR, SCRIPT_DIR):
     tag = 'regionalstat'
     tag1= strftime('%Y%m%d',ctdeb)
     tag2= strftime('%Y%m%d',ctfin)
-    print SCRIPT_DIR
     for i, tag in enumerate(tags):
 	
         model2 = model(lon=[lo_min[i],lo_max[i]],lat=[la_min[i],la_max[i]])
@@ -540,8 +538,8 @@ def detailedstat(result,tag,tag1,tag2,SCRIPT_DIR,FIG_DIR):
 	result.obs_spacov=cdms2.createVariable(result.obs_spacov, typecode='f',id='Obs_Cov', attributes=dict(long_name='Spatial observation coverage',standard_name='spatial_observation_coverage',units='%',valid_min='0.',valid_max='100.'))
 	result.model.spa_std = cdms2.createVariable(result.model.spa_std, typecode='f',id='SST_std_model', attributes=dict(long_name='Spatial Deviation of Modelled Sea Surface Temperature',standard_name='spa_std_model_sst',units='degres celisus',valid_min='-30.',valid_max='30.'))
 	result.obs.spa_std=cdms2.createVariable(result.obs.spa_std, typecode='f',id='SST_std_obs', attributes=dict(long_name='Spatial Deviation of Observed Sea Surface Temperature',standard_name='spa_std_obs_sst',units='degres celsius',valid_min='-30.',valid_max='30.'))
-	result.model.spa_mean = cdms2.createVariable(result.model.spa_mean, typecode='f',id='SST_model', attributes=dict(long_name='Modeled Sea Surface Temp',standard_name='sst',units='degres celsius',valid_min='-20.',valid_max='30.'))
-	result.obs.spa_mean=cdms2.createVariable(result.obs.spa_mean, typecode='f',id='SST_obs', attributes=dict(long_name='Observed Sea Surface Temp',standard_name='sst',units='degres celsius',valid_min='-20.',valid_max='30.'))
+	result.model.spa_mean = cdms2.createVariable(result.model.spa_mean, typecode='f',id='SST_model', attributes=dict(long_name='Modeled Spatial Mean Sea Surface Temp',standard_name='model_mean_sst',units='degres celsius',valid_min='-20.',valid_max='30.'))
+	result.obs.spa_mean=cdms2.createVariable(result.obs.spa_mean, typecode='f',id='SST_obs', attributes=dict(long_name='Observed Spatial Mean Sea Surface Temp',standard_name='obs_mean_sst',units='degres celsius',valid_min='-20.',valid_max='30.'))
 	
 	if config.get('Output', 'net_cdf') == 'True':
 	    write_nc_cf('PREVIMER_result_'+tagforfilename+'_spa_stats_' +tagforfiledate1 +'_'+tagforfiledate2+'.nc',False,result.obs.temp_mean,result.model.temp_mean,result.obs_cov,mean_biais)
@@ -550,14 +548,7 @@ def detailedstat(result,tag,tag1,tag2,SCRIPT_DIR,FIG_DIR):
 	    print 'Spatials stats written to'+rep_ecriture+'/'+'PREVIMER_result_'+tagforfilename+'_spa_stats_' +tagforfiledate1 +'_'+tagforfiledate2+'.nc'
 	    print 65*'-'
 	    
-	    print 'obs cov'
-	    print result.obs_cov
-	    print 'mean_biais'
-	    print mean_biais
-	    print 'result.obs.temp_mean'
-	    print result.obs.temp_mean
-	    print 'result.model.temp_mean'
-	    print result.model.temp_mean
+
 	    
 	    #write_nc_cf( 'PREVIMER_result_'+tagforfilename+'_temp_stats_' +tagforfiledate1 +'_'+tagforfiledate2+'.nc',True,result.model.spa_mean, result.obs.spa_mean, result.obs_spacov, result.model.spa_std, result.obs.spa_std)
 	    
