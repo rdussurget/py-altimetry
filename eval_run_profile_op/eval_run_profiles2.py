@@ -61,9 +61,9 @@ def get_ftp_f1(ctdeb, ctfin,andeb, SCRIPT_DIR, dirf1, usr, pwd, fic_prefix, time
 #import matplotlib
 #matplotlib.use('Agg')
 ## --
+
 from genutil import statistics
-from vacumm.misc.grid import get_grid,  set_grid
-		
+from vacumm.misc.grid import get_grid,  set_grid    
 from vacumm.data.misc.profile import ProfilesDataset, ProfilesMerger 
 from vacumm.data.model.mars import MARS3D
 from vacumm.data.misc.coloc import Colocator
@@ -86,6 +86,8 @@ from vacumm.data.misc.sigma import NcSigma
 from vacumm.misc.config import ConfigManager, print_short_help
 from optparse import OptionParser, sys, os
 from vacumm.validator.valid.ValidXYT import ValidXYT
+from vacumm.misc.plot import curve2, target
+from genutil.statistics import rms 
 
 import optparse
 import numpy as np
@@ -96,34 +98,32 @@ import pytz
 import cdms2
 import MV2
 
-# Pour les tests ... pour explorer les objets
+# Pour les tests ... pour explorer les objets, la mémoire
 import inspect
 import psutil
-
+import time as T
 from cdms2.selectors import time
 
 from cprofile import Profile, Prof_insitu
 
 cdms2.setNetcdfShuffleFlag(0); cdms2.setNetcdfDeflateFlag(0); cdms2.setNetcdfDeflateLevelFlag(0)
-def write_nc_cf(filename, varin1=None,varin2=None,):
+def write_nc_cf(filename, varin1=None,time=None):
     config = ConfigParser.RawConfigParser()
     config.read(os.path.join(SCRIPT_DIR,'config_profiles.ini'))
-    rep_ecriture= config.get('Output','rep_ecriture')
+    rep_ecriture= cfg['Output']['rep_ecriture']
     filename= os.path.join(rep_ecriture,filename)
     f = cdms2.open(filename, 'w')
     f.write(varin1) # ecriture d'une variable    
-    f.write(varin2) #ecriture
+
 	
-    creation_date = time.strftime('%Y-%m-%dT%H:%M:%SZ')
+    creation_date = time
     f.creation_date = creation_date
-    f.title = config.get('Output','title')
+    f.title = cfg['Output']['title']
     #print f
     f.close() # fermeture
 
 if __name__ == '__main__':
 
-    print '-- Au debut --'
-    print psutil.phymem_usage()
 
     # ========================================================================
     # Options d'utilisation:
@@ -167,8 +167,8 @@ if __name__ == '__main__':
     
     # Check config
     #print 'Current configuration:', cfg
-
-
+    print "début"
+    print T.localtime()
     print 65 * '-'
     print ' Validation de la Temperature et Salinite a partir des profils verticaux '
     print 65 * '-'
@@ -181,9 +181,7 @@ if __name__ == '__main__':
     # ---------------------------------------------------------
     # Cette partie doit etre codee dans le setup.py !!!!
     SCRIPT_DIR = os.getcwd()
-    #config = ConfigParser.RawConfigParser()
-    #config.read(os.path.join(SCRIPT_DIR, configfile))    
-    #model_name = config.get('Model Description', 'name')
+
     model_name = cfg['Model Description']['name']    
 
     # Workdir    
@@ -215,12 +213,11 @@ if __name__ == '__main__':
         obs.rappatrie(cfg)
     
     obs.read(cfg)
-    
-    print '-- Apres lecture des obs --'
-    print psutil.phymem_usage()   
+
  
     #print obs.map_profiles
-
+    print "Apres rappatriement/lecture des obs"
+    print T.localtime()
     if cfg['Env']['use_model']== 'True':
         # ----------------------------------------------------------------
         # ----------------------------------------------------------------
@@ -295,10 +292,12 @@ if __name__ == '__main__':
     map_profiles_model = {}
     map_profiles_obs = {}
 
-    print '-- Avant la boucle --'
-    print psutil.phymem_usage()    
+  
+    profsuppr=0
 
     # Boucle sur les differents profils
+    print "Avant interpolation"
+    print T.localtime()
     for it, val in obs.map_profiles.items():
         #print it
         #print val
@@ -310,7 +309,7 @@ if __name__ == '__main__':
         if proftime >= ctdeb and proftime <= ctfin:
             #print proftime
             c1 = proftime
-            c1=c1.sub(1,cdtime.Hours)        
+            c1 = c1.sub(1,cdtime.Hours)        
             c2 = proftime
             c2 = c2.add(2,cdtime.Hours) # Car en prenant c1,c2 ... 3 fichiers horaires sont selectionnes mais seuls les 2 premiers sont lus.
             
@@ -322,89 +321,88 @@ if __name__ == '__main__':
                 time = (c1,c2)
                 #ncfiles = list_forecast_files(filepattern, time)
                 #print ncfiles
-                if cfg['Model Description']['name'] == 'mars_manga':            
-                    model = ncread_best_estimate('TEMP',filepattern, time,select=dict(lon=(lo-scircle,lo+scircle), lat=(la-scircle,la+scircle)))
-                    model2 = ncread_best_estimate('SAL',filepattern, time,select=dict(lon=(lo-scircle,lo+scircle), lat=(la-scircle,la+scircle)))
+                if lo<=cfg['Domain']['Lomin'] or lo>=cfg['Domain']['Lomax'] or la<=cfg['Domain']['Lamin'] or la>=cfg['Domain']['Lamax'] :
+		    print 'Profil en dehors du domaine:'+'longitude: '+str(lo)+' latitude: '+str(la)
+		    profsuppr+=1
+		else :
+		    #if cfg['Model Description']['name'] == 'mars_manga':    
+			
+		    model = ncread_best_estimate('TEMP',filepattern, time,select=dict(lon=(lo-scircle,lo+scircle), lat=(la-scircle,la+scircle)))
+		    model2 = ncread_best_estimate('SAL',filepattern, time,select=dict(lon=(lo-scircle,lo+scircle), lat=(la-scircle,la+scircle)))
 
-                ncfiles = list_forecast_files(filepattern, time)              
+		    ncfiles = list_forecast_files(filepattern, time)              
 
-                print '-- Apres ncread_best_estimate --'
-                print psutil.phymem_usage()
 
-                depth=()
-                for f,t in NcIterBestEstimate(ncfiles, time):
+		    depth=()
+		    for f,t in NcIterBestEstimate(ncfiles, time):
+					
+			sigma = NcSigma.factory(f)
+			d = sigma(copyaxes=True)
+			depth+=d(lon=(lo-scircle,lo+scircle), lat=(la-scircle,la+scircle)),
+			del d
+			gc.collect()
+		    depth=MV2.concatenate(depth)
 		    
 		    
-                    sigma = NcSigma.factory(f)
-                    print psutil.phymem_usage()
+		    
+		    # Interpolation temporelle du modele sur le temps du profil observé
+		    modeltime = model.getTime()
+		    new_time = create_time(proftime, modeltime.units)  
+		    model = interp1d(model, new_time, method='linear') 
+		    depth = interp1d(depth, new_time, method='linear')
+		    model2 = interp1d(model2, new_time, method='linear') 
+		    
+		    for i in (0, model.shape[1]):
+		    # centered and biased std (cf. http://www2-pcmdi.llnl.gov/cdat/manuals/cdutil/cdat_utilities-2.html)
+			std_temp = () #Initialise un tuple
+			std_sal = () #Initialise un tuple
+		    
+			temp_model=np.reshape(model[0,:,:,:],(model.shape[1],model.shape[2]*model.shape[3]))
+			temp_model2=np.reshape(model2[0,:,:,:],(model2.shape[1],model2.shape[2]*model2.shape[3]))
+		      
+			std_temp += statistics.std(temp_model, axis = 1),
+			std_sal  += statistics.std(temp_model2, axis = 1),
+		    
+				    
+		    std_temp=MV2.concatenate(std_temp)
+		    std_sal=MV2.concatenate(std_sal)
+		    
+		    
+		    ggT = model.getLevel()        
+		    std_temp.setAxis(0, ggT)   
+		    
+		    ggS = model2.getLevel()        
+		    std_sal.setAxis(0, ggS)
+		    
+		    
+		    #print ggS.getAxisList()
 
-                    d = sigma(copyaxes=True)
-		    depth+=d(lon=(lo-scircle,lo+scircle), lat=(la-scircle,la+scircle)),
-		    print type(d)
-		    del d
-		    gc.collect()
-		depth=MV2.concatenate(depth)
-		
-		
-		#print dir(d)
-                # Interpolation temporelle du modele sur le temps du profil observé
-                modeltime = model.getTime()
-                new_time = create_time(proftime, modeltime.units)  
-                model = interp1d(model, new_time, method='linear') 
-                depth = interp1d(depth, new_time, method='linear')
-                model2 = interp1d(model2, new_time, method='linear') 
-		
-		for i in (0, model.shape[1]):
-		# centered and biased std (cf. http://www2-pcmdi.llnl.gov/cdat/manuals/cdutil/cdat_utilities-2.html)
-		    std_temp = () #Initialise un tuple
-		    std_sal = () #Initialise un tuple
-		 
-		    temp_model=np.reshape(model[0,:,:,:],(model.shape[1],model.shape[2]*model.shape[3]))
-		    temp_model2=np.reshape(model2[0,:,:,:],(model2.shape[1],model2.shape[2]*model2.shape[3]))
-		  
-		    std_temp += statistics.std(temp_model, axis = 1),
-		    std_sal  += statistics.std(temp_model2, axis = 1),
-		
-		  		
-		std_temp=MV2.concatenate(std_temp)
-		std_sal=MV2.concatenate(std_sal)
-		
-		
-		ggT = model.getLevel()        
-		std_temp.setAxis(0, ggT)   
-		
-		ggS = model2.getLevel()        
-		std_sal.setAxis(0, ggS)
-		
-		
-		#print ggS.getAxisList()
-
-                #Interpolation spatiale du modele sur la position du profil observé
-                model = grid2xy(model[0,:,:,:], lo, la, method='bilinear') # Ne fonctionne pas avec 'nat' pour Natgrid
-                model2 = grid2xy(model2[0,:,:,:], lo, la, method='bilinear') 
-                depth = grid2xy(depth[0,:,:,:], lo, la, method='bilinear')
-                #std_temp = grid2xy(std_temp[:], lo, la, method='bilinear')
-                #std_sal = grid2xy(std_sal[:], lo, la, method='bilinear')
-                #print std_sal.shape
-                #print std_temp.shape
-                          # Dictionnaire profil modele
-            time2 = date.num2date(numtime(val.time))
-            key = strtime(time2)
+		    #Interpolation spatiale du modele sur la position du profil observé
+		    model = grid2xy(model[0,:,:,:], lo, la, method='bilinear') # Ne fonctionne pas avec 'nat' pour Natgrid
+		    model2 = grid2xy(model2[0,:,:,:], lo, la, method='bilinear') 
+		    depth = grid2xy(depth[0,:,:,:], lo, la, method='bilinear')
+		    #std_temp = grid2xy(std_temp[:], lo, la, method='bilinear')
+		    #std_sal = grid2xy(std_sal[:], lo, la, method='bilinear')
+		    #print std_sal.shape
+		    #print std_temp.shape
+			      # Dictionnaire profil modele
+		time2 = date.num2date(numtime(val.time))
+		key = strtime(time2)
 	    
             
             if    cfg['Env']['use_model']=='True':
                 profile = Profile(val.time, val.platform_name, val.lon, val.lat, cfg)
-                profile.add_time_step(depth.getValue(), model.getValue(), model2.getValue())
+                profile.add_time_step(depth.getValue(), model.getValue(), model2.getValue(), std_temp.getValue(), std_sal.getValue())
                 map_profiles_model[key] = profile
             
             profile2 = Profile(val.time, val.platform_name, val.lon, val.lat, cfg)
             profile2.add_time_step(val.depth, val.temp, val.sal,None,None)
             map_profiles_obs[key] = profile2
 
-            del lo, la, model, model2, depth, std_temp, std_sal, temp_model, temp_model2
+            #del lo, la, model, model2, depth, temp_model, temp_model2
             gc.collect()
-   
-    
+    print "Apres interpolation"
+    print T.localtime()
     for key in map_profiles_obs:
         if    cfg['Env']['use_model']=='True':
             profile = map_profiles_model[key]
@@ -413,7 +411,7 @@ if __name__ == '__main__':
         profile2.convert_tables()
   
     print 65*'-'
-    print str(len(map_profiles_obs))+' profils .'
+    print (str(len(map_profiles_obs)))+' profils totaux dont '+(str(len(map_profiles_obs)-profsuppr))+' profils retenus et  '+ str(profsuppr) +' profils hors du domaine'
     print 65*'-'
 
     # Boucle sur les differents profils
@@ -426,10 +424,10 @@ if __name__ == '__main__':
         
         if cfg['Action']['single_profiles']=='True':
         
-            print 'Min:'+str(map_profiles_obs[it].temp.min())        
-            print 'Max:'+str(map_profiles_obs[it].temp.max())
+            #print 'Min:'+str(map_profiles_obs[it].temp.min())        
+            #print 'Max:'+str(map_profiles_obs[it].temp.max())
             
-            P.figure(1)
+            P.figure()
             if    cfg['Env']['use_model']=='True':
                 P.plot(map_profiles_model[it].temp[0,:,0],-map_profiles_model[it].depth[0,:,0],'r')
             P.plot(map_profiles_obs[it].temp[0,:],-map_profiles_obs[it].depth[0,:])            
@@ -441,13 +439,12 @@ if __name__ == '__main__':
             lon_pro[cpt]=map_profiles_obs[it].lon
             lat_pro[cpt]=map_profiles_obs[it].lat
             time_pro[cpt]=date.date2num(map_profiles_obs[it].time)
-            cpt=cpt+1
-
+            cpt+=1
+    tagbegin= strftime('%Y%m%d%H%M%S',ctdeb)
+    tagend= strftime('%Y%m%d%H%M%S',ctfin)
     if cfg['Action']['map_profiles']=='True':
         P.figure()
-        #LONGITUDE = create_lon(lon_pro, id='longitude', attributes=dict(long_name='Longitude of each location',standard_name='longitude',units='degrees_east',valid_min='-180.',valid_max='180.',axis='X'))
-        #LATITUDE = create_lat(lat_pro, id='latitude', attributes=dict(long_name='Latitude of each location',standard_name='latitude',units='degrees_north',valid_min='-90.',valid_max='90.',axis='Y'))
-        #profile_date = 
+
         ray = 1 
         titre = 'Observed profiles'
         mp = map(show=False, lon=(lon_pro.min()-ray,lon_pro.max()+ray), lat=(lat_pro.min()-ray,lat_pro.max()+ray), title=titre)
@@ -456,9 +453,9 @@ if __name__ == '__main__':
         
         # --- Creation des dates pour les label de la colorbar
         #ticklabels = cb.ax.get_yticklabels()
-        ticklim = cb.get_clim()
-        ticklabels=np.linspace(ticklim[0],ticklim[1],num=8)
-        time_str=[]
+        ticklim    = cb.get_clim()
+        ticklabels = np.linspace(ticklim[0],ticklim[1],num=8)
+        time_str   = []
         for il in ticklabels:
             time_str.append(date.num2date(il).strftime('%Y/%m/%d'))
         
@@ -466,7 +463,7 @@ if __name__ == '__main__':
         cb.set_ticklabels(time_str)
         
         
-        savefigs(os.path.join(FIG_DIR,'Map_profiles'+strftime('%Y%m%d',ctdeb)+'_'+strftime('%Y%m%d',ctfin)))
+        savefigs(os.path.join(FIG_DIR+'/','Map_Test_profiles'+tagbegin+'_'+tagend))
         P.close()
         #P.show()
         
@@ -481,7 +478,7 @@ if __name__ == '__main__':
         
         
         utc=pytz.UTC
-
+	
         
         for itv in Intervals((atime.round_date(min(dtime), tstep_unit), atime.round_date(atime.add(max(dtime), tstep, tstep_unit), tstep_unit)),(tstep,tstep_unit)):
             hist_time.append(atime.datetime(itv[0]))            
@@ -492,11 +489,12 @@ if __name__ == '__main__':
             #print 'Interval %(#)s: %(##)s'%{'#':itv[:2],'##':n}
         hist_time = create_time(hist_time)
         hist = cdms2.createVariable(hist, axes=(hist_time,), id='hist', attributes=dict())
-        
+       
         P.figure()
         cs = bar(hist,xlabel='time',ylabel='Number of profiles',title='Profiles temporal distribution')
+        cs.savefigs(FIG_DIR+'/','Map_Hist_profile_'+tagbegin+tagend)
         print '### voir pour reformattage des datmap_profiles_model[it].depth.squeeze()es (axe x de l''histogramme). ###'
-            
+        P.close()    
     if cfg['Action']['mean_profile']=='True':
         print "---- Function not implemented ----"
         sys.exit()
@@ -509,15 +507,18 @@ if __name__ == '__main__':
     for it, val in map_profiles_obs.items():
         if map_profiles_obs[it].depth.max() > depthmax:
             depthmax = map_profiles_obs[it].depth.max()
-    #print 'Max depth = '+str(depthmax)+' m'
-    # --
-    # -- Depth Axes
+
     depthax = np.arange(0,depthmax)
+   
     
     TEMP_obs = np.zeros((len(map_profiles_obs),len(depthax)))
     SAL_obs = np.zeros((len(map_profiles_obs),len(depthax)))
     TEMP_model = np.zeros((len(map_profiles_model),len(depthax)))
     SAL_model = np.zeros((len(map_profiles_model),len(depthax)))
+    STD_sal = np.zeros((len(map_profiles_model),len(depthax)))
+    STD_temp = np.zeros((len(map_profiles_model),len(depthax)))
+    Lon=np.zeros(len(map_profiles_model))
+    Lat=np.zeros(len(map_profiles_model))
     cpt=0
     b=[]
     
@@ -528,30 +529,19 @@ if __name__ == '__main__':
         f2=interpolate.interp1d(map_profiles_obs[it].depth.squeeze(),map_profiles_obs[it].sal.squeeze(),bounds_error=False)
         SAL_obs[cpt,:]=f2(depthax)
 	b.append(numtime(map_profiles_obs[it].time))
-       
-        cpt+=1
-    cpt=0
-    
-    for it, val in map_profiles_model.items():        
-
-	
-        f=interpolate.interp1d(map_profiles_model[it].depth.squeeze(),map_profiles_model[it].temp.squeeze(),bounds_error=False)
+	Lon[cpt]=map_profiles_obs[it].lon
+        Lat[cpt]=map_profiles_obs[it].lat
+        f=interpolate.interp1d(-map_profiles_model[it].depth.squeeze()[-1::-1],map_profiles_model[it].temp.squeeze()[-1::-1],bounds_error=False)
         TEMP_model[cpt,:]=f(depthax)
-        f2=interpolate.interp1d(map_profiles_model[it].depth.squeeze(),map_profiles_model[it].sal.squeeze(),bounds_error=False)
+        f2=interpolate.interp1d(-map_profiles_model[it].depth.squeeze()[-1::-1],map_profiles_model[it].sal.squeeze()[-1::-1],bounds_error=False)
 	SAL_model[cpt,:]=f2(depthax)
-	cpt+=1
-    
-    cpt=0
-    #print std_temp
-    #for it, val in map_profiles_model.items():        
-
+        f=interpolate.interp1d(-map_profiles_model[it].depth.squeeze()[-1::-1],map_profiles_model[it].std_temp.squeeze()[-1::-1],bounds_error=False)
+        STD_temp[cpt]=f(depthax)
+        f2=interpolate.interp1d(-map_profiles_model[it].depth.squeeze()[-1::-1],map_profiles_model[it].std_sal.squeeze()[-1::-1],bounds_error=False)
+	STD_sal[cpt]=f2(depthax)
 	
-        #f=interpolate.interp1d(std_temp[it].depth.squeeze(),std_temp[it].temp.squeeze(),bounds_error=False)
-        #std_temp[cpt]=f(depthax)
-        #f2=interpolate.interp1d(std_sal[it].depth.squeeze(),std_sal[it].sal.squeeze(),bounds_error=False)
-	#std_sal[cpt]=f2(depthax)
-	#cpt+=1
-    #print std_temp
+	cpt+=1
+
     # --------------------------------------------------------------------
     # Temps
     # - creation et tri des dates
@@ -564,10 +554,10 @@ if __name__ == '__main__':
     axtime.units = 'days since 2006-08-01'
     axtime.designateTime() # time.axis = 'T'
 
-    for it, val in map_profiles_obs.items():
-	print 'Min:'+str(map_profiles_obs[it].temp.min())        
-	print 'Max:'+str(map_profiles_obs[it].temp.max())
-    #print 'Voir comment convertir temps 2010-3-20 9:45:8.0 en temps relatif puis retrier les profils par date'
+    #for it, val in map_profimap_profiles_obs[it].lonles_obs.items():
+	#print 'Min:'+str(map_profiles_obs[it].temp.min())        
+	#print 'Max:'+str(map_profiles_obs[it].temp.max())
+    ##print 'Voir comment convertir temps 2010-3-20 9:45:8.0 en temps relatif puis retrier les profils par date'
     #print 'Ensuite créer 2 autres variables cdms2 uniquement d''axe temps contenant lon et lat'
     #print 'pour la selection en lon,lat ... retrouver les indices des regions dans lon et lat puis faire un select dans la variable cdms de temperature (et lon, lat)'
 
@@ -586,98 +576,229 @@ if __name__ == '__main__':
     
     #print rtime,rtime[1].value    
     #print 69*'*'
-
-
-    TEMP_obs=TEMP_obs[I, :]
-    SAL_obs=SAL_obs[I, :]
+    
     
    
-    #  -> [0.00 days since 2006-08-01, 1.00 days since 2006-08-01,
-    #      2.00 days since 2006-08-01] 1.0
-    # -------------------------------------------------------------------------
-	
+    Lat=Lat[I]
+    Lon=Lon[I]
+    TEMP_obs=TEMP_obs[I, :]
+    SAL_obs=SAL_obs[I, :]
+    TEMP_model=TEMP_model[I, :]
+    SAL_model=SAL_model[I, :]
+    STD_temp=STD_temp[I, :]
+    STD_sal=STD_sal[I, :]
     
     TEMP_obs=MV2.masked_array(TEMP_obs,mask=isNaN(TEMP_obs))
     SAL_obs=MV2.masked_array(SAL_obs,mask=isNaN(SAL_obs))
-
+    TEMP_model=MV2.masked_array(TEMP_model,mask=isNaN(TEMP_model))
+    SAL_model=MV2.masked_array(SAL_model,mask=isNaN(SAL_model))
+    STD_temp=MV2.masked_array(STD_temp,mask=isNaN(STD_temp))
+    STD_sal=MV2.masked_array(STD_sal,mask=isNaN(STD_sal))
+    BIAS_sal = np.zeros((len(map_profiles_model),len(depthax)))
+    BIAS_temp = np.zeros((len(map_profiles_model),len(depthax)))
+    Lon=MV2.masked_array(Lon,mask=isNaN(Lon))
+    Lat=MV2.masked_array(Lat,mask=isNaN(Lat))
+    
+    
     TEMP_obs = cdms2.createVariable(TEMP_obs,typecode='f',id='temp_obs',
                                     fill_value=1.e20,axes=[axtime,axdepth],
-                                    attributes=dict(long_name='OBserved Temperature',units='degC'))
+                                    attributes=dict(long_name='Observed Temperature',units='degC'))
     SAL_obs = cdms2.createVariable(SAL_obs,typecode='f',id='sal_obs',
                                    fill_value=1.e20,axes=[axtime,axdepth],
-                                   attributes=dict(long_name='Observed Salinity',units='Psu'))
+                                   attributes=dict(long_name='Observed Salinity',units='No_unit'))
     TEMP_model = cdms2.createVariable(TEMP_model,typecode='f',id='temp_model',
                                     fill_value=1.e20,axes=[axtime,axdepth],
                                     attributes=dict(long_name='Modeled Temperature',units='degC'))
     SAL_model = cdms2.createVariable(SAL_model,typecode='f',id='sal_model',
                                    fill_value=1.e20,axes=[axtime,axdepth],
-                                   attributes=dict(long_name='Modeled Salinity',units='Psu'))   
-    
-    # Maintenant, on cree une variable avec ces axes
-    #- methode direct
-    #temp1 = cdms2.createVariable(N.ones((3,3,3,3)),typecode='f',id='temp',
-    #fill_value=1.e20,axes=[time,depth,lat,lon],copyaxes=0,
-    
-	
-    # -- Interpolation sur la verticale des profils
-     
-        
-    #if cfg['Action']['timeserie_profile']=='True':
-        ## -- Read the file with subregions coordinates
-        #file_data = open(os.path.join(SCRIPT_DIR,'fishing_areas.dat')).read()                                   
-        ##extraction des profil du fichier (ligne a ligne)
-    
-        #for line in file_data.splitlines():
-            #line = line.strip().split(',')                    
-            #region_name = line[0]
-            #lamin = float(line[1])
-            #lamax = float(line[2])
-            #lomin = float(line[3])
-            #lomax = float(line[4])            
-            
-            #print region_name
-            #print lamin
-            #print lamax
-            #print lomin
-            #print lomax
-    print 65*'-'
-    
-    
+                                   attributes=dict(long_name='Modeled Salinity',units='No_unit'))
+    STD_temp= cdms2.createVariable(STD_temp,typecode='f',id='Std of modeled Temperature',
+                                   fill_value=1.e20,axes=[axtime,axdepth],
+                                   attributes=dict(long_name='Std of modeled Temperature',units='degC'))                               
+    STD_sal= cdms2.createVariable(STD_sal,typecode='f',id='Std of modeled Salinity',
+                                   fill_value=1.e20,axes=[axtime,axdepth],
+                                   attributes=dict(long_name='Std of Modeled Salinity',units='No_unit'))      
+    Lon= cdms2.createVariable(Lon,typecode='f',id='longitude',
+                                   fill_value=1.e20,axes=[axtime])  
+                                   
+    Lat= cdms2.createVariable(Lat,typecode='f',id='latitude',
+                                   fill_value=1.e20,axes=[axtime]) 
+                                   
+    BIAS_temp= TEMP_obs - TEMP_model
 
+    BIAS_sal= SAL_obs - SAL_model
 
-    print ' -- Validation Profils (Global) --    ' 
+    BIAS_temp= cdms2.createVariable(BIAS_temp,typecode='f',id='Bias temperature',
+                                   fill_value=1.e20,axes=[axtime,axdepth],
+                                   attributes=dict(long_name='Bias between observed and modeled Temperature',units='degC'))                               
+    BIAS_sal= cdms2.createVariable( BIAS_sal,typecode='f',id='Bias Salinity',
+                                   fill_value=1.e20,axes=[axtime,axdepth],
+                                   attributes=dict(long_name='Bias between observed and modeled Salinity',units='No_unit')) 
+    print "Avant les figures"
+    print T.localtime()
     print 65*'-'
-    
     tag = 'all'
-    tagbegin= strftime('%Y%m%d',ctdeb)
-    tagend= strftime('%Y%m%d',ctfin)
-    
-
-    print 65*'-'
-    print  'La validation concerne les modeles et observations compris entre '+tagbegin+' jusqu au ' +tagend
-    print 65*'-'
-    
+    tagbegin= strftime('%Y%m%d%H%M%S',ctdeb)
+    tagend= strftime('%Y%m%d%H%M%S',ctfin)
     tagforfilename = '_'.join(tag.split(' ')).lower()
     tagforfiledate1 = '_'.join(tagbegin.split(' ')).lower()    
     tagforfiledate2 = '_'.join(tagend.split(' ')).lower()
-    #data_obs=save(obs,'/work/sskrypni/data_test/')
-    #data_obs.plot_hist()
-    #obs= TEMP_obs
-    print 'TEMP_obs'
-    print TEMP_obs.view()
-    #print TEMP_obs.shape()
-    print 'SAL_obs'
-    print SAL_obs.view()
-    #print SAL_obs.shape()
-    print 'TEMP_model'
-    print TEMP_model.view()
-    #print TEMP_model.shape()
-    print 'SAL_model'
-    print SAL_model.view()
-    #print SAL_model.shape()
-    print 65*'*'
+      
+    if cfg['Action']['Vertical_Section']=='True':
+	cpt=0
+	intermTmodel=[]
+	intermTobs=[]
+	intermSmodel=[]
+	intermSobs=[]
+	intermProf=[]
+	intermTime=[]
+	intermProf=TEMP_obs[0,:].getLevel().getValue()
+	for it in enumerate(Lon):     
+	    #print Lon[cpt]
+	    #longitude.append(Lon[it])
+	    #latitude.append(Lat[it])
+	    if  Lon[cpt]>=cfg['SubArea']['Lomin'] or  Lon[cpt]<=cfg['SubArea']['Lomax'] or Lat[cpt]>=cfg['SubArea']['Lamin'] or Lat[cpt]<=cfg['SubArea']['Lamax'] :
+		intermTobs.append(TEMP_obs[it,:])
+		intermTmodel.append(TEMP_model[it,:])
+		intermSmodel.append(SAL_model[it,:])
+		intermSobs.append(SAL_obs[it,:])
+		intermTime.append(TEMP_obs[it,:].getTime().getValue())
+		
+		#
+		cpt+=1
+	
+	intermTobs=MV2.concatenate(intermTobs)
+	intermTime=MV2.concatenate(intermTime)
+	intermTmodel=MV2.concatenate(intermTmodel)
+	print intermTime.shape
+	print intermProf.shape
+	print intermTobs.shape
+	
+	fig=P.figure()
+	[X,Y]=np.meshgrid(intermTime,intermProf)
+	P.subplot(211)
+	ax=P.scatter(X,-Y,s=30,marker='o', c=np.transpose(intermTobs),vmin=None, vmax=None,edgecolors='none')
+	P.title('Sub Area Vertical Section observed Temperature:')
+	P.colorbar()
+	#P.show()
+	#P.subplot(211)
+	P.subplot(212)
+	ay=P.scatter(X,-Y,s=30,marker='o', c=np.transpose(intermTmodel),vmin=None, vmax=None,edgecolors='none')
+	P.title('Sub Area Vertical Section modeled Temperature:')
+	P.colorbar()
+	#P.show()
+	#P.subplot(222)
+	#loo=cfg['SubArea']['Lomin']
+	#lomax= cfg['SubArea']['Lomax']
+	#Lao=cfg['SubArea']['Lamin'] 
+	#Lamax=cfg['SubArea']['Lamax']
+	#m=map(None,lon =(loo ,lomax),lat=(Lao,Lamax), subplot=222, show= False,)
+	#for i in np.arange(TEMP_obs.shape[0]):
+	## - plot
+	    #tagforfiledate=strftime('%Y%m%d%H%M%S',time_pro[i])
+	    #tagEW='E'
+	    #tagSN='N'
+	    #if Lon[i] < 0:
+		#tagEW='W'
+	    #if Lat[i] < 0:
+		#tagSN='S'
+	    #lon=str(abs(Lon[i]))
+	    #lat=str(abs(Lat[i]))
+
+	  
+	    #m.set_title('Profil coordinates:'+' '+lon+tagEW+' '+lat+tagSN)
+	    #m.map.scatter(x=Lon[i],y=Lat[i],s=30, c='g',vmin=m.vmin, vmax=m.vmax, cmap=m.cmap)
+	
+	savefigs(os.path.join(FIG_DIR,"Vertical_Section_temp"+tagforfiledate1+tagforfiledate2))
+	P.show()
+	P.close()
+    if cfg['Action']['Control_Stats']=='True':
+	fig = P.figure()
+
+	obs = TEMP_obs.getValue()
+	mod = TEMP_model.getValue()
+	
+	obs[obs>1e19]=np.NaN
+	mod[mod>1e19]=np.NaN
+	ax = fig.add_subplot(111)
+	ax.plot(obs[:,:],mod[:,:], 'or',)
+	l= [np.nanmin(obs[:,:]),np.nanmin(mod[:,:])]
+	f= [np.nanmax(obs[:,:]),np.nanmax(mod[:,:])]
+		
+	ax.plot([min(l)-0.1,max(f)+0.1],[min(l)-0.1,max(f)+0.1])
+	ax.set_title('Modeled/Observed Temperature')
+	ax.set_ylabel('Modeled degC')
+	ax.set_xlabel('Observed degC')
+	savefigs(os.path.join(FIG_DIR,"Control_stats"+tagforfiledate1+tagforfiledate2))
+	P.show()
+	P.close()
     
+	print 65*'-'
+	print  'La validation concerne les modeles et observations compris entre '+tagbegin+' jusqu au ' +tagend
+	print 65*'-'
+	
+
+	#cpt=047
+	#for it, val in map_profiles_obs.items():     
+	    #lon_pro[cpt]=map_profiles_obs[it].lon
+	    #lat_pro[cpt]=map_profiles_obs[it].lat
+	    
+	    #time_pro[cpt]=date.date2num(map_profiles_obs[it].time)
+	    #cpt+=1
+
+	for i in np.arange(TEMP_obs.shape[0]):
+	# - plot
+	    tagforfiledate=strftime('%Y%m%d%H%M%S',time_pro[i])
+	    tagEW='E'
+	    tagSN='N'
+	    if Lon[i] < 0:
+		tagEW='W'
+	    if Lat[i] < 0:
+		tagSN='S'
+	    lon=str(abs(Lon[i]))
+	    lat=str(abs(Lat[i]))
+	    P.figure()
+	    ax = P.subplot(221)
+	    curve2(TEMP_obs[i,:], subplot=221, show=False, )
+	    P.gca().invert_yaxis()
+	    curve2(TEMP_model[i,:], subplot=221, show=False, color='r', )
+	    P.gca().invert_yaxis()
+	    curve2(TEMP_model[i,:] + STD_temp[i,:],color='r', subplot=221, linestyle='--',show=False,)
+	    P.gca().invert_yaxis()
+	    curve2(TEMP_model[i,:] - STD_temp[i,:],color='r', subplot=221, linestyle='--',show=False,)
+	    P.gca().invert_yaxis()
+	    curve2(SAL_obs[i,:], subplot=223, show=False,)
+	    P.gca().invert_yaxis()
+	    curve2(SAL_model[i,:], subplot=223, show=False, color='r',)
+	    P.gca().invert_yaxis()
+	    curve2(SAL_model[i,:]+ STD_sal[i,:], subplot=223, show=False, color='r',linestyle='--',)
+	    P.gca().invert_yaxis()
+	    curve2(SAL_model[i,:]- STD_sal[i,:], subplot=223, show=False, color='r',linestyle='--',)
+	    P.gca().invert_yaxis()
+	    
+	    
+	    m=map(None,lon = (-8, 5),lat = (43,53), subplot=222, show= False,)
+	    m.set_title('Profil coordinates:'+' '+lon+tagEW+' '+lat+tagSN)
+	    m.map.scatter(x=Lon[i],y=Lat[i],s=30, c='g',vmin=m.vmin, vmax=m.vmax, cmap=m.cmap)
+	    m=map(None,lon = (-8, 5),lat = (43,53), subplot=222, show= False,)
+	    
+	    savefigs(FIG_DIR+'/Map_RECOPESCA_profile_'+tagforfiledate+'_'+lon+tagEW+'_'+lat+tagSN)
+	    
+	    P.close()
+	rep_ecriture= cfg['Output']['title']
+	print rep_ecriture
+	write_nc_cf('Model'+tagforfilename+'_temp_' +tagforfiledate1 +'_'+tagforfiledate2+'.nc',varin1= STD_temp, time=tagbegin)
+	print 'Std of modeled temperature stat written to'+ rep_ecriture +'/'+tagforfilename+tagforfiledate1 +'_'+tagforfiledate2+'.nc'
+	write_nc_cf('Model'+tagforfilename+'_sal_' + tagforfiledate1  +'_'+tagforfiledate2+'.nc',varin1= STD_sal,time=tagbegin)
+	print 'Std of modeled salinity stat written to'+rep_ecriture+'/'+tagforfilename+tagforfiledate1 +'_'+tagforfiledate2+'.nc'
+	write_nc_cf('Bias'+tagforfilename+'_temp_' + tagforfiledate1  +'_'+tagforfiledate2+'.nc',varin1= BIAS_temp,time=tagbegin)
+	print 'Temperature BIAS stat written to'+rep_ecriture+'/'+tagforfilename+tagforfiledate1 +'_'+tagforfiledate2+'.nc'
+	write_nc_cf('Bias'+tagforfilename+'_sal_' + tagforfiledate1  +'_'+tagforfiledate2+'.nc',varin1= BIAS_sal,time=tagbegin)
+	print 'Salinity BIAS stat written to'+rep_ecriture+'/'+tagforfilename+tagforfiledate1 +'_'+tagforfiledate2+'.nc'
+	#'Obs'+tagforfilename+'_temp_' +tagforfiledate1 +'_'+tagforfiledate2+'.nc'
     gc.collect()
+    print "Apres les figures"
+    print T.localtime()
     sys.exit()              
 
            
