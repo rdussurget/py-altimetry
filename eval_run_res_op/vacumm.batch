@@ -47,8 +47,7 @@ echo "Loading python environment"
 # !!!!!!!!! EDIT HERE YOUR ENVIRONMENT SETUP !!!!!!!!!
 source /usr/share/modules/init/bash
 module use /home11/caparmor/mars/PYTHON/modulefiles
-module load cdat
-module load gcc
+module load cdat-git
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 echo "Changing directory to $(pwd)"

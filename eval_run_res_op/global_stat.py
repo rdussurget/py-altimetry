@@ -1,8 +1,10 @@
 # -*- coding: utf8 -*-
 
 """
-Global statistics for pyvalid project by S.Skrypnikov-Laviolle 
-last update 03/2012
+Global statistics for pyvalid project 
+
+Author: S. Skrypnikov-Laviolle (03/2012)
+Last update 06/2012 (G. Charria)
 
 
    Statistics on the whole dataset/run ... 
@@ -28,7 +30,8 @@ from vacumm.data.model.mars.get_ftp import  get_ftp_f1
 from vacumm.data.model.mars.get_cp import  get_cp_f1
 from vacumm.data.misc.handle_directories import make_directories
 from vacumm.validator.valid.ValidXYT import ValidXYT
-from vacumm.misc.plot import map,  curve, curve2,  savefigs
+from vacumm.misc.plot import map2 as map
+from vacumm.misc.plot import curve2,  savefigs
 from vacumm.misc.atime import add, strtime, ch_units, are_same_units, comptime, strftime
 from vacumm.misc.axes import create_time,  set_order, create_dep, create_lat, create_lon
 from vacumm.misc.grid.regridding import regrid1d, regrid2d
@@ -152,6 +155,7 @@ def regionalstat(model, obs, FIG_DIR, SCRIPT_DIR):
     tags=['Manche Est','Manche Ouest','Bretagne Sud','Vendee','Basque']
     
     result=ValidXYT(model, obs)
+    
     config = ConfigParser.RawConfigParser()
     config.read(os.path.join(SCRIPT_DIR,'config.cfg'))
     andeb = config.getint('Time Period', 'andeb')
@@ -171,8 +175,8 @@ def regionalstat(model, obs, FIG_DIR, SCRIPT_DIR):
     tag = 'regionalstat'
     tag1= strftime('%Y%m%d',ctdeb)
     tag2= strftime('%Y%m%d',ctfin)
-    print SCRIPT_DIR
     for i, tag in enumerate(tags):
+	
         model2 = model(lon=[lo_min[i],lo_max[i]],lat=[la_min[i],la_max[i]])
         obs2 = obs(lon=[lo_min[i],lo_max[i]],lat=[la_min[i],la_max[i]])
         result=ValidXYT(model2,obs2)
@@ -257,9 +261,10 @@ def detailedstat(result,tag,tag1,tag2,SCRIPT_DIR,FIG_DIR):
     tagforfilename = '_'.join(tag.split(' ')).lower()
     tagforfiledate1 = '_'.join(tag1.split(' ')).lower()    
     tagforfiledate2 = '_'.join(tag2.split(' ')).lower()
-    
-    #LONGITUDE = create_lon(loi, id='longitude', attributes=dict(long_name='Longitude of each location',standard_name='longitude',units='degrees_east',valid_min='-180.',valid_max='180.',axis='X'))
-    #LATITUDE = create_lat(lai, id='latitude', attributes=dict(long_name='Latitude of each location',standard_name='latitude',units='degrees_north',valid_min='-90.',valid_max='90.',axis='Y'))
+    #lon = create_lon( id='ni', lonid='lon') 
+
+    #LONGITUDE = create_lon(loi, id='ni', attributes=dict(long_name='Longitude of each location',standard_name='longitude',units='degrees_east',valid_min='-180.',valid_max='180.',axis='X'))
+    #LATITUDE = create_lat(lai, id='nj', attributes=dict(long_name='Latitude of each location',standard_name='latitude',units='degrees_north',valid_min='-90.',valid_max='90.',axis='Y'))
     
     
     # Ouverture fichier config
@@ -309,7 +314,8 @@ def detailedstat(result,tag,tag1,tag2,SCRIPT_DIR,FIG_DIR):
         
 	
 	
-	kwplot = dict(cmap=cmap_previmer, vmin=2, vmax=24, levels=post, norm=norm, colorbar_extend='both')
+	kwplot = dict(vmin=result.obs.temp_mean.min(), vmax=result.obs.temp_mean.max(), nmax = 30, colorbar_extend='both')
+	#kwplot = dict(cmap=cmap_previmer, vmin=2, vmax=24, levels=post, norm=norm, colorbar_extend='both')
         P.figure()
         map(result.model.temp_mean, title='Mean modelled Sea Surface Temperature',  show=False,  clabel_hide=True, **kwplot)
         savefigs(FIG_DIR+'/model_temporal_mean_'+ tagforfilename +'_'+tagforfiledate1+'_' +tagforfiledate2)
