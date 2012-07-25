@@ -1,6 +1,9 @@
 .. _getting_started:
 
 
+.. plot:: tutorials/ellipses.py
+   :include-source:
+
 .. plot::
 
    import matplotlib.pyplot as plt

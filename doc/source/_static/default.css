@@ -218,6 +218,7 @@ div.bodywrapper {
 }
 
 div.body a {
+    background-color: white;
     text-decoration: underline;
 }
 
@@ -264,7 +265,7 @@ h1 {
     margin: 0;
     padding: 0.7em 0 0.3em 0;
     font-size: 1.5em;
-    color: #11557C;
+    color: #336699;
 }
 
 h2 {

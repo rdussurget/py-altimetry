@@ -12,6 +12,7 @@ Contents:
    :maxdepth: 2
 
    getting_started.rst
+   pyvalid_examples/index.rst
 
 
 Indices and tables
