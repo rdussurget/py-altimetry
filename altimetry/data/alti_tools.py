@@ -1650,7 +1650,9 @@ def powell_leben_filter_km(*args,**kwargs):
     #Get the corresponding number of points rounded to the nearest integer
     pn=np.fix(p*1e3/dt).astype(int)
     qn=np.fix(q*1e3/dt).astype(int)
-      
+    
+    if pn + qn > n : raise 'Filtering window is too large wrt array length'
+     
     #Compute weights
     #;;;;;;;;;;;;;;;
     
