@@ -8,7 +8,7 @@ from spectrum import get_kx, get_spec, grid_track
 if __name__ == "__main__" :
     
     limit=np.array([36.5,4.,44.5,9.]) # NW Med
-    limit=np.array([36.5,2.,44.5,9.]) # NW Med
+#    limit=np.array([42.0,6.,44.5,9.]) # Ligure
 #    track_list=np.array([9])
     
 #    track_list_in = None
@@ -25,8 +25,9 @@ if __name__ == "__main__" :
     trange=[atools.cnes_convert(trange_str[0])[0],atools.cnes_convert(trange_str[1])[0]]
     
 #    length_threshold = 600
-    N_min = 120 #(J2)
+#    N_min = 120 #(J2)
     N_min = 90  #(C2)
+#    N_min = 30  #LPC zone
     
 #    alti_pattern = "C:\\VMShared/data/alti/regional/europe/j2_cf/nrt_europe*.nc"
     alti_pattern = "C:\\VMShared\\data\\alti\\regional\\mersea-dt\\j2_cf\\dt_mersea*.nc"
@@ -46,6 +47,12 @@ if __name__ == "__main__" :
     
     slamat=np.array([],dtype=np.float64)
     dxout=np.array([],dtype=np.float64)
+    
+    empty=np.array([],dtype=np.bool)
+    
+    npts=np.array([],dtype=np.int)
+    trnb=np.array([],dtype=np.int)
+    cycnb=np.array([],dtype=np.int)
     
 #    pmap=atools.plot_map(0,0,0,limit=limit)
 #    cmap=plt.get_cmap('jet') 
@@ -75,19 +82,29 @@ if __name__ == "__main__" :
             if len(sla) >= N_min :
                 
                 #Regrid SLA into the regular grid defined by hist
-                dumdst, dumlon, dumlat, dumsla, gaplen, ngaps, dx = grid_track(dst,lat,lon,sla)
+                dumdst, dumlon, dumlat, dumsla, gaplen, ngaps, dx, interpolated = grid_track(dst,lat,lon,sla)
                 dxout=np.append(dxout,dx)
+                
+                #Get some stats on raw tracks
+                trnb=np.append(trnb,track)
+                cycnb=np.append(cycnb,cycle)
+                npts=np.append(npts,len(sla))
+                
                 
                 #Extract a segment of length N
                 st=(len(dumdst) - N_min) /2
                 en = st+N_min
                 
-#                if ngaps == 0 :
+                if len(dumsla[st:en]) != N_min :print "problem"
+                
+                #If gaps are detected, use interpolated values if only gaps are shorter than 3 points
                 if ngaps > 0 : 
                     if gaplen.max() <= 3 :
                         slamat=np.append(slamat,dumsla[st:en])
+                        empty=np.append(empty,interpolated[st:en])
                 else : 
                     slamat=np.append(slamat,dumsla[st:en])
+                    empty=np.append(empty,interpolated[st:en])
                         
 #                    psd,esd,fq,p = get_spec(mn_dx, sla,fft=True)
 #                    plt.loglog(p,psd)
@@ -99,9 +116,15 @@ if __name__ == "__main__" :
     #output matrix
     shape = (slamat.size/N_min,N_min)
     slamat=np.reshape(slamat,shape)
+    empty=np.reshape(empty,shape)
+    
+    #Get SLA hovmoller
+    rawsla = slamat.flatten()
+    rawsla[np.arange(rawsla.size).compress(empty.flatten())]=np.NaN
+    rawsla = np.reshape(rawsla,shape)
     
     plt.figure(figsize=[8,8])
-    plt.axis([1000.,10.,1e0,1e6])
+    plt.axis([10000.,10.,1e0,1e8])
     plt.title('J2 spectrum \n [{0}], {1} \n {2} passes of {3} elements '.format(','.join('{0}'.format(x) for x in limit),' - '.join('{0}'.format(x) for x in trange_str),shape[0],N_min))
     
     mn_dx = np.median(dxout)
@@ -111,17 +134,20 @@ if __name__ == "__main__" :
         psd,esd,fq,p = get_spec(mn_dx*1e3, slamat[i,:])
         nfq=len(fq)
         psdmat = np.append(psdmat,psd)
-
     
-    dst = mn_dx * np.arange(N_min)
-    fq = np.fft.fftfreq(N_min, d=mn_dx)[0:nfq]
-    fq = fq + (fq[1] - fq[0])
+    #Unit conversions
+    fq*=1e3      #convert to m-1
+    psdmat /=10. #convert from m2.cpm-1 to cm2.cpkm-1 (cpm = 1e3cpkm; m2 = 1e4cm2)
+    
     p = 1/fq
-    psdmat=np.reshape(psdmat,(shape[0],nfq))
+    psdmat=np.reshape(psdmat,(shape[0],nfq)) 
     
-    psdmat /=10. #convert from m2.cpm-1 to cm2.cpkm-1 (cpm = 1e3cpkm; m2 = 1e4cm2) 
+#    dst = mn_dx * np.arange(N_min)
+#    fq = np.fft.fftfreq(N_min, d=mn_dx)
+#    fq = fq[0:len(fq)] + (fq[1] - fq[0])
     
     mn_psd = np.mean(psdmat,axis=0)
+#    mn_psd = np.median(psdmat,axis=0)
     
     for i in np.arange(shape[0]) :
         plt.loglog(p,psdmat[i,:],'.k')

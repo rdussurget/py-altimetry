@@ -50,17 +50,25 @@ def get_spec(dx,var):
     # shift to have values centered on the intervals
     dk = k[1] - k[0]
     dk_half = dk/2  # half of the interval
-    k_= k[0:imx] + dk #Remove negative frequencies and shift wavelengths by half the unit
-    esd = k_*0
+    
+    k=k[0:imx]  #Remove negative frequencies 
+    k_= k + dk_half  #Shift wavelengths by half the unit
+    
+    esd = k_*0.0
     
     #Spectral integration
     for i in np.arange(len(k_)):
-        esd[i] = sum( c[ np.nonzero(np.logical_and(k<k_[i]+dk_half,k>=k_[i]-dk_half) ) ] )
-    
+        esd[i] = np.mean(c[(k > (k_[i]-dk)) & (k < (k_[i]+dk))])
+#        esd[i] = sum( c[ np.nonzero(np.logical_and(k<k_[i]+dk_half,k>=k_[i]-dk_half) ) ] )
+#        esd[i] = sum( c[(k > (k_[i]-dk_half)) & (k < (k_[i]+dk_half))] )
+
+    #Get frequencies and period  
     fq=k_
+    p=1/fq
+    
     psd = esd / fq
     
-    p=1/fq
+    
     
     # Normalisation (Danioux 2011)
 #    specvar = specvar / (var.size)**2 / dk #No normalization!!
@@ -110,6 +118,27 @@ def get_spec(dx,var):
 ##    if options.debug: print "\n Normalized co-spectrum : \n",cospecvar
 #    return cospecvar,nbwave,dk
 
+#+
+# GRID_TRACK
+# @summary: This function allow detecting gaps in a set of alimetry data and rebin this data regulargly, with informations on gaps.
+# @param dst {type:numeric} : along-track distance.
+# @param lat {type:numeric} : latitude
+# @param lon {type:numeric} : longitude
+# @param sla {type:numeric} : data
+# @return:
+#    outdst : resampled distance
+#    outlon : resampled longitude
+#    outlat : resampled latitude
+#    outsla : resampled data
+#    gaplen : length of the longest gap in data
+#    ngaps : number of detected gaps in data
+#    dx : average spatial sampling
+#    interpolated : True when data was interpolated (empty bin)
+#
+# @author: Renaud DUSSURGET (RD) - LER/PAC, Ifremer
+# @change: Created by RD, July 2012
+#    29/08/2012 : Major change -> number of output variables changes (added INTERPOLATED), and rebinning modified
+#-
 def grid_track(dst,lat,lon,sla):
     
     #Find gaps in data
@@ -120,19 +149,23 @@ def grid_track(dst,lat,lon,sla):
     hist,bin_edges=np.histogram(dst, bins=bins, range=range) #We have binned the data along a regular grid of size (bins) in the range (range)
                                                              #Missing data is thus represented by no data in a given bin
     
-    #Remove leading and trailing edges
-    while hist[0] == 0 : hist=np.delete(hist,[0])
-    while hist[-1] == 0 : hist=np.delete(hist,[len(hist)-1])
+    #Remove leading and trailing edges (and synchronise bin_edges)
+    while hist[0] == 0 : 
+        hist=np.delete(hist,[0])
+        bin_edges=np.delete(bin_edges,[0])
+    while hist[-1] == 0 :
+        hist=np.delete(hist,[len(hist)-1])
+        bin_edges=np.delete(bin_edges,[len(bin_edges)-1])
     
     #Get filled bins indices
-    csum = np.cumsum(hist)
+
     ok = np.arange(len(hist)).compress(np.logical_and(hist,True or False))
     empty = np.arange(len(hist)).compress(~np.logical_and(hist,True or False)) 
     
     outsla = np.repeat(np.NaN,len(hist))
     outlon = np.repeat(np.NaN,len(hist))
     outlat = np.repeat(np.NaN,len(hist))
-    outdst = bin_edges + mn_dx/2
+    outdst = bin_edges [:-1]+ mn_dx/2 #distances is taken at bins centers
     outsla[ok] = sla
     outlon[ok] = lon
     outlat[ok] = lat
@@ -145,6 +178,7 @@ def grid_track(dst,lat,lon,sla):
         outsla[empty] = atools.interp1d(ok, outsla[ok], empty, spline=True)
         
     
+    
     #Get gap properties
     ind=np.arange(len(hist))
     dhist=(hist[1:] - hist[:-1])
@@ -153,4 +187,7 @@ def grid_track(dst,lat,lon,sla):
     gaplen=(en-st) + 1
     ngaps=len(st)
     
-    return outdst, outlon, outlat, outsla, gaplen, ngaps, dx
+    #Get empty bin flag
+    interpolated=~hist.astype('bool')
+    
+    return outdst, outlon, outlat, outsla, gaplen, ngaps, dx, interpolated
