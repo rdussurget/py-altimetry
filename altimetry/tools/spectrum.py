@@ -1,8 +1,26 @@
 import numpy as np
 import alti_tools as atools
 
-#Get wavenumbers
+from scipy import stats
+
 def get_kx(N,dx):
+    """
+    #+
+    # GET_KX
+    # @summary: Returns the frequencies to be used with FFT analysis
+    #
+    # @param N {type:numeric} : number of samples in data
+    # @param dx {type:numeric} : sampling step
+    #
+    # @return:
+    #    k: frequency
+    #    L: length
+    #    imx: index of maximum frequency (for separating positive and negative frequencies)
+    #
+    # @author: Renaud DUSSURGET (RD) - LER/PAC, Ifremer
+    # @change: Created by RD, July 2012
+    #-
+    """
     
     # to work with dimensional axes
     L = N*dx
@@ -20,8 +38,30 @@ def get_kx(N,dx):
     
     return k, L,imx
 
-def get_spec(dx,var):
 
+def get_spec(dx,var):
+    """
+    #+
+    # GET_SPEC
+    # @summary: Returns the spectrum of a regularly sampled dataset
+    #
+    # @param dq {type:numeric} : sampling interval (1D)
+    # @param var {type:numeric} : data to analyse (1D).
+    #
+    # @note: NaN can not be used. 
+    #
+    # @return:
+    #    psd: Power Spectral Density
+    #    esd: Energy Spectral Density
+    #    fq: frequency
+    #    p: wavelength (period)
+    #
+    # @author: Renaud DUSSURGET (RD) - LER/PAC, Ifremer
+    # @change: Created by RD, July 2012
+    #     29/08/2012 : Changed the computation of frequencies and the spectral integration (spectrum is averaged at mid-width frequencies)
+    #-
+    """
+    
     N=var.size
 
     # part 1 - estimate of the wavenumbers
@@ -68,8 +108,6 @@ def get_spec(dx,var):
     
     psd = esd / fq
     
-    
-    
     # Normalisation (Danioux 2011)
 #    specvar = specvar / (var.size)**2 / dk #No normalization!!
 
@@ -81,6 +119,7 @@ def get_spec(dx,var):
 #    if fft: specvar=specvar*2.0*np.pi/1000.0
 
     return psd,esd,fq,p
+
 
 #def get_cospec(dx,dy,var1,var2):
 #
@@ -118,28 +157,29 @@ def get_spec(dx,var):
 ##    if options.debug: print "\n Normalized co-spectrum : \n",cospecvar
 #    return cospecvar,nbwave,dk
 
-#+
-# GRID_TRACK
-# @summary: This function allow detecting gaps in a set of alimetry data and rebin this data regulargly, with informations on gaps.
-# @param dst {type:numeric} : along-track distance.
-# @param lat {type:numeric} : latitude
-# @param lon {type:numeric} : longitude
-# @param sla {type:numeric} : data
-# @return:
-#    outdst : resampled distance
-#    outlon : resampled longitude
-#    outlat : resampled latitude
-#    outsla : resampled data
-#    gaplen : length of the longest gap in data
-#    ngaps : number of detected gaps in data
-#    dx : average spatial sampling
-#    interpolated : True when data was interpolated (empty bin)
-#
-# @author: Renaud DUSSURGET (RD) - LER/PAC, Ifremer
-# @change: Created by RD, July 2012
-#    29/08/2012 : Major change -> number of output variables changes (added INTERPOLATED), and rebinning modified
-#-
+
 def grid_track(dst,lat,lon,sla):
+    """
+    # GRID_TRACK
+    # @summary: This function allow detecting gaps in a set of altimetry data and rebin this data regularlyy, with informations on gaps.
+    # @param dst {type:numeric} : along-track distance.
+    # @param lat {type:numeric} : latitude
+    # @param lon {type:numeric} : longitude
+    # @param sla {type:numeric} : data
+    # @return:
+    #    outdst : resampled distance
+    #    outlon : resampled longitude
+    #    outlat : resampled latitude
+    #    outsla : resampled data
+    #    gaplen : length of the longest gap in data
+    #    ngaps : number of detected gaps in data
+    #    dx : average spatial sampling
+    #    interpolated : True when data was interpolated (empty bin)
+    #
+    # @author: Renaud DUSSURGET (RD) - LER/PAC, Ifremer
+    # @change: Created by RD, July 2012
+    #    29/08/2012 : Major change -> number of output variables changes (added INTERPOLATED), and rebinning modified
+    """
     
     #Find gaps in data
     dx = dst[1:] - dst[:-1]
@@ -191,3 +231,48 @@ def grid_track(dst,lat,lon,sla):
     interpolated=~hist.astype('bool')
     
     return outdst, outlon, outlat, outsla, gaplen, ngaps, dx, interpolated
+
+def get_slope(fq,spec,degree=1):
+    """
+    #+
+    # GET_SLOPE
+    # @summary: This function returns the spectral slope of a spectrum using a least-square regression 
+    #
+    # @param fq {type:numeric} : frequency
+    # @param spec {type:numeric} : spectrum data
+    #
+    # @keyword degree {type:numeric}{default:1}: Degree of the least-square regression model 
+    #
+    # @return:
+    #    slope : spectral slope (or model coefficients for a higher order model)
+    #    intercept : Energy at unit frequency (1 cpkm)
+    #
+    # @author: Renaud DUSSURGET (RD) - LER/PAC, Ifremer
+    # @change: Created by RD, August 2012
+    #-
+    """
+    
+    x = np.log10(fq).flatten()
+    y = np.log10(spec).flatten()
+    
+    
+    #1) Linear least-square regression
+    if degree == 1 :
+        (slope, intercept, rval, pval, err) = stats.linregress(x,y)
+
+    #2) Least-square regression using a higher-order spectral model
+    # -> Gives the same results as 
+    #cf. http://pingswept.org/2009/01/24/least-squares-polynomial-fitting-in-python/                                                    
+    else :
+        A = np.vander(x, degree+1) # form the Vandermonde matrix 
+        (coeffs, residuals, rank, sing_vals) = np.linalg.lstsq(A,y) # find the x that minimizes the norm of Ax-y
+        (slope[:-1], intercept) = coeffs
+
+    return slope,intercept
+
+#+
+# YULE_WALKER_REGRESSION : Estimation of an AR (autoregression) spectral model from data
+#@todo: To be written
+#-
+def yule_walker_regression():
+    pass

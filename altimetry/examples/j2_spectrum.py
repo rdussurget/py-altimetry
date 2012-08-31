@@ -3,17 +3,19 @@ import matplotlib.pyplot as plt
 
 import alti_tools as atools
 
-from spectrum import get_kx, get_spec, grid_track
+from spectrum import get_kx, get_spec, grid_track, get_slope
+
+from scipy import stats
 
 if __name__ == "__main__" :
     
     limit=np.array([36.5,4.,44.5,9.]) # NW Med
-#    limit=np.array([42.0,6.,44.5,9.]) # Ligure
+#    limit=np.array([41.0,5.,44.5,9.]) # Ligure
 #    track_list=np.array([9])
     
 #    track_list_in = None
-#    track_list_in = [9,146]
-    track_list_in = [9]
+    track_list_in = [146]
+#    track_list_in = [9]
     
     sst_dev=2.5
     verbose=0
@@ -25,9 +27,9 @@ if __name__ == "__main__" :
     trange=[atools.cnes_convert(trange_str[0])[0],atools.cnes_convert(trange_str[1])[0]]
     
 #    length_threshold = 600
-#    N_min = 120 #(J2)
-    N_min = 90  #(C2)
-#    N_min = 30  #LPC zone
+    N_min = 120 #(J2)
+#    N_min = 90  #(C2)
+#    N_min = 50  #LPC zone
     
 #    alti_pattern = "C:\\VMShared/data/alti/regional/europe/j2_cf/nrt_europe*.nc"
     alti_pattern = "C:\\VMShared\\data\\alti\\regional\\mersea-dt\\j2_cf\\dt_mersea*.nc"
@@ -125,6 +127,8 @@ if __name__ == "__main__" :
     
     plt.figure(figsize=[8,8])
     plt.axis([10000.,10.,1e0,1e8])
+    plt.xlabel('Spatial wavelength (km)')
+    plt.ylabel('Power spectral density (cm2.cpkm-1)')
     plt.title('J2 spectrum \n [{0}], {1} \n {2} passes of {3} elements '.format(','.join('{0}'.format(x) for x in limit),' - '.join('{0}'.format(x) for x in trange_str),shape[0],N_min))
     
     mn_dx = np.median(dxout)
@@ -142,20 +146,58 @@ if __name__ == "__main__" :
     p = 1/fq
     psdmat=np.reshape(psdmat,(shape[0],nfq)) 
     
-#    dst = mn_dx * np.arange(N_min)
-#    fq = np.fft.fftfreq(N_min, d=mn_dx)
-#    fq = fq[0:len(fq)] + (fq[1] - fq[0])
-    
     mn_psd = np.mean(psdmat,axis=0)
 #    mn_psd = np.median(psdmat,axis=0)
+    
+    
+    #Compute spectral slope using linear regression (70-250km - Xu & Fu 2011)
+    #########################################################################
+    
+    #1) Linear regression
+    fqsub = fq[(p >= 70.) & (p <= 250.)]
+    mnspecsub = mn_psd[(p >= 70.) & (p <= 250.)]
+    f = np.repeat(fqsub,shape[0]).reshape((fqsub.size,shape[0])).transpose()
+    specsub = psdmat[:,(p >= 70.) & (p <= 250.)]
+    
+    (slope,intercept) = get_slope(fqsub, mnspecsub)
+    (slope2,intercept2) = get_slope(f, specsub)
+    
+    poly=np.poly1d([slope,intercept])
+    poly2=np.poly1d([slope2,intercept2])
+    
+    #Get noise slope
+    (nslope,nintercept) = get_slope(fq[p <= 40.], mn_psd[p <= 40.])
+    npoly=np.poly1d([nslope,nintercept])
+    
+    #Compute signal/noise limit:
+    # Es . k^(-sigma) = En.k^(-nu) --> Es : LS regression intercept, En : same for noise, sigma : signal slope, nu: noise slope, k:frequency
+    #==> k = exp( (np.log(En) - np.log(Es)) / (nu-sigma) )
+    klim = np.exp( (np.log(nintercept) - np.log(intercept)) / (nslope - slope) )  
+    
     
     for i in np.arange(shape[0]) :
         plt.loglog(p,psdmat[i,:],'.k')
     
+    
+    xtxt = np.round(np.log10(fq.max()))-1
+    ytxt = 0.1*(np.log10(plt.get(plt.gca(),'ylim')).max() - np.log10(plt.get(plt.gca(),'ylim')).min()) + poly(xtxt)
+    nxtxt = np.round(np.log10(1/20.))
+    nytxt = 0.1*(np.log10(plt.get(plt.gca(),'ylim')).max() - np.log10(plt.get(plt.gca(),'ylim')).min()) + npoly(nxtxt)
+    
     plt.loglog(p,mn_psd,'-r',linewidth=4)
+    plt.loglog(p, 10.0**poly(np.log10(fq)),':m',linewidth=2)
+    plt.text(10.0**(-xtxt), 10.0**ytxt, '{0:4.1f}'.format(slope), color='m')
+    plt.loglog(p[p < 50.], 10.0**npoly(np.log10(fq[p < 50.])),':b',linewidth=2)
+    plt.text(10.0**(-nxtxt), 10.0**nytxt, '{0:4.1f}'.format(nslope), color='b')
     plt.gca().xaxis.grid(True,linestyle=':')
     plt.gca().yaxis.grid(True,linestyle=':')
     plt.show()
+    
+    import scipy.io as io
+    outfile='Q:\\Documents\\Post_Doc\\rapports\\rapport_ete_012\\J2_spec.{0}.sav'.format(track_list_in[0])
+    print outfile
+    io.savemat(outfile,{'fq':fq,'spec':mn_psd,'fit':poly,'noise':npoly})
+    
     
     print 'done'
 
