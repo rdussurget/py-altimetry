@@ -276,9 +276,9 @@ def seasonalstat(model, obs, FIG_DIR, SCRIPT_DIR):
     del obs2
     gc.collect()
 
-    model2 = cdutil.DJF(model)
+    model2 = cdutil.SON(model)
     model2.units = model.units
-    obs2 = cdutil.DJF(obs)
+    obs2 = cdutil.SON(obs)
     obs2.units = result.obs.units
     result=ValidXYT(model2,obs2)
     tag = 'SON'
