@@ -29,7 +29,11 @@ def gen_gallery(app, doctree):
     if app.builder.name != 'html':
         return
 
-    outdir = app.builder.outdir
+    outdir = app.builder.outdir	
+
+    print 'toto'
+    print outdir
+
     rootdir = 'plot_directive/pyvalid_examples'
     #rootdir = 'plot_directive'
 
@@ -46,7 +50,7 @@ def gen_gallery(app, doctree):
     data = []
     thumbnails = {}
 
-    for subdir in ('pyvalid_examples', ):
+    for subdir in ('test', ):
         origdir = os.path.join('build', rootdir, subdir)
         print origdir
         thumbdir = os.path.join(outdir, rootdir, subdir, 'thumbnails')
@@ -75,6 +79,11 @@ def gen_gallery(app, doctree):
             else:
                 basename = m.group(1)
                 pyfile = '%s.py'%basename
+
+            print 'toto'
+            print subdir
+            print basename
+            print rootdir
 
             data.append((subdir, basename,
                          os.path.join(rootdir, subdir, 'thumbnails', filename)))

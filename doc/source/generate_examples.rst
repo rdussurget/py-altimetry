@@ -1,7 +1,7 @@
 .. _getting_started:
 
 
-.. plot:: tutorials/ellipses.py
+.. plot:: pyvalid_examples/test/ellipses.py
    :include-source:
 
 .. plot::

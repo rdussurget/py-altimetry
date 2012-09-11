@@ -31,7 +31,8 @@ from vacumm.data.model.mars.get_ftp import  get_ftp_f1
 from vacumm.data.model.mars.get_cp import  get_cp_f1
 from vacumm.data.misc.handle_directories import make_directories
 from vacumm.validator.valid.ValidXYT import ValidXYT
-from vacumm.misc.plot import map,  curve, curve2,  savefigs
+from vacumm.misc.plot import map as map2
+from vacumm.misc.plot import curve, curve2,  savefigs
 from vacumm.misc.atime import add, strtime, ch_units, are_same_units, comptime, strftime
 from vacumm.misc.axes import create_time,  set_order
 from vacumm.misc.grid.regridding import regrid1d, regrid2d

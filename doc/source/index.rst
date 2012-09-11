@@ -11,8 +11,9 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
-   getting_started.rst
    pyvalid_examples/index.rst
+   /*generate_examples.rst*/
+   list_dev
 
 
 Indices and tables
