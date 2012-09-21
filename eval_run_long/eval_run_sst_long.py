@@ -6,7 +6,7 @@
 #
 # Created: 02/2012
 # Last update: 05/2012
-# Modified: 05/2012 (G. Charria)
+# Modified: 09/2012 (G. Charria)
 # ________________________________________________________________
 #
 # Base sur la chaine d'evaluation des performances modele en SST
@@ -35,7 +35,7 @@ from vacumm.validator.valid.ValidXYT import ValidXYT
 from vacumm.misc.plot import map2 as map
 from vacumm.misc.plot import curve, curve2,  savefigs
 from vacumm.misc.atime import add, strtime, ch_units, are_same_units, comptime, strftime
-from vacumm.misc.axes import create_time,  set_order
+from vacumm.misc.axes import  set_order
 from vacumm.misc.grid.regridding import regrid1d, regrid2d
 from vacumm.misc.io import ncread_best_estimate
 
@@ -213,8 +213,6 @@ obsregridspatial.mask = m3
 if config.get('Statistics', 'to_do') == 'True':
     #print ' -- Validation XYT -- ' 
     print 65*'-'
-    # Le choix du Valid??? depend des champs lus ... ici SST en fonction de lon lat time => XYT
-    #result=ValidXYT(modelregridontime, obsregridspatial) 
     #Appel de global_stat /allstat ou /seasonalstat ou /monthlystat ou /regionalstat
     os.chdir(SCRIPT_DIR)
     if config.get('Statistics', 'allstat') == 'True':

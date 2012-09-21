@@ -21,7 +21,6 @@ matplotlib.use('Agg')
 import cdtime,  MV2
 import numpy as np
 
-#from init_eval_run_sst_op_previmer import evalrun #??
 
 # Import de module specifiques a Vacumm
 #from vacumm.data.satellite.old_nar import *

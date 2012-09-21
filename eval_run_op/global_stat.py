@@ -1,8 +1,10 @@
 # -*- coding: utf8 -*-
 
 """
-Global statistics for pyvalid project by S.Skrypnikov-Laviolle 
-last update 02/2012
+Global statistics for pyvalid project 
+
+Author: S. Skrypnikov-Laviolle (03/2012)
+Last update 09/2012 (G. Charria)
 
 
    Statistics on the whole dataset/run ... 

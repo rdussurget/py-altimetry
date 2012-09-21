@@ -5,7 +5,8 @@
 # S.Skrypnikov-Laviolle
 #
 # Created: 02/2012
-# Last update: 02/2012
+# Last update: 05/2012
+# Modified: 09/2012 (G. Charria)
 # ________________________________________________________________
 #
 # Base sur la chaine d'evaluation des performances modele en SST
@@ -41,7 +42,7 @@ from vacumm.misc.io import ncread_best_estimate
 import glob
 from vacumm.markup import html_tools
 from vacumm.misc.color import cmap_custom, StepsNorm, cmap_magic
-from global_stat import allstat, regionalstat, detailedstat
+from global_stat import allstat, regionalstat, detailedstat, seasonalstat, monthlystat
 
 
 
@@ -72,15 +73,10 @@ print 'La derniere heure consideree est forcee 23h du dernier jour !!!'
 hfin = 23
 
 ctfin=cdtime.comptime(anfin,mfin,jfin,hfin,0,0)
-if config.get('Statistics', 'allstat') == 'True':
-    tag= '_all'
-if config.get('Statistics', 'regionalstat') == 'True':
-    tag= '_regional'
 tag1= strftime('%Y%m%d',ctdeb)
 tag2= strftime('%Y%m%d',ctfin)
 tagforfiledate1 = '_'.join(tag1.split(' ')).lower()    
 tagforfiledate2 = '_'.join(tag2.split(' ')).lower()
-tagforfilename = '_'.join(tag.split(' ')).lower()
 # ouverture, lecture des fichiers, extraction de la variable temperature de la couche de surface
 
 # lecture de plusieurs fichiers entre ctdeb et ctfin et chargement de la variable TEMP de la couche de surface (dernier indice : 30)
@@ -92,6 +88,7 @@ if config.get('Model Description', 'download') == 'local_dir':
 else:
     dir_model = os.path.join(config.get('Env', 'workdir'), 'MODEL',config.get('Model Description', 'name').upper()) 
 # F1 MANGA
+
 if config.get('Model Description', 'name') == 'mars_manga':
     model = ncread_best_estimate('TEMP',os.path.join(dir_model,"PREVIMER_F1-MARS3D-MANGA4000_%Y%m%dT%H00Z.nc"), (ctdeb, ctfinplusuneheure),select=dict(level=slice(29,30)))
 # modif J.Gatti : F1 MANGA devient F2 MENOR
@@ -106,7 +103,6 @@ if config.get('Model Description', 'name') == 'mfs':
     lamin = float(config.get('Domain', 'lamin') )
     lamax = float(config.get('Domain', 'lamax') )   
     model = model(lon=(lomin, lomax), lat=(lamin, lamax))
-
 # fin modif J.Gatti
 
 # a faire : test sur le contenu du tableau ...
@@ -190,16 +186,16 @@ if config.get('Control', 'interp_map') == 'True':
     map(modelregridontime[-1, 0, :, :], title='Model - after time interpolation\n (last time step)', subplot=222, xhide=1,yhide=1,m=m, **kwplot1)
     #add_grid(cgridi, lw=.7, alpha=.3)
     if float(np.ma.count(obs[-1,:,:])) / float(np.ma.count_masked(obs[-1,:,:])) < 0.1:
-	tt = 'Obs - Original\n (< 10% of non-masked values)'
+		tt = 'Obs - Original\n (< 10% of non-masked values)'
     else:
-	tt = 'Obs - Original\n (last time step)'
+		tt = 'Obs - Original\n (last time step)'
     map(obs[-1, :, :], title=tt, subplot=223, m=m, **kwplot)
     #m = map(obs.data[0, :, :], title='Obs - Original', subplot=223, **kwplot)
     #add_grid(cgridi, lw=.7, alpha=.3)
     if float(np.ma.count(obsregridspatial[-1,:,:])) / float(np.ma.count_masked(obsregridspatial[-1,:,:])) < 0.1:
-	tt = 'Obs - after spatial interpolation\n (< 10% of non-masked values)'
+		tt = 'Obs - after spatial interpolation\n (< 10% of non-masked values)'
     else:
-	tt = 'Obs - after spatial interpolation\n (last time step)'
+		tt = 'Obs - after spatial interpolation\n (last time step)'
     map(obsregridspatial[-1, :, :], title=tt,  subplot=224,yhide=1,m=m, **kwplot)
     #add_grid(cgridi, lw=.7, alpha=.3)
     savefigs(FIG_DIR+'/control_interp_map'+'_' +tagforfiledate1 +'_'+tagforfiledate2)
@@ -217,19 +213,16 @@ obsregridspatial.mask = m3
 if config.get('Statistics', 'to_do') == 'True':
     #print ' -- Validation XYT -- ' 
     print 65*'-'
-    # Le choix du Valid??? depend des champs lus ... ici SST en fonction de lon lat time => XYT
-    result=ValidXYT(modelregridontime, obsregridspatial) 
     #Appel de global_stat /allstat ou /seasonalstat ou /monthlystat ou /regionalstat
     os.chdir(SCRIPT_DIR)
     if config.get('Statistics', 'allstat') == 'True':
-	allstat(modelregridontime, obsregridspatial, FIG_DIR, SCRIPT_DIR)  
-    #monthlystat(model, obs, FIG_DIR, SCRIPT_DIR)    
-    del result
-    #result=ValidXYT(modelregridontime, obsregridspatial) 
+		allstat(modelregridontime, obsregridspatial, FIG_DIR, SCRIPT_DIR) 
     if config.get('Statistics', 'regionalstat') == 'True':
-	regionalstat(modelregridontime, obsregridspatial, FIG_DIR, SCRIPT_DIR)
-    #seasonalstat(model, obs, FIG_DIR, SCRIPT_DIR)
-
+		regionalstat(modelregridontime, obsregridspatial, FIG_DIR, SCRIPT_DIR)
+    if config.get('Statistics', 'seasonalstat') == 'True':
+		seasonalstat(modelregridontime, obsregridspatial, FIG_DIR, SCRIPT_DIR)  
+    if config.get('Statistics', 'monthlystat') == 'True':
+		monthlystat(modelregridontime, obsregridspatial, FIG_DIR, SCRIPT_DIR)
 
 
 

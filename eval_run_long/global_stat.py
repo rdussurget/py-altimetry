@@ -1,18 +1,15 @@
 # -*- coding: utf8 -*-
 
 """
-Global statistics for pyvalid project by S.Skrypnikov-Laviolle 
-last update 03/2012
+Global statistics for pyvalid project 
 
+Author: S. Skrypnikov-Laviolle (03/2012)
+Last update 09/2012 (G. Charria)
 
+Version permettant de choisir et realiser l'ensemble des statistiques.
 
    Statistics on the whole dataset/run ... 
 """
-# ________________________________________________________________
-#
-# Created: 02/2012
-# Last update: 05/2012
-# Modified: 05/2012 (G. Charria)
 
 import os,sys,shutil,ConfigParser, gc
 #import cdms2
@@ -34,7 +31,8 @@ from vacumm.data.model.mars.get_ftp import  get_ftp_f1
 from vacumm.data.model.mars.get_cp import  get_cp_f1
 from vacumm.data.misc.handle_directories import make_directories
 from vacumm.validator.valid.ValidXYT import ValidXYT
-from vacumm.misc.plot import map,  curve, curve2,  savefigs
+from vacumm.misc.plot import map2 as map
+from vacumm.misc.plot import curve2,  savefigs
 from vacumm.misc.atime import add, strtime, ch_units, are_same_units, comptime, strftime
 from vacumm.misc.axes import create_time,  set_order, create_dep, create_lat, create_lon
 from vacumm.misc.grid.regridding import regrid1d, regrid2d
@@ -45,7 +43,6 @@ from vacumm.markup import html_tools
 from vacumm.misc.color import cmap_custom, StepsNorm, cmap_magic
 import matplotlib.path as mpath
 import matplotlib.patches as mpatches
-import inspect
 global SCRIPT_DIR
 SCRIPT_DIR=os.getcwd()
 print SCRIPT_DIR
@@ -65,7 +62,6 @@ def write_nc_cf(filename,dual=False, varin1=None,varin2=None):
     creation_date = time.strftime('%Y-%m-%dT%H:%M:%SZ')
     f.creation_date = creation_date
     f.title = config.get('Output','title')
-    #print f
     f.close() # fermeture
 
     #-- Probleme a voir ... comment ne pas ecrire les bounds de maniere concise.    
@@ -305,9 +301,6 @@ def detailedstat(result,tag,tag1,tag2,SCRIPT_DIR,FIG_DIR):
     tagforfiledate1 = '_'.join(tag1.split(' ')).lower()    
     tagforfiledate2 = '_'.join(tag2.split(' ')).lower()
     
-    #LONGITUDE = create_lon(loi, id='longitude', attributes=dict(long_name='Longitude of each location',standard_name='longitude',units='degrees_east',valid_min='-180.',valid_max='180.',axis='X'))
-    #LATITUDE = create_lat(lai, id='latitude', attributes=dict(long_name='Latitude of each location',standard_name='latitude',units='degrees_north',valid_min='-90.',valid_max='90.',axis='Y'))
-    
     
     # Ouverture fichier config
     config = ConfigParser.RawConfigParser()
@@ -327,37 +320,10 @@ def detailedstat(result,tag,tag1,tag2,SCRIPT_DIR,FIG_DIR):
 
         result.temporal_mean()  
         
-        post = np.array([2,3,4,5,6,7,8,9,10,10.5,11,11.5,12,12.5,13,13.5,14,14.5,15,15.5,16,16.5,17,17.5,18,18.5,19,19.5,20,20.5,21,22,23,24])        
-        #pos = (post-post[0])/(post[-1]-post[0])
-        
-        
-        # - normalisation
-        norm = StepsNorm(post)        
-        
-        #pos=np.linspace(0,1,len(post))
-        
-        #r1=np.array([212,191,165,153,97,83,65,48,34,12,8,24,42,56,75,90,105,122,132,134,175,216,250,252,252,252,252,245,231,213,200,185,167,152,136])       
-        r1=np.array([212,191,165,153,97,83,65,48,34,12,8,24,42,56,75,90,105,122,132,134,175,216,250,252,252,252,252,245,231,213,200,185,167,152])       
-        r1 = r1/255.
-        
-        #v1=np.array([154,117,95,66,29,46,61,78,94,114,134,150,165,182,199,216,231,244,250,250,250,250,247,231,207,174,141,118,101,87,70,55,40,22,6])  
-        v1=np.array([154,117,95,66,29,46,61,78,94,114,134,150,165,182,199,216,231,244,250,250,250,250,247,231,207,174,141,118,101,87,70,55,40,22])  
-        v1 = v1/255.
-        
-        #b1=np.array([229,213,208,209,159,173,119,205,222,242,252,252,252,252,252,252,252,252,228,155,132,132,126,105,82,49,15,4,4,4,4,4,4,4,4])      
-        b1=np.array([229,213,208,209,159,173,119,205,222,242,252,252,252,252,252,252,252,252,228,155,132,132,126,105,82,49,15,4,4,4,4,4,4,4])      
-        b1 = b1/255.
-        
-        colors = []
-        for icolor in np.arange(len(r1)):
-            colors.append(((r1[icolor],v1[icolor],b1[icolor]),norm.positions[icolor]))
-        
-        cmap_previmer = cmap_custom(colors,name='cmap_previmer',ncol=len(colors)-1)
         
 	
-	
-	kwplot = dict(cmap=cmap_previmer, vmin=2, vmax=24, levels=post, norm=norm, colorbar_extend='both')
-        P.figure()
+	kwplot = dict(vmin=result.obs.temp_mean.min(), vmax=result.obs.temp_mean.max(), nmax = 30, colorbar_extend='both')
+	    P.figure()
         map(result.model.temp_mean, title='Mean modelled Sea Surface Temperature',  show=False,  clabel_hide=True, **kwplot)
         savefigs(FIG_DIR+'/model_temporal_mean_'+ tagforfilename +'_'+tagforfiledate1+'_' +tagforfiledate2)
         P.close()
