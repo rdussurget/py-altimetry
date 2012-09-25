@@ -179,7 +179,7 @@ if config.get('Control', 'interp_map') == 'True':
     # Trace des resultats
     kwplot1 = dict(show=False, colorbar=False, vmin=obs.min(), vmax=obs.max(), 
 	drawparallels_size=8, drawmeridians_size=8, drawmeridians_rotation=45.,  clabel_hide=True)
-    kwplot = dict(show=False, colorbar=True, colorbar_horizontal = True,  vmin=obs.min(), vmax=obs.max(), 
+    kwplot = dict(show=False, colorbar=True, vmin=obs.min(), vmax=obs.max(), 
 	    drawparallels_size=8, drawmeridians_size=8, drawmeridians_rotation=45.,  clabel_hide=True)
     m = map(model[-1, 0, :, :], title='Model - original\n (last time step)',  subplot=221, xhide=1,**kwplot1)
     #add_grid(cgrido, lw=.7, alpha=.3)

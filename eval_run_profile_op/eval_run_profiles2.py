@@ -2,9 +2,13 @@
 """
 Created on Tue Oct 18 17:12:55 2011
 
-@author: sskrypni
+Evaluation of modeled vertical content compared to observations from available vertical profiles.
+Dataset taken into account at this stage: RECOPESCA 
+Source: CDOCO
 
-Last update: 03/2012
+@author: sskrypni, gcharria
+
+Last update: 09/2012
 Use: 
  cdat-old
  python eval_run_profiles2.py --cfgfile='config_profiles.cfg'
@@ -12,15 +16,16 @@ Use:
 
 """
 
-## utile pour ftp.retrbinary
-#def handleDownload(block):
-#    file.write(block)
-#    #print ".",
-
+# A remplacer par np.isfinite directement.
 def isNaN(num):
     return num != num
 
 def get_ftp_f1(ctdeb, ctfin,andeb, SCRIPT_DIR, dirf1, usr, pwd, fic_prefix, time_res):
+    """
+    Function to get model ouptut 
+    @ to be implement in Vacumm instead of the existing get_ftp_f1.
+    @ to be generalised to different configurations (MANGA, MENOR, ...)
+    """
     import os,cdtime, subprocess, ConfigParser
     print 'ftp cdoco en cours'
     # connection au F1/F2 au CDOCO
@@ -68,8 +73,6 @@ from vacumm.data.misc.profile import ProfilesDataset, ProfilesMerger
 from vacumm.data.model.mars import MARS3D
 from vacumm.data.misc.coloc import Colocator
 from vacumm.misc.atime import strptime, strtime, numtime, strftime, comptime, Intervals
-#import vacumm.data.misc.profile as P
-#from vacumm.data.in_situ.recopesca import Recopesca, Profile
 import matplotlib.pyplot as P
 import matplotlib.dates as date
 from scipy import interpolate
@@ -106,20 +109,26 @@ from cdms2.selectors import time
 
 from cprofile import Profile, Prof_insitu
 
+# Remplacer par fonction Vacumm => pour nc3
 cdms2.setNetcdfShuffleFlag(0); cdms2.setNetcdfDeflateFlag(0); cdms2.setNetcdfDeflateLevelFlag(0)
+
 def write_nc_cf(filename, varin1=None,time=None):
+    """
+    Function to write a NetCDF file with customized name
+    @ a reporter dans vacumm ... but for n variables
+    """
     config = ConfigParser.RawConfigParser()
+    # @ ??? - it works if we load a chosen cdf file ??  I don't think so !
+    # @ Mettre rep_ecriture en argument or inside filename ?
     config.read(os.path.join(SCRIPT_DIR,'config_profiles.ini'))
     rep_ecriture= cfg['Output']['rep_ecriture']
     filename= os.path.join(rep_ecriture,filename)
     f = cdms2.open(filename, 'w')
     f.write(varin1) # ecriture d'une variable    
 
-	
     creation_date = time
     f.creation_date = creation_date
     f.title = cfg['Output']['title']
-    #print f
     f.close() # fermeture
 
 if __name__ == '__main__':
@@ -179,7 +188,7 @@ if __name__ == '__main__':
     print 65 * '-'
     
     # ---------------------------------------------------------
-    # Cette partie doit etre codee dans le setup.py !!!!
+    # @ Cette partie doit etre codee dans le setup.py !!!!
     SCRIPT_DIR = os.getcwd()
 
     model_name = cfg['Model Description']['name']    
@@ -206,7 +215,7 @@ if __name__ == '__main__':
     print ' -- Lecture des profils RECOPESCA --    '
     print 65 * '-'
     if cfg['Observations']['product'] == 'RECOPESCA':
-        obs = Prof_insitu(cfg) # ... a passer en librairie ...
+        obs = Prof_insitu(cfg) # @ ... a passer en librairie ...
        
                 
     if cfg['Observations']['downloadlatest'] == 'True':
@@ -223,7 +232,9 @@ if __name__ == '__main__':
         # ----------------------------------------------------------------
         print ' -- Lecture des sorties de modeles --    '
         print 65*'-'
-        
+        # ---------------------------------------------------------
+	# @ Cette partie doit etre codee dans le setup.py !!!!
+	
         # changement de repertoire et creation eventuelle de nouveaux repertoires
         # les fichiers modeles sont rapatries dans vacumm/work/MODEL/MARS
         dir_one ='MODEL'
@@ -233,6 +244,8 @@ if __name__ == '__main__':
         
         # Cree les repertoires et se positionne dans le repertoire de rapatriment des fichiers
         make_directories(SCRIPT_DIR, WK_DIR,  dir_one, dir_two)
+	# Fin setup.py
+	# -----------------------------------------------------------------
         
     andeb = cfg['Time Period']['andeb']    
     anfin = cfg['Time Period']['anfin']
@@ -298,11 +311,15 @@ if __name__ == '__main__':
     # Boucle sur les differents profils
     print "Avant interpolation"
     print T.localtime()
+    
+    # @ definir en parametre general !
+    scircle = .5 # Taille en degres de la zone de recherche de points modele: lon+/-scircle et lat+/-scircle        
+        
+    
     for it, val in obs.map_profiles.items():
         #print it
         #print val
-        scircle = .5 # Taille en degres de la zone de recherche de points modele: lon+/-scircle et lat+/-scircle        
-        
+                
         proftime = cdtime.s2c(it)
         
         # Selection des profils pour la periode dans config_profiles.cfg 
@@ -377,6 +394,8 @@ if __name__ == '__main__':
 		    
 		    #print ggS.getAxisList()
 
+		    # @ Faut-il faire cette interpolation avant la conversion en z ... peut-etre pas ???
+		    
 		    #Interpolation spatiale du modele sur la position du profil observé
 		    model = grid2xy(model[0,:,:,:], lo, la, method='bilinear') # Ne fonctionne pas avec 'nat' pour Natgrid
 		    model2 = grid2xy(model2[0,:,:,:], lo, la, method='bilinear') 
@@ -497,6 +516,7 @@ if __name__ == '__main__':
         P.close()    
     if cfg['Action']['mean_profile']=='True':
         print "---- Function not implemented ----"
+        # @ to do
         sys.exit()
         
         
@@ -522,6 +542,7 @@ if __name__ == '__main__':
     cpt=0
     b=[]
     
+    # ---- Interpolation verticale
     for it, val in map_profiles_obs.items():        
 
 	f=interpolate.interp1d(map_profiles_obs[it].depth.squeeze(),map_profiles_obs[it].temp.squeeze(),bounds_error=False)

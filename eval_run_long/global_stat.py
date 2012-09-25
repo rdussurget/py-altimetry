@@ -323,7 +323,7 @@ def detailedstat(result,tag,tag1,tag2,SCRIPT_DIR,FIG_DIR):
         
 	
 	kwplot = dict(vmin=result.obs.temp_mean.min(), vmax=result.obs.temp_mean.max(), nmax = 30, colorbar_extend='both')
-	    P.figure()
+	P.figure()
         map(result.model.temp_mean, title='Mean modelled Sea Surface Temperature',  show=False,  clabel_hide=True, **kwplot)
         savefigs(FIG_DIR+'/model_temporal_mean_'+ tagforfilename +'_'+tagforfiledate1+'_' +tagforfiledate2)
         P.close()
@@ -481,7 +481,7 @@ def detailedstat(result,tag,tag1,tag2,SCRIPT_DIR,FIG_DIR):
 	    
  
 	ax.grid()
-	ylim( (2,25) )
+	ylim( (8,28) )
 	ax.legend(('Observations',  'Model'),  loc = 'upper right',  shadow = True,  fancybox=True)
 	fig.autofmt_xdate()
 	savefigs(FIG_DIR+'/result_spatial_statmean_'+ tagforfilename+'_'+tagforfiledate1+'_' +tagforfiledate2)
@@ -903,7 +903,7 @@ def detailedstat(result,tag,tag1,tag2,SCRIPT_DIR,FIG_DIR):
 	    images_results = None
 	
 	html_tools.simplereporthtml(images_results=images_results, images_control=images_control,  mimamodel=mimamodel, mimaobs=mimaobs,  intro=ttforintro,  
-				    file_out=FIG_DIR+'/'+rr+'_'+tagforfilename+'.html')
+				    file_out=FIG_DIR+'/'+rr+'_'+tagforfiledate1 +'_'+tagforfiledate2+'.html')
 	
 	
     
