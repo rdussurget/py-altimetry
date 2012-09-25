@@ -38,6 +38,7 @@ from vacumm.misc.atime import add, strtime, ch_units, are_same_units, comptime, 
 from vacumm.misc.axes import  set_order
 from vacumm.misc.grid.regridding import regrid1d, regrid2d
 from vacumm.misc.io import ncread_best_estimate
+from vacumm.misc.grid import set_grid 
 
 import glob
 from vacumm.markup import html_tools
@@ -93,7 +94,16 @@ if config.get('Model Description', 'name') == 'mars_manga':
     model = ncread_best_estimate('TEMP',os.path.join(dir_model,"PREVIMER_F1-MARS3D-MANGA4000_%Y%m%dT%H00Z.nc"), (ctdeb, ctfinplusuneheure),select=dict(level=slice(29,30)))
 # modif J.Gatti : F1 MANGA devient F2 MENOR
 if config.get('Model Description', 'name') == 'mars_menor':
-    model = ncread_best_estimate('TEMP',dir_model+"PREVIMER_F2-MARS3D-MENOR_%Y%m%dT%H00Z.nc", (ctdeb, ctfinplusuneheure),select=dict(level=slice(29,30)))
+    print 'dir_model',dir_model
+    #print 'os.dir',glob.glob(dir_model+'/*.nc')
+    #print list_forecast_files(os.path.join(dir_model,"PREVIMER_F2-MARS3D-MENOR1200_%Y%m%dT%H00Z.nc"), (ctdeb, ctfinplusuneheure))
+    model = ncread_best_estimate('TEMP',os.path.join(dir_model,"PREVIMER_F2-MARS3D-MENOR1200_%Y%m%dT%H00Z.nc"), (ctdeb, ctfinplusuneheure),select=dict(level=slice(29,30)))
+    #model = ncread_best_estimate('TEMP',dir_model+"PREVIMER_F2-MARS3D-MENOR_%Y%m%dT%H00Z.nc", (ctdeb, ctfinplusuneheure),select=dict(level=slice(29,30)))
+    lo=lo[0, :]
+    la=la[:, 0]
+    set_grid(model, (lo,la))
+    
+    
 # pour MFS
 if config.get('Model Description', 'name') == 'mfs':
     model = ncread_best_estimate('votemper',dir_model+"INGV_MFSTEP_%Y%m%d_T.nc", (ctdeb, ctfinplusuneheure),select=dict(level=slice(0,1)))

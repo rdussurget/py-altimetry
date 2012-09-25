@@ -98,6 +98,9 @@ if config.get('Model Description', 'name') == 'mars_menor':
     #print 'os.dir',glob.glob(dir_model+'/*.nc')
     #print list_forecast_files(os.path.join(dir_model,"PREVIMER_F2-MARS3D-MENOR1200_%Y%m%dT%H00Z.nc"), (ctdeb, ctfinplusuneheure))
     model = ncread_best_estimate('TEMP',os.path.join(dir_model,"PREVIMER_F2-MARS3D-MENOR1200_%Y%m%dT%H00Z.nc"), (ctdeb, ctfinplusuneheure),select=dict(level=slice(29,30)))
+    lo=lo[0, :]
+    la=la[:, 0]
+    set_grid(model, (lo,la))
 # pour MFS
 if config.get('Model Description', 'name') == 'mfs':
     model = ncread_best_estimate('votemper',dir_model+"INGV_MFSTEP_%Y%m%d_T.nc", (ctdeb, ctfinplusuneheure),select=dict(level=slice(0,1)))
@@ -152,7 +155,7 @@ if config.get('Control', 'tseries') == 'True':
     lo = model.getLongitude().getValue()
     la = model.getLatitude().getValue()
     #modif J.Gatti - conversion des variables lo, la 2D en 1D
-    if config.get('Model Description', 'name') != 'mfs':
+    if config.get('Model Description', 'name') == 'mfs':
 	lo=lo[0, :]
 	la=la[:, 0]
         set_grid(model, (lo,la))
