@@ -17,6 +17,14 @@ def modis_sst(file_name,
               limit=None,
               flagLevel=None,
               param='sst'):
+    
+    #Setup flag tables for L2 data
+    flagTable=np.zeros(32,dtype=bool)
+    if flagLevel == 0 : flagTable[[1]]=True
+    elif flagLevel == 1 :flagTable[[  1,  3,  5,            15,16,      19,         25,26]]=True
+    elif flagLevel == 2 : flagTable[[0,1,  3,4,5,8,9,10,  14,15,16,      19,21,22,23,25,26]]=True
+    elif flagLevel >= 3 : flagTable[[0,1,  3,4,5,8,9,10,  14,15,16,      19,21,22,23,25,26]]=True
+    flags=np.where(flagTable)[0]
 
     #Read MODIS HDF4 data
     f = SD(file_name, SDC.READ)
@@ -51,17 +59,24 @@ def modis_sst(file_name,
     xflag=colsum >= 1
     xid=np.arange(d[0])
     xid=xid.compress(xflag)
-    xcnt=int(xid.size)
-    xst=int(xid.min())
+    xcnt=np.int(xid.size)
     yid=np.arange(d[1])
     yid=yid.compress(yflag)
-    ycnt=int(yid.size)
-    yst=int(yid.min())
+    ycnt=np.int(yid.size)
+    
+
+    if xcnt == 0: raise Exception('Error : no longitude within limits')
+    if ycnt == 0: raise Exception('Error : no latitude within limits')
+    
+    #Get start points
+    xst=np.int(xid.min())
+    yst=np.int(yid.min())
+    
+    
 
     #Shrink lon & lat
     lon_var=lon.get(start=[xst,yst], count=[xcnt,ycnt])
     lat_var=lat.get(start=[xst,yst], count=[xcnt,ycnt])
-    
     
     #Load SST image
     ###############
@@ -73,7 +88,7 @@ def modis_sst(file_name,
     sst_var=sst.get(start=[xst,yst], count=[xcnt,ycnt]) #Shrink sst image
     
     #Compute mask
-    if param == 'sst' :
+    if (param == 'sst') or (param == 'sst4') :
         fg=f.select('qual_'+param)
         fg_var=fg.get(start=[xst,yst], count=[xcnt,ycnt])
     
@@ -81,10 +96,38 @@ def modis_sst(file_name,
             mask=sst_var == flagValue
         else :
             mask= (sst_var == flagValue) | (fg_var >= flagLevel)
-    else : mask = np.zeros((xcnt,ycnt),dtype='bool')
+    elif param == 'chlor_a'  :
+        fg=f.select('l2_flags')
+        fg_var=fg.get(start=[xst,yst], count=[xcnt,ycnt]).flatten()
+#        dumvar=[False]*(xcnt*ycnt)#np.zeros((xcnt,ycnt,32),dtype=str).reshape((xcnt*ycnt*32))
+        dumfg=[[np.int(b) for b in np.binary_repr(f,32)[::-1]] for f in fg_var] #Rq : bits should be read from end to start
+        dumvar=np.sum(np.array(dumfg)[:,flags],1) >= 1
+#        for i,f in enumerate(fg_var) :
+#            dumvar[i] =  (np.array([b for b in np.binary_repr(f,32)])[flags] == '1').any()
+        mask=np.reshape(dumvar,(xcnt,ycnt))
+    
+    #Check flags
+#    plt.bar(np.arange(1,33),np.sum(dumfg,0)[::-1]/np.float64(xcnt*ycnt)); plt.show()
         
     sst_var=np.ma.masked_array(sst_var*slope + intercept, mask=mask,type=float)
-      
+    
+    
+    #Image reprojection to avoid bow tie effect
+#    import pyresample as pr
+#    swath_def=pr.geometry.SwathDefinition(lons=lon_var, lats=lat_var)
+#    lons,lats=np.meshgrid(np.arange(lon_var.min(),lon_var.max(),0.005), np.arange( lat_var.min(),lat_var.max(),0.005))
+#    grid_def = pr.geometry.GridDefinition(lons=lons, lats=lats)
+#    
+#    area_id = 'NWMEd'
+#    area_name = 'NWMed'
+#    proj_id = 'cyl'
+#    proj4_args = '+proj=eqc +lat_ts=0 +lat_0=0 +lon_0=0 +x_0=0 +y_0=0 +a=6378137 +b=6378137 +units=m'
+#    x_size = 601
+#    y_size = 351
+#    area_extent = (5., 41., 11., 44.5)
+#    area_def = pr.utils.get_area_def(area_id, area_name, proj_id, proj4_args, x_size, y_size, area_extent )
+#    res = pr.kd_tree.resample_gauss(swath_def, sst_var.data, grid_def, radius_of_influence=10000.,sigmas=500.,fill_value=None)
+    
 
     
     #Quality control
@@ -280,7 +323,7 @@ class image_data:
         self.cached_lat=[]
         self.cached_sst=[]
 
-    def show_image(self,pmap,vmin=None,vmax=None, colorbar=True,title=None):
+    def show_image(self,pmap,logscale=False,vmin=None,vmax=None, colorbar=True,title=None):
         
         mnsst=self.sst.mean()
         var_sst=np.std(self.sst)
@@ -298,18 +341,19 @@ class image_data:
         
         title+='\nSST chosen->{0:%Y/%m/%d}\nshown->{1:%Y/%m/%d - %H:%M} (offset : {2:d} days)\nfile->{3}'.format(self.chosen_date,self.datetime,-self.offset.days,os.path.basename(self.filename))
         
+#        if logscale: pmap.pcolormesh(self.lon,self.lat,np.log10(self.sst),vmin=vmin,vmax=vmax)
         pmap.pcolormesh(self.lon,self.lat,self.sst,vmin=vmin,vmax=vmax)
         if colorbar is True : pmap.colorbar()
         
         pmap.title(title)
 
-    def set_current(self,date):
+    def set_current(self,date,**kwargs):
         self.current=atools.nearest(self.datelist, date) #return nearest value index
         self.offset=-datetime.timedelta(days=self.datelist[self.current] - date)
         self.filename=self.filelist[self.current]
         self.date=self.datelist[self.current] # date in days
         days=divmod(self.date,1)
-        self.datetime=datetime.datetime.fromordinal(int(days[0])) + datetime.timedelta(datetime.datetime(1950,1,1).toordinal() + days[1])
+        self.datetime=datetime.datetime.fromordinal(int(days[0])) + datetime.timedelta(datetime.datetime(1950,1,1).toordinal() + days[1] - 1)
         hours=divmod(datetime.timedelta(days=divmod(self.date,1)[1]).seconds,3600)
         minutes=divmod(hours[1],60)
         self.hours=hours[0]
@@ -318,7 +362,7 @@ class image_data:
         self.chosen_date=self.datetime+self.offset
         self.chosen_date_modis=modis_date_convert(date)[0]
         self.chosen_date_cal=atools.cnes_convert(date)[0][0]
-        self.load()
+        self.load(**kwargs)
         
     def load(self,**kwargs):
         
@@ -354,7 +398,7 @@ class image_data:
             
             #Load data and fill cache
             print "Loading "+os.path.basename(self.filename)+" - modis"
-            modis=modis_sst(self.filename,limit=self.limit,flagLevel=1,param=self.param)
+            modis=modis_sst(self.filename,limit=self.limit,param=self.param,**kwargs)
             self.cached_lon+=[modis['lon'][:]]
             self.cached_lat+=[modis['lat'][:]]
             self.cached_sst+=[modis['sst'][:]]
@@ -367,7 +411,7 @@ class image_data:
             self.cached=self.cache_index.compressed().size
 
             #Set current position within cache
-            cache_id=cache_id.compress(self.cache_index == self.current)
+            cache_id=cache_id.compress((self.cache_index == self.current).compressed())
             
             
         #Update cached variables to be returned

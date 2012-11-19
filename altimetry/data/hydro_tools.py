@@ -10,6 +10,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from netCDF4 import Dataset as ncfile
 import seawater.gibbs as gsw
+import seawater.csiro as csw
 
 import alti_tools as atools
 from scipy import interpolate
@@ -19,7 +20,7 @@ from scipy import interpolate
 
 class hydro_data(object):
     
-    def __init__(self,file_pattern,limit=[-90.,0.,90.,360.],verbose=0,zero_2pi=False,**kwargs):
+    def __init__(self,file_pattern,limit=[-90.,0.,90.,360.],verbose=1,zero_2pi=False,**kwargs):
         
         #Init system variables
 #        if limit is None : limit=[-90.,0.,90.,360.]
@@ -60,7 +61,7 @@ class hydro_data(object):
             #Read data file
             ###############
             filename = enum[1][i]
-            self.message(0,"Loading "+os.path.basename(filename))
+            self.message(1,"Loading "+os.path.basename(filename))
             
             res=self.read(filename,**kwargs) #read() function is specific of each class
             self.update_dataset(res) #update class with loaded data
@@ -94,7 +95,7 @@ class hydro_data(object):
         
         updateDim=[]  
         
-        self.message(1, 'Updating object with '+str(['{0}({1}:{2})'.format(i[0],i[1],i[2]) for i in zip(*(keys,dimname,datalen))]))
+        self.message(2, 'Updating object with '+str(['{0}({1}:{2})'.format(i[0],i[1],i[2]) for i in zip(*(keys,dimname,datalen))]))
         
         for enum in enumerate(keys) :
             
@@ -220,17 +221,17 @@ class hydro_data(object):
             if (varSize > dimSize) :
                 self.Error('Object variable {0} greater than corresponding dimension ({1})'.format(enum[1][0],enum[1][1]))
             elif (varSize < dimSize):
-                self.message(2, 'Variable {0}(N={1}) being extended to match dimension {2}:{3}'.format(enum[1][0],varSize,enum[1][1],dimSize))  
+                self.message(3, 'Variable {0}(N={1}) being extended to match dimension {2}:{3}'.format(enum[1][0],varSize,enum[1][1],dimSize))  
 #                self.__dict__[enum[1][0]] = np.ma.concatenate((self.__dict__[enum[1][0]], np.ma.masked_array(np.repeat(np.nan,dimSize - varSize),mask=np.zeros(dimSize - varSize,dtype='bool'))))
                 self.__dict__[enum[1][0]] = np.ma.masked_array( np.append(self.__dict__[enum[1][0]].data,np.repeat(np.nan,dimSize - varSize)), mask=np.append(self.__dict__[enum[1][0]].mask,np.ones(dimSize - varSize,dtype='bool')) )
     
     def create_Dim(self, name,value):
         if not self._dimensions.has_key(name) :
-            self.message(2, 'Create dimension {0}:{1}'.format(name,value))
+            self.message(3, 'Create dimension {0}:{1}'.format(name,value))
             self._dimensions[name]=value
             self._dimensions['_ndims']=np.size(self._dimensions) - 1
         else :
-            self.message(2, 'Dimension {0} already exists'.format(name))
+            self.message(3, 'Dimension {0} already exists'.format(name))
         
     def update_Dim(self,name,value):
         oldVal=self._dimensions[name]
@@ -259,7 +260,7 @@ class hydro_data(object):
         if createDim is None : createDim = self._dimensions.has_key(dimName[0])
         if toCreate is None : toCreate = (self.par_list == name).sum() == 0
         
-        self.message(2,'Loading {0} ({1}:{2}) from {3}'.format(name,dimName[0],dimVal[0],os.path.basename(self._filename)))
+        self.message(3,'Loading {0} ({1}:{2}) from {3}'.format(name,dimName[0],dimVal[0],os.path.basename(self._filename)))
 
         #Cast variable into masked array first
         ######################################
@@ -389,11 +390,21 @@ class hydro_data(object):
 
     def Error(self,ErrorMsg):    
         raise Exception(ErrorMsg)
-        
+    
+    def slice(self,param,range,surf=False,dimension=None):
+        if np.size(range) == 2 :
+            if not surf : fg = (self.__dict__[param] >= np.min(range)) & (self.__dict__[param] < np.max(range))
+            else : fg = (self.__dict__[param+'_surf'] >= np.min(range)) & (self.__dict__[param+'_surf'] < np.max(range))
+        elif np.size(range) == 1 :
+            if not surf : fg = (self.__dict__[param] == range)
+            else : fg = (self.__dict__[param+'_surf'] == range)
+        else : self.Error('Range array must have 1 or 2 elements max')
+        return fg
 
     def time_slice(self,timerange,surf=False):
-        if not surf : return (self.date >= timerange[0]) & (self.date < timerange[1])
-        else : return (self.date_surf >= timerange[0]) & (self.date_surf < timerange[1])
+        return self.slice('date',timerange,surf=surf)
+#        if not surf : return (self.date >= timerange[0]) & (self.date < timerange[1])
+#        else : return (self.date_surf >= timerange[0]) & (self.date_surf < timerange[1])
 
     def get_file(self,pattern):
         flag=[fnmatch.fnmatch(l,pattern) for l in self.filelist]
@@ -1121,6 +1132,162 @@ class TSG_data(hydro_data) :
         ndims=np.size(sz)
                 
         return {'_dimensions':{'_ndims':ndims,'nbpoints':sz[0]},'lon':lon,'lat':lat,'date':date,'id':id,'temp':temp,'psal':psal,'fluo':fluo}
+
+class CTD_data(hydro_data):
+    
+    def __init__(self,file_pattern,**kwargs):
+        
+        #Init hydro_data class (calling gilder_data.read() function)
+        hydro_data.__init__(self,file_pattern,**kwargs)
+
+    def read(self,filename,**kwargs):
+        
+        fname,extension = os.path.splitext(filename)
+        
+        if extension == '.nc' :
+            outStr=self.read_ArgoNC(filename,params=['TEM2','PSAL'])
+            outStr.update({'temp':outStr.pop('tem2')}) #Use TEM2 as temperature field
+#            outStr.update({'depth':outStr.pop('deph')}) #Use DEPH as depth field
+            return outStr
+        elif extension == '.dat' :
+            return self.read_txt(filename)
+        
+        #Seabird CTD data
+        elif extension == '.cnv' :
+            return self.read_cnv(filename,**kwargs)
+        elif extension == '.asc' :
+            return self.read_asc(filename,**kwargs)
+        else : self.Error('Unknown formatting')
+    
+    def read_asc(self,filename,**kwargs):
+        
+        self._filename = filename
+        
+        #Check file length
+        nlines=0
+        for line in open(filename): nlines+=1            
+        
+        if nlines > 1 :
+            #Open file
+            data=np.genfromtxt(filename,skip_header=1)
+            
+            #Convert to numpy arrays
+            lon=kwargs['lon']
+            lat=kwargs['lat']
+            
+            import datetime
+            date=np.ma.masked_array(data[:,0])+datetime.date(2012,1,1).toordinal()-datetime.date(1950,1,2).toordinal()
+            pres=np.ma.masked_array(data[:,1])
+            temp=np.ma.masked_array(data[:,2])
+            cond=np.ma.masked_array(data[:,3])
+            obs1=np.ma.masked_array(data[:,4])
+            obs2=np.ma.masked_array(data[:,5])
+            descend_rate=np.ma.masked_array(data[:,6])
+            scan=np.ma.masked_array(data[:,7])
+            fluoro=np.ma.masked_array(data[:,8])
+            depth=np.ma.masked_array(data[:,9])
+            potemp=np.ma.masked_array(data[:,10])
+            psal=np.ma.masked_array(data[:,11])
+            dens=np.ma.masked_array(data[:,12])
+            svCM=np.ma.masked_array(data[:,13])
+            flag=np.ma.masked_array(data[:,14])
+            
+            reclen=len(pres)
+            
+            date.mask=np.zeros(reclen,dtype='bool')
+            pres.mask=np.zeros(reclen,dtype='bool')
+            temp.mask=np.zeros(reclen,dtype='bool')
+            cond.mask=np.zeros(reclen,dtype='bool')
+            obs1.mask=np.zeros(reclen,dtype='bool')
+            obs2.mask=np.zeros(reclen,dtype='bool')
+            descend_rate.mask=np.zeros(reclen,dtype='bool')
+            scan.mask=np.zeros(reclen,dtype='bool')
+            fluoro.mask=np.zeros(reclen,dtype='bool')
+            depth.mask=np.zeros(reclen,dtype='bool')
+            potemp.mask=np.zeros(reclen,dtype='bool')
+            psal.mask=np.zeros(reclen,dtype='bool')
+            dens.mask=np.zeros(reclen,dtype='bool')
+            svCM.mask=np.zeros(reclen,dtype='bool')
+            flag.mask=np.zeros(reclen,dtype='bool')
+            
+            
+            
+            id=np.repeat('{0}'.format(kwargs['stationid']),reclen)
+            
+            lon=np.ma.masked_array(np.repeat(lon,reclen),mask=np.zeros(reclen,dtype='bool'))
+            lat=np.ma.masked_array(np.repeat(lat,reclen),mask=np.zeros(reclen,dtype='bool'))
+            
+    #        psal=csw.salt(cond/gsw.cte.C3515, temp, pres)
+    #        depth=gsw.z_from_p(pres,lat)
+    #        dens= gsw.rho(psal,temp,pres)
+            
+            
+            sz=np.shape(lon)
+            ndims=np.size(sz)
+        else :
+            ndims = 1.
+            sz=(1,1)
+            lon=np.array(np.NaN)
+            lat=np.array(np.NaN)
+            date=np.array(np.NaN)
+            id=np.array(np.NaN)
+            depth=np.array(np.NaN)
+            pres=np.array(np.NaN)
+            temp=np.array(np.NaN)
+            psal=np.array(np.NaN)
+            fluoro=np.array(np.NaN)
+            dens=np.array(np.NaN)
+            potemp=np.array(np.NaN)
+            cond=np.array(np.NaN)
+            obs1=np.array(np.NaN)
+            obs2=np.array(np.NaN)
+            svCM=np.array(np.NaN)
+            descend_rate=np.array(np.NaN)
+            flag=np.array(np.NaN)
+            
+        return {'_dimensions':{'_ndims':ndims,'nbpoints':sz[0]},'lon':lon,'lat':lat,'date':date,'id':id,'depth':depth,'pres':pres,'temp':temp, \
+                'psal':psal,'fluoro':fluoro,'dens':dens,'potemp':potemp,'cond':cond,'obs1':obs1,'obs2':obs2,'svCM':svCM,'descend_rate':descend_rate,'flag':flag}    
+
+def read_cnv(self,filename,**kwargs):
+        #Open file
+        data=np.genfromtxt(filename,skip_header=328)
+        
+        #Convert to numpy arrays
+        lon=kwargs['lon']
+        lat=kwargs['lat']
+        
+        import datetime
+        date=np.ma.masked_array(data[:,0])+datetime.date(2012,1,1).toordinal()-datetime.date(1950,1,2).toordinal()
+        
+        pres=np.ma.masked_array(data[:,1])
+        temp=np.ma.masked_array(data[:,2])
+        cond=np.ma.masked_array(data[:,3])
+        obs1=np.ma.masked_array(data[:,6])
+        obs2=np.ma.masked_array(data[:,7])
+        fluoro=np.ma.masked_array(data[:,])
+        
+        pres=np.ma.masked_greater(pres, 99999.)
+        temp=np.ma.masked_greater(temp, 99.)
+        cond=np.ma.masked_greater(cond, 99.)
+        #fluo=np.ma.masked_where((fluo == 0.0) | (fluo >= 99.),fluo)
+        
+        reclen=len(pres)
+        
+        id=np.repeat('{0}'.format(kwargs['stationid']),reclen)
+        
+        lon=np.ma.masked_array(np.repeat(lon,reclen))
+        lat=np.ma.masked_array(np.repeat(lat,reclen))
+        
+        psal=csw.salt(cond/gsw.cte.C3515, temp, pres)
+        depth=gsw.z_from_p(pres,lat)
+        dens= gsw.rho(psal,temp,pres)
+        
+        
+        sz=np.shape(lon)
+        ndims=np.size(sz)
+                
+        return {'_dimensions':{'_ndims':ndims,'nbpoints':sz[0]},'lon':lon,'lat':lat,'date':date,'id':id,'depth':depth,'pres':pres,'temp':temp,'psal':psal}  
+   
 
 
 #Additional functions

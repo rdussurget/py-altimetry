@@ -65,10 +65,13 @@ import os
 
 import hydro_tools as htools
 import esutils_stat as es
+from vacu_lite.addons.nctools import nc
 
 from collections import OrderedDict
 
 def in_limits(lon, lat, limit):
+    
+    limit = recale_limits(limit)
     
     lats = limit[0]
     lons = limit[1]
@@ -76,8 +79,10 @@ def in_limits(lon, lat, limit):
     lone = limit[3]
 
     ind=[]
+    
+    lon = recale(lon,degrees=True)
 
-    # find out lon between S and E
+    # find out lon between S and E (start and end)
     if lons < lone:
         lon_flag = (lon >= lons) & (lon <= lone)
         
@@ -98,11 +103,14 @@ def in_limits(lon, lat, limit):
         print "* WARNING : No Lat [", lats, ",", lats, "]  with lon  [", lons, ",", lone, "]"
         return ind, lat_flag
     
-    flag = lon_flag & lat_flag
+    #Construct flag and index arrays
+    if (len(lon_flag) == len(lat_flag)) :
+        flag = lon_flag & lat_flag
+        ind = np.arange(len(lon)).compress(flag)
+    else :
+        flag = (lon_flag,lat_flag)
+        ind = (np.arange(len(lon)).compress(flag[0]),np.arange(len(lat)).compress(flag[1]))
     
-    # compress lat list according to lon constraint 
-    ind = np.arange(len(lon))
-    ind = ind.compress(flag)
 
     # compress indexes
 #    ind = ind.compress(flag)
@@ -117,7 +125,8 @@ def recale_limits(limitin, zero_2pi=True, minpi_pi=None):
     limitout=limitin
     if isinstance(limitin,np.ndarray) : limitout[[1,3]]=recale(limitin[[1,3]], zero_2pi=zero_2pi, minpi_pi=minpi_pi,degrees=True) #Always in degrees!
     else :
-        for i in [1,3] : limitout[i]=recale(limitin[i], zero_2pi=zero_2pi, minpi_pi=minpi_pi,degrees=True)
+        limitout[1]=recale(limitin[1], zero_2pi=zero_2pi, minpi_pi=minpi_pi,degrees=True)
+        limitout[3]=recale(limitin[3]-1e2*np.MachAr().resolution, zero_2pi=zero_2pi, minpi_pi=minpi_pi,degrees=True)
 
     return limitout
 
@@ -133,10 +142,12 @@ def recale(angle, degrees=False, zero_2pi=True, minpi_pi=None) :
     if minpi_pi : limits-=np.pi
     if degrees : limits = np.rad2deg(limits)
     
-    over=angle > limits[1]
-    under=angle <= limits[0]
-    angle+=under*modulus
-    angle-=over*modulus
+    angle = np.mod(angle + limits[0],limits[0]+limits[1]) - limits[0]
+    
+#    over=angle >= limits[1]
+#    under=angle < limits[0]
+#    angle+=under*modulus
+#    angle-=over*modulus
   
     return angle
 
@@ -213,9 +224,9 @@ class plot_map(Basemap):
         self.length=length
 
         #Draw map 
-        if np.size(z) > 1 : self.setup_map(lon, lat, z, s=s, edgecolor=edgecolor)
+        if np.size(z) > 1 : return self.setup_map(lon, lat, z, s=s, edgecolor=edgecolor)
         else :
-            if z != 0 :  self.setup_map(lon, lat, z, s=s, edgecolor=edgecolor)
+            if z != 0 :  return self.setup_map(lon, lat, z, s=s, edgecolor=edgecolor)
         
 #        self.show() #RQ : Show erase everything!!       
 #        self.m.drawmapscale(self.scale_lon, self.scale_lat, self.mcenter[0], self.mcenter[1], length=self.length)
@@ -241,6 +252,8 @@ class plot_map(Basemap):
     
     def pcolormesh(self,*args,**kwargs):
         
+        if len(args) == 1 : raise Exception('Lon/Lat arguments must be provided')
+        
         lon=np.array(args[0]) 
         lat=np.array(args[1])
         
@@ -253,6 +266,49 @@ class plot_map(Basemap):
         image=np.ma.masked_array(args[2]) if not isinstance(args[2], np.ma.masked_array) else args[2]
 #        image=np.ma.masked_array(args[2])
         return Basemap.pcolormesh(self,mlon,mlat,image,**kwargs)
+    
+    def contour(self,*args,**kwargs):
+        
+        lon=np.array(args[0]) 
+        lat=np.array(args[1])
+        
+        if lon.ndim != 2 :
+            lon,lat=np.meshgrid(lon,lat)
+            lon=lon.transpose()
+            lat=lat.transpose()
+        
+        mlon, mlat = self(lon,lat)
+        
+        if len(args) == 3 : return Basemap.contour(self,mlon,mlat,args[2],**kwargs)
+        else : return Basemap.contour(self,mlon,mlat,args[2],args[3],**kwargs)
+        
+    def contourf(self,*args,**kwargs):
+        
+        lon=np.array(args[0]) 
+        lat=np.array(args[1])
+        
+        if lon.ndim != 2 :
+            lon,lat=np.meshgrid(lon,lat)
+            lon=lon.transpose()
+            lat=lat.transpose()
+        
+        mlon, mlat = self(lon,lat)
+        
+        if len(args) == 3 : return Basemap.contourf(self,mlon,mlat,args[2],**kwargs)
+        else : return Basemap.contourf(self,mlon,mlat,args[2],args[3],**kwargs)
+    
+#    def clabel(self,*args,**kwargs):
+#        Basemap.cl
+    
+    def drawmapscale(self, lon, lat, lon0, lat0, length, barstyle='simple', 
+        units='km', fontsize=9, yoffset=None, labelstyle='simple', 
+        fontcolor='k', fillcolor1='w', fillcolor2='k', ax=None, 
+        format='%d', zorder=None):
+        
+#        x1,y1 = 0.3*m.xmax, 0.25*m.ymax
+#        mlon,mlat = self(lon,lat,inverse=True)
+#        mlon0,mlat0 = self(lon0,lat0,inverse=True)
+        return Basemap.drawmapscale(self, lon, lat, lon0, lat0, length, barstyle=barstyle, units=units, fontsize=fontsize, yoffset=yoffset, labelstyle=labelstyle, fontcolor=fontcolor, fillcolor1=fillcolor1, fillcolor2=fillcolor2, ax=ax, format=format, zorder=zorder)
     
     def arrow(self,*args,**kwargs):
         lon,lat=self(args[0],args[1])
@@ -407,7 +463,7 @@ class plot_map(Basemap):
         #Plot Sequence
         ##############
         self.drawcoastlines()
-        self.drawbathy()
+        cs=self.drawbathy(**kwargs)
         
         self.drawparallels(np.arange(np.floor(self.limit[0]), np.ceil(self.limit[2]), latdel), labels=[1, 0, 0, 0])
         self.drawmeridians(np.arange(np.floor(self.limit[1]), np.ceil(self.limit[3]), londel), labels=[0, 0, 0, 1])
@@ -420,10 +476,30 @@ class plot_map(Basemap):
             else : 
                 if type(z) != type(str()) : z = '.k'
                 self.plot(lon,lat,z,ms=s)
+        return cs
     
-    def drawbathy(self,fname=None):
-        bat=load_bathy(fname=fname)
-        return self.contour(bat.lon, bat.lat, bat.z)
+    def drawbathy(self,fname=None,V=[-250,-2000],Nlevels=None,step=None,colors='k',linestyles='dotted', linewidths=2,**kwargs):
+
+        #If 1 point within, go for menor        
+        if np.sum(in_limits(self.limit[[1,3]],self.limit[[0,2]],[35,0,45,25])[1]) == 1 :
+            bathy='MENOR'
+        else : bathy = 'ETOPO'
+        
+        if fname is None :
+            bat=load_bathy(bathy=bathy,limit=self.limit)
+        else :
+            bat=load_bathy(fname=fname,limit=self.limit)
+        
+        glon,glat=np.meshgrid(np.squeeze(bat['lon']), np.squeeze(bat['lat']))
+        
+        mn=0.01
+        mx=np.nanmin(bat['Z'].data)
+        if Nlevels is not None :
+            if step is None : step = (mx - mn) / Nlevels
+            V = np.arange(mn,mx,step,dtype=np.float)
+        
+        return self.contour(glon,glat,bat['Z'],V,colors=colors,linestyles=linestyles,linewidths=linewidths,**kwargs)
+        
         
         
     def show(self):
@@ -435,21 +511,39 @@ class plot_map(Basemap):
 #    def set_local(self,VarName,VarValue):
 #        if VarName not in locals() : exec('self.'+VarName+' = VarValue')
 
-def load_bathy(fname='C:\\VMShared\\data\\spare_products\\bathy\\bathy_menor.mat'):
+def load_bathy(bathy='MENOR',**kwargs):
     
-    m_dict=OrderedDict( (('lon_menor',[]), ('lat_menor',[]), ('H0',[])) )
-    str=io.loadmat(fname,m_dict)
+    if bathy == 'ETOPO' :
+        fname='C:\\VMShared\\data\\spare_products\\bathy\\ETOPO2v2g_f4.nc'
+        ncf=nc(fname)
+        if kwargs.has_key('lon') : kwargs['x']=recale(kwargs.pop('lon'),degrees=True)
+        if kwargs.has_key('lat') : kwargs['y']=kwargs.pop('lat')
+        if kwargs.has_key('limit') :
+            limit=kwargs.pop('limit')
+            kwargs['x']=tuple(recale(limit[[1,3]],degrees=True))
+            kwargs['y']=tuple(recale(limit[[0,2]],degrees=True))
+        str=ncf.read(**kwargs)
+        str['lon']=np.ma.array(recale(str.pop('x'),degrees=True))
+        str['lat']=np.ma.array(str.pop('y'))
+        str['Z']=np.ma.array(str.pop('z'))
+        
+        return str
+        
+    elif bathy == 'MENOR' :
+        fname='C:\\VMShared\\data\\spare_products\\bathy\\bathy_menor.mat'
+        m_dict=OrderedDict( (('lon_menor',[]), ('lat_menor',[]), ('H0',[])) )
+        str=io.loadmat(fname,m_dict)
+        
+        str['lon']=np.ma.array(np.squeeze(str['lon_menor']))
+        str['lat']=np.ma.array(np.squeeze(str['lat_menor']))
+        str['Z']=np.ma.array(str['H0'])
+        
+        del str['lon_menor']
+        del str['lat_menor']
+        del str['H0']
     
-    str['lon']=np.ma.array(str['lon_menor'])
-    str['lat']=np.ma.array(str['lat_menor'])
-    str['Z']=np.ma.array(str['H0'])
-    
-    del str['lon_menor']
-    del str['lat_menor']
-    del str['H0']
-    
-    return str
-         
+        return str
+    else : raise Exception('Unknown bathymetry') 
         
 def cnes_convert(argin,
                  julian=True,
@@ -481,8 +575,15 @@ def cnes_convert(argin,
         if verbose is True : print("julian is true")
 #        srlist=[np.array(x.split("/",2) for x in argin,dtype=int)]
         narg = np.size(argin)
-        strlist = np.array([x.split("/", 2) for x in argin], dtype=int)
-        datelist = [datetime.datetime(strlist[x, 2], strlist[x, 1], strlist[x, 0]) for x in np.arange(narg)]
+        
+        strlist  =[x.split("-") for x in argin]
+        datelist = []
+        for x in strlist :
+            if len(x) == 1 : datelist.append(datetime.datetime.strptime(x[0].strip(),"%d/%m/%Y") )
+            else : datelist.append(datetime.datetime.strptime('{0}-{1}'.format(x[0].strip(),x[1].strip()),"%d/%m/%Y-%H:%M"))  
+#        datelist = [datetime.datetime.strptime(x,"")""]
+#        strlist = np.array([x.split("/", 2) for x in argin], dtype=int)
+#        datelist = [datetime.datetime(strlist[x, 2], strlist[x, 1], strlist[x, 0]) for x in np.arange(narg)]
         return np.array([(datelist[x] - epoch).days for x in np.arange(narg)], dtype=float)
         
     if calendar is True :
@@ -667,6 +768,10 @@ def calcul_distance(*args):
     
     dist = rt * np.arccos(interm)
     
+    #Remove computation errors
+    fgerr=(lon_b == lon_a) & (lat_b == lat_a)
+    if fgerr.sum() > 0 : dist[fgerr] = 0.
+    
     return dist
 
 def get_zero_element(array):
@@ -762,10 +867,12 @@ def distance_matrix(lat_a, lon_a, lat_b, lon_b):
 
 
 def nearest(t, x):
-    i = bisect_left(t, x)
-    if i == len(t) : i-=1
-    if t[i] - x > 0.5:
-        i-=1
+    adiff=np.abs(t-np.float(x))
+    i=np.argmin(adiff)
+#    i = bisect_left(t, x)
+#    if i == len(t) : i-=1
+#    if t[i] - x > 0.5:
+#        i-=1
     return i
 
 
@@ -814,6 +921,7 @@ class alti_data(htools.hydro_data) :
             filelist=[os.path.basename(p) for p in ls]
             st=[f.split('_')[-3] for f in filelist]
             en=[f.split('_')[-2] for f in filelist]
+#            print st
             jst = [cnes_convert('{0}/{1}/{2}'.format(s[-2:],s[-4:-2],s[0:4]))[0] for s in st]
             jen = [cnes_convert('{0}/{1}/{2}'.format(s[-2:],s[-4:-2],s[0:4]))[0] for s in en]
             dt=np.fix(np.median(np.array(jst[1:]) - np.array(jst[:-1])))
@@ -833,53 +941,34 @@ class alti_data(htools.hydro_data) :
         for enum in enumerate(self.filelist):
             self.sat=np.append(self.sat,[enum[1].split('_')[2]]*self.filelist_count[enum[0]])
     
-    def read(self,filename,**kwargs):
+    def read(self,filename,datatype=None,**kwargs):
         
         fname,extension = os.path.splitext(filename)
-        outStr=self.read_slaext(filename,**kwargs)
-        self.update_fid_list(os.path.basename(filename),outStr['_dimensions']['time'])
+        
+        if os.path.basename(filename).count('.') > os.path.basename(filename).count('_'): delim='.'
+        else : delim = '_'
+        
+        #Get data type
+        if datatype is None :
+            if os.path.basename(filename).split(delim)[0] == 'ctoh' : datatype='CTOH'
+            if os.path.basename(filename).split(delim)[0] == 'PISTACH' : datatype='PISTACH'
+            if os.path.basename(filename).split(delim)[0] == 'nrt' : datatype='NRT'
+            if os.path.basename(filename).split(delim)[0] == 'dt' : datatype='DT'
+        else :
+            datatype='dt' #Setup default as AVISO dt
+        
+        if (datatype == 'DT') | (datatype == 'NRT') | (datatype == 'PISTACH') :
+            outStr=self.read_sla(filename,datatype=datatype,**kwargs)
+            self.update_fid_list(os.path.basename(filename),outStr['_dimensions']['time'])
+        elif (datatype == 'CTOH') :
+            outStr=self.read_CTOH(filename,**kwargs)
+            self.update_fid_list(os.path.basename(filename),outStr['_dimensions']['time'])
+        
+       
         
         return outStr
     
-#    def read_CorrSSH(self,filename,limit=None):
-#        
-#        #Open file
-#        self._filename = filename
-#        self._ncfile = ncfile(self._filename, "r")
-##        lon = np.array(self._ncfile.variables['Longitudes'][:])
-##        lat = np.array(self._ncfile.variables['Latitudes'][:])
-#        lon = self._ncfile.variables['Longitudes'][:]
-#        lat = self._ncfile.variables['Latitudes'][:]
-#        
-#        sat=os.path.basename(filename).split('_')[2]
-#        
-#        #Extract within limits
-#        id, flag = in_limits(lon,lat,limit)
-#        lat = lat.compress(flag)
-#        lon = lon.compress(flag)
-#        
-#        #reconstruct track vector
-#        tracklist=(np.ma.masked_array(self._ncfile.variables['Tracks'][:])).compressed()
-#        ntracks=tracklist.size
-#        nbpoints=(np.ma.masked_array(self._ncfile.variables['NbPoints'][:])).compressed()
-#        tracks=[]
-#        for i in np.arange(ntracks) :
-#            tracks=np.append(tracks,np.repeat(tracklist[i],nbpoints[i]))
-#        
-#        tracks=tracks.compress(flag)
-#            
-##        dum=np.reshape([np.arange(i) for i in nbpoints],nbpoints.cumsum().max())
-##        nbpoints.cumsum().max()
-#              
-#        nid=len(id)
-#        sla = (self._ncfile.variables['CorSSH'][id] - self._ncfile.variables['mean_sea_surface'][id]) * 100. #Turn everything in cm
-#        date = np.float64(self._ncfile.variables['TimeDay'][id,0])+(np.float64(self._ncfile.variables['TimeSec'][id,0])/86400.0) +np.float64(self._ncfile.variables['TimeMicroSec'][id,0])/(86400*1e6)
-#
-#        self._ncfile.close()
-#        
-#        return {'_sat':sat,'_nbpoints':nid,'lon':lon,'lat':lat,'date':date,'tracks':tracks,'sla':sla}
-
-    def read_slaext(self,filename,params=None,force=False,timerange=None,**kwargs):
+    def read_sla(self,filename,params=None,force=False,timerange=None,datatype=None,**kwargs):
         
         """
         READ_SLAEXT : Read AVISO Along-Track SLA regional products
@@ -892,9 +981,14 @@ class alti_data(htools.hydro_data) :
         self._filename = filename
         self._ncfile = ncfile(self._filename, "r")
         
+        #Get delimiter
+        if os.path.basename(filename).count('.') > os.path.basename(filename).count('_'): delim='.'
+        else : delim = '_'
+        
         #Gat sat name
-        splitted=os.path.basename(filename).split('_')
-        sat_name = splitted[2] if splitted[0] == 'nrt' else splitted[3]
+        splitted=os.path.basename(filename).split(delim)
+        if (datatype == 'DT') | (datatype == 'NRT') : sat_name = splitted[2] if splitted[0] == 'nrt' else splitted[3]
+        if datatype == 'PISTACH' : sat_name = 'J2'
         
      
         #Get list of recorded parameters:
@@ -902,7 +996,7 @@ class alti_data(htools.hydro_data) :
         for i in ['time','longitude','latitude'] : par_list.pop(par_list.index(i))
         nparam=len(par_list)
         
-        self.message(1,'Recorded parameters : '+str(nparam)+' -> '+str(par_list))
+        self.message(2,'Recorded parameters : '+str(nparam)+' -> '+str(par_list))
      
         lon = self.load_ncVar('longitude',**kwargs)
         lon['data'] = recale(lon['data'], degrees=True, zero_2pi=True) #shift longitudes
@@ -935,7 +1029,7 @@ class alti_data(htools.hydro_data) :
             flag = [(np.array(dimname) == outStr['_dimensions'].keys()).sum() == 0 for dimname in curDim] #find dimensions to update
             dimUpdate = np.array(curDim).compress(flag)
             for enum in enumerate(dimUpdate) : 
-                self.message(2, 'Appending dimensions {0}:{1} to dataStructure'.format(enum[1],np.array(curDimval).compress(flag)[enum[0]]))
+                self.message(3, 'Appending dimensions {0}:{1} to dataStructure'.format(enum[1],np.array(curDimval).compress(flag)[enum[0]]))
                 outStr['_dimensions'].update({enum[1]:np.array(curDimval).compress(flag)[enum[0]]}) #Append new dimension
                 outStr['_dimensions']['_ndims']+=1 #update dimension counts
             
@@ -952,6 +1046,113 @@ class alti_data(htools.hydro_data) :
         
         return outStr
 
+    def read_CTOH(self,filename,params=None,force=False,timerange=None,datatype=None,**kwargs):
+        
+        """
+        READ_SLAEXT : Read AVISO Along-Track SLA regional products
+        
+        @return: outStr {type:dict} Output data structure containing all recorded parameters as specificied by NetCDF file PARAMETER list.
+        @author: Renaud Dussurget
+        """
+        
+        #Open file
+        self._filename = filename
+        self._ncfile = ncfile(self._filename, "r")
+        
+        #Get delimiter
+        delim = '.'
+        
+        #Gat sat name
+        splitted=os.path.basename(filename).split(delim)
+        sat_name = splitted[4]
+     
+        #Get list of recorded parameters:
+        par_list=[i.encode() for i in self._ncfile.variables.keys()]
+        for i in ['cycle','lon','lat'] : par_list.pop(par_list.index(i))
+        nparam=len(par_list)
+        
+        self.message(2,'Recorded parameters : '+str(nparam)+' -> '+str(par_list))
+     
+        lon = self.load_ncVar('lon',**kwargs)
+        lon['data'] = recale(lon['data'], degrees=True, zero_2pi=True) #shift longitudes
+        lat = self.load_ncVar('lat',**kwargs)
+
+        
+        #Extract within limits
+        ind, flag = in_limits(lon['data'],lat['data'],limit=self.limit)
+        dim_lon = lon['_dimensions']
+        lat = lat['data'].compress(flag)
+        lon = lon['data'].compress(flag)
+        dist=cumulative_distance(lat, lon)
+        
+        sz=np.shape(lon)
+        ndims=np.size(sz)
+        
+        #Get date table and convert it to dimension
+        date = self.load_ncVar('time',nbpoints=ind,**kwargs)
+        
+#        mn = np.min(date['data'],1)
+#        mx = np.max(date['data'],1)
+#        trange=mx - mn
+#        mxid = np.argmax(trange)
+#        mxtrange = trange[mxid] #Get maximum time range
+#        deltat = (date['data'][mxid]))[0,1:data[mxid].mes-1] - (*(data[mxid].data))[0,0:data[mxid].mes-2]
+        
+#        ;Get theoretical time range
+#          FOR i=0, N_ELEMENTS(data) - 1 DO mn = (i EQ 0)? (*(data[i].data))[0,0] : [mn,(*(data[i].data))[0,0]]; Get minimum time at each time series
+#          FOR i=0, N_ELEMENTS(data) - 1 DO mx = (i EQ 0)? (*(data[i].data))[0,data[i].mes - 1] : [mx,(*(data[i].data))[0,data[i].mes - 1]] ;same for max time
+#          trange=[mx - mn] ;Get time range for each time series
+#          mxtrange=max(trange,mxid) ;Get maximum time range
+#          deltat=(*(data[mxid].data))[0,1:data[mxid].mes-1] - (*(data[mxid].data))[0,0:data[mxid].mes-2]
+#          hist=HISTOGRAM(deltat,LOCATIONS=loc,BINSIZE=1);Put deltat into 1 day boxes
+#          dum=MAX(hist,histmx) ;Get modal class
+#          tstep=MAX(deltat[WHERE(deltat LT loc[histmx] + 1.AND deltat GT loc[histmx])]) ;delta is the time spelled btw.
+#                                                                                        ;max time from previous pass and
+#                                                                                        ;min time of following pass.
+#                                                                                        ;Thus the greatest time is the closest
+#                                                                                        ;to the complete cycle
+#          
+#          ;tstep=MIN(DERIV((*(data[mxid].data))[0,*]))
+#        ;  nt=ROUND(( (*(data[mxid].data))[0,data[mxid].mes - 1] - (*(data[mxid].data))[0,0] ) / tstep) + 1
+#          nt=LONG(ROUND(( (*(data[mxid].data))[0,data[mxid].mes - 1] - (*(data[mxid].data))[0,0] ) / tstep) + 1)
+#        ;  theoretical_time=Scale_Vector(DINDGEN(nt), MEDIAN(mn),MEDIAN(mx))
+#          
+#          theoretical_time=DINDGEN(nt)*tstep + MIN(mn) ;This is the theoretical time from reference date MIN(min)
+        
+        
+        dimStr = date['_dimensions']
+        date=date['data']
+        
+        outStr={'_dimensions':dimStr,'lon':lon,'lat':lat,'date':date}
+        
+        for param in par_list :
+            dumVar = self.load_ncVar(param,time=ind,**kwargs) #Load variables
+            dimStr=dumVar['_dimensions']
+            
+            #update dimensions
+            curDim = [str(dimname) for dimname in dimStr.keys()[1:]] #[str(dimname) for dimname in self._ncfile.variables['LONGITUDE'].dimensions]
+            curDimval = [dimStr[dim] for dim in curDim] #[len(self._ncfile.dimensions[dimname]) for dimname in curDim]
+            flag = [(np.array(dimname) == outStr['_dimensions'].keys()).sum() == 0 for dimname in curDim] #find dimensions to update
+            dimUpdate = np.array(curDim).compress(flag)
+            for enum in enumerate(dimUpdate) : 
+                self.message(3, 'Appending dimensions {0}:{1} to dataStructure'.format(enum[1],np.array(curDimval).compress(flag)[enum[0]]))
+                outStr['_dimensions'].update({enum[1]:np.array(curDimval).compress(flag)[enum[0]]}) #Append new dimension
+                outStr['_dimensions']['_ndims']+=1 #update dimension counts
+            
+            cmd = 'dumStr = {\''+param.lower()+'\':dumVar[\'data\']}'
+            self.message(4, 'exec : '+cmd)
+            exec(cmd)
+            outStr.update(dumStr)
+        
+        id=np.repeat(sat_name,sz)
+        
+        
+        outStr.update({'id':id})
+        self._ncfile.close()
+        
+        return outStr
+
+
     def track_list(self,*args):
         noargs = len(args) == 0
         return np.unique(self.track) if noargs else np.unique(self.track.compress(args[0]))
@@ -960,7 +1161,75 @@ class alti_data(htools.hydro_data) :
         noargs = len(args) == 0
         return np.unique(self.cycle) if noargs else np.unique(self.cycle.compress(args[0]))
 
-
+    def reorder(self):
+        #update time range with real value
+        trange_str = self.time_range()[0]
+        cycle_list = self.cycle_list()
+        track_list=self.track_list()
+            
+        #Detect recurrent  lon/lat/track triplets
+        triplets = np.unique(zip(*(self.lon, self.lat, self.track)))
+        
+        #Sort by track (we do not sort using other columns to preserve descending/ascending order)
+        triplets=np.array(sorted(triplets, key=operator.itemgetter(2)))
+        
+        lon = triplets[:,0]
+        lat = triplets[:,1]
+        track = triplets[:,2]
+        cycle=cycle_list
+        
+        N=len(lon)
+        ntracks=len(track_list)
+        ncycles=len(cycle_list)
+        
+        ind = np.arange(N)
+        
+    #    dst = atools.calcul_distance(lat, lon)
+        
+        #Get local index on nominal tracks
+        xid = np.array([np.where((ln == lon) & (self.lat[i] == lat))[0][0] for i,ln in enumerate(self.lon) ])
+        tid = np.array([np.where(c == cycle_list)[0][0] for c in self.cycle])
+        
+        #Get object attributes to reform
+        varSize = np.array([np.size(self.__dict__[k]) for k in self.__dict__.keys()])
+        varSize == self._dimensions['time']
+        par_list=np.array(self.__dict__.keys())[varSize == self._dimensions['time']].tolist()
+        
+        #Refine param list
+        for par in ['lon','lat','track','cycle'] :
+            par_list.pop(par_list.index(par))
+            exec('self.{0}={0}'.format(par))
+            
+        #Set new dimensions array
+        self._dimensions={'_ndims':2,'npoints':N,'ncycles':ncycles}
+        
+        #Init output matrices using object fields
+        for par in par_list :
+            cmd = '{0} = np.ma.array(np.zeros((ncycles,N)),mask=np.ones((ncycles,N),dtype=bool),dtype=self.{0}.dtype)'.format(par)
+            exec(cmd)
+            cmd = '{0}[tid,xid]=self.{0}'.format(par)
+            exec(cmd)
+            exec('self.{0}={0}'.format(par))
+            
+#        #Rework date array
+#        self.time=self.date
+#        
+#        self.time.m
+        
+        
+#        ntime=len(self.time)
+#
+#        #Regrid time
+#        rtime=time - time[0]
+#        mn_dt = np.median(atools.deriv(rtime)) #1st time derivative approximation
+#        mn_dt = np.median((rtime[1:] - rtime[:-1])[np.floor(rtime[1:] - rtime[:-1]) == np.floor(mn_dt)]) #Refined value
+#        bins = np.ceil(rtime.max() / mn_dt) + 1
+#        range=(0/2.,mn_dt * bins) - mn_dt/2
+#        time = np.arange(0,rtime.max(),mn_dt)+time[0] #There is a long term trend in this due to error on mn_dt
+#        hist,bin_edges=np.histogram(rtime, bins=bins, range=range)
+#        
+#        ntime = len(hist)
+        
 def bilinear_interpolation(x, y, points):
     '''Interpolate (x,y) from values associated with four points.
 
@@ -1015,7 +1284,7 @@ def interp1d(x,Z,xout,spline=False,kind='linear',**kwargs):
     if linear :
         
         try :
-            f = scipy.interpolate.interp1d(x, Z, kind=kind)
+            f = scipy.interpolate.interp1d(x, Z, kind=kind,bounds_error=False)
             Zout = f(xout)
         except RuntimeError : Zout = np.repeat(np.NaN,nx)
 
@@ -1053,7 +1322,7 @@ def interp2d(x,y,Z,xout,yout,**kwargs):
     points = zip(*(gx.flatten(),gy.flatten())) 
     xi = zip(*(xout,yout))
     
-    try : Zout = sc.interpolate.griddata(points, gz, xi, **kwargs)
+    try : Zout = scipy.interpolate.griddata(points, gz, xi, **kwargs)
     except RuntimeError : Zout = np.NaN
 #    Zout = sc.interpolate.griddata(points, gz, xi, **kwargs)
     return Zout
@@ -1337,7 +1606,47 @@ def coriolis(lat):
 def gravity(*args):
     return seawater.gibbs.grav(*args)
     
-def geost_1d(*args,**kwargs) : #(lon,lat,dst,nu):
+def geost_1d(*args,**kwargs) : #(lon,lat,nu): OR (dst,nu)
+    """
+    ;+
+    ;
+    ;   GEOST_1D : Compute geostrophic speeds from a sea level dataset <br />
+    ;
+    ;   Reference : Powell, B. S., et R. R. Leben (2004), An Optimal Filter for <br />
+    ;   Geostrophic Mesoscale Currents from Along-Track Satellite Altimetry, <br />
+    ;   Journal of Atmospheric and Oceanic Technology, 21(10), 1633-1642.
+    ;
+    ; @param lon {in}{optional}{type:NUMERIC} longitude in degrees
+    ; @param lat {in}{optional}{type:NUMERIC} latitude in degrees
+    ; @param dst {in}{optional}{type:NUMERIC} along-track distance.
+    ; @param z {in}{required}{type:NUMERIC} sea level surface. Can either be absolute<br />
+    ;          values (SSH) or relative values (SLA). This MUST be given in METERS.
+    ; @keyword strict {in}{optional}{type:BOOLEAN} If True, compute gradient at mid-distance.
+    ; @keyword pl04 {in}{optional}{type:BOOLEAN} If True, use the Powell & Leben 2004 method.
+    ;          
+    ; @returns Geostrophic velocity component, positive to the right of the track
+    ;
+    ;
+    ;
+    ; @author Renaud DUSSURGET, LEGOS/CTOH
+    ; @history Created Sep. 2009 from genweights.m (Brian Powell (c) 2004, <br />
+    ;   University of Colorado, Boulder)<br />
+    ;   Modified May 2010 to be compliant with 20Hz datasets (p & n can vary).<br />
+    ;     Warining may also be issued for data with holes within the width of the<br />
+    ;     window.<br />
+    ;   Modified June 2010 to include filtering window width in KM instead of nb. of<br />
+    ;     points (Equivalent btw. 1Hz and 20Hz data).<br />
+    ;
+    ; @uses CALCUL_DISTANCE, EXIST, GENWEIGTHS, SETINTERSECTION, SETUNION, <br />
+    ;   OPTIMAL_SLOPE, GRAVITY, CORIOLIS, TRACK_ORIENT
+    ;
+    ; @example dummy1=geost_1D(lon,lat,sla,pl04=True,p=11,q=11) :<br />
+    ;   Return along-track velocity anomalies using a 11km by 11km Powell & Leben 2004 filter window <br />
+    ;          dummy2=geost_1D(dst,sla,strict=True) :<br />
+    ;   Return along-track velocity anomalies computed at mid-distance <br />
+    ;
+    ;-
+    """
     
     lon = args[0]
     lat = args[1]
@@ -1460,7 +1769,10 @@ def loess(h,x,cut):
     sumvar=np.nansum(w,1)
 
     #Compute current height (heights times weigths, divided by sum of weights)
-    lf=np.nansum(w*np.repeat(h,n).reshape((n,n)),0)/sumvar
+    try :
+        lf=np.nansum(w*np.repeat(h,n).reshape((n,n)),0)/sumvar
+    except (ValueError):
+        lf=np.nansum(w*np.repeat(h,n).reshape((n,n)),0)/sumvar #Retry
 
     return lf
 
@@ -1795,8 +2107,11 @@ def powell_leben_filter_km(*args,**kwargs):
     g = gravity(lat)
     f = coriolis(lat)
 
-    #Get geostrophic velocities 
-    ug = - (g*dh) / (f)
+    #Get geostrophic velocities
+    try :
+        ug = - (g*dh) / (f)
+    except ValueError :
+        print 'error'
   
     #Inverse sign of ug for descending tracks as Coriolis is oriented to the right
     #northward
@@ -1846,7 +2161,8 @@ def histogram_indices(hist,R):
 def mask2NaN(array):
     n=array.size
     if array.mask.size != n :
-        raise np.ma.MaskError("[mask2NaN]Error : mask length is not consistent with data")
+        array.mask = np.zeros(n,dtype=bool)
+#        raise np.ma.MaskError("[mask2NaN]Error : mask length is not consistent with data")
 #        array.mask = np.ones(n,dtype=bool)
     array.data[np.arange(n).compress(array.mask)] = np.NaN
     return array
@@ -1857,14 +2173,30 @@ def nanargmin(array,axis=None):
     ny=shape[1]
     if axis is None : return np.nanargmin()
     
-def reproject_track(dst,lat,lon,sla):
+def grid_track(lat,lon,sla,remove_edges=True,backbone=None):
     """
-    # REPROJECT_TRACK
+    # GRID_TRACK
+    # @summary: This function allow detecting gaps in a set of altimetry data and rebin this data regularlyy, with informations on gaps.
+    # @param lat {type:numeric} : latitude
+    # @param lon {type:numeric} : longitude
+    # @param sla {type:numeric} : data
+    # @return:
+    #    outdst : resampled distance
+    #    outlon : resampled longitude
+    #    outlat : resampled latitude
+    #    outsla : resampled data
+    #    gaplen : length of the longest gap in data
+    #    ngaps : number of detected gaps in data
+    #    dx : average spatial sampling
+    #    interpolated : True when data was interpolated (empty bin)
     #
     # @author: Renaud DUSSURGET (RD) - LER/PAC, Ifremer
     # @change: Created by RD, July 2012
     #    29/08/2012 : Major change -> number of output variables changes (added INTERPOLATED), and rebinning modified
+    #    06/11/2012 : Included in alti_tools lib
     """
+    
+    dst=calcul_distance(lat,lon)
     
     #Find gaps in data
     dx = dst[1:] - dst[:-1]
@@ -1875,12 +2207,13 @@ def reproject_track(dst,lat,lon,sla):
                                                              #Missing data is thus represented by no data in a given bin
     
     #Remove leading and trailing edges (and synchronise bin_edges)
-    while hist[0] == 0 : 
-        hist=np.delete(hist,[0])
-        bin_edges=np.delete(bin_edges,[0])
-    while hist[-1] == 0 :
-        hist=np.delete(hist,[len(hist)-1])
-        bin_edges=np.delete(bin_edges,[len(bin_edges)-1])
+    if remove_edges == True :
+        while hist[0] == 0 : 
+            hist=np.delete(hist,[0])
+            bin_edges=np.delete(bin_edges,[0])
+        while hist[-1] == 0 :
+            hist=np.delete(hist,[len(hist)-1])
+            bin_edges=np.delete(bin_edges,[len(bin_edges)-1])
     
     #Get filled bins indices
 
@@ -1898,9 +2231,9 @@ def reproject_track(dst,lat,lon,sla):
     #Fill the gaps if there are some
     if len(empty) > 0 : 
         #Interpolate lon,lat @ empty positions
-        outlon[empty] = atools.interp1d(ok, outlon[ok], empty, kind='cubic')
-        outlat[empty] = atools.interp1d(ok, outlat[ok], empty, kind='cubic')
-        outsla[empty] = atools.interp1d(ok, outsla[ok], empty, spline=True)
+        outlon[empty] = interp1d(ok, outlon[ok], empty, kind='cubic')
+        outlat[empty] = interp1d(ok, outlat[ok], empty, kind='cubic')
+        outsla[empty] = interp1d(ok, outsla[ok], empty, spline=True)
         
     
     
@@ -1911,9 +2244,246 @@ def reproject_track(dst,lat,lon,sla):
     en=ind.compress(dhist==1)
     gaplen=(en-st) + 1
     ngaps=len(st)
+    gapedges=np.array([st,en])
     
     #Get empty bin flag
     interpolated=~hist.astype('bool')
     
-    return outdst, outlon, outlat, outsla, gaplen, ngaps, dx, interpolated
+    return outdst, outlon, outlat, outsla, gaplen, ngaps, gapedges, interpolated
 
+def grid_time(time,remove_edges=False):
+    """
+    # GRID_TIME
+    # @summary: This function allow to regularly resample time as an array in an altimetry dataset
+    # @param time {type:numeric} : time
+    # @return:
+    #    outtime : resampled time
+    #    gaplen : length of the longest gap in data
+    #    ngaps : number of detected gaps in data
+    #    dx : average spatial sampling
+    #    interpolated : True when data was interpolated (empty bin)
+    #
+    # @author: Renaud DUSSURGET (RD) - LER/PAC, Ifremer
+    # @change: Created by RD, July 2012
+    #    29/08/2012 : Major change -> number of output variables changes (added INTERPOLATED), and rebinning modified
+    #    06/11/2012 : Included in alti_tools lib
+    """
+    
+    #Find gaps in data
+    nt=time.shape[0]
+    nx=time.shape[1]
+
+    #Get series with the longest record
+    xnt=np.isfinite(time).sum(axis=0)
+    xid = np.argmax(xnt)
+    
+    #Make a linear regression of time over each cycle
+    w = np.linalg.lstsq(np.array([np.arange(nt)[~time.mask[:,xid]],np.ones(nt)[~time.mask[:,xid]]]).T,time[:,xid][~time.mask[:,xid]])[0]
+    t = w[0]*np.arange(nt)+w[1]
+    
+#    dft = t[1:] - t[:-1]
+#    mn_dt = np.median(dft)
+#    bins = np.ceil(t.max() / mn_dt) + 1
+#    range=(0/2.,mn_dt * bins) - mn_dt/2
+#    hist,bin_edges=np.histogram(time, bins=bins, range=range) #We have binned the data along a regular grid of size (bins) in the range (range)
+#                                                             #Missing data is thus represented by no data in a given bin
+#    
+#    #Remove leading and trailing edges (and synchronise bin_edges)
+#    if remove_edges == True :
+#        while hist[0] == 0 : 
+#            hist=np.delete(hist,[0])
+#            bin_edges=np.delete(bin_edges,[0])
+#        while hist[-1] == 0 :
+#            hist=np.delete(hist,[len(hist)-1])
+#            bin_edges=np.delete(bin_edges,[len(bin_edges)-1])
+#    
+#    #Get filled bins indices
+#
+#    ok = np.arange(len(hist)).compress(np.logical_and(hist,True or False))
+#    empty = np.arange(len(hist)).compress(~np.logical_and(hist,True or False)) 
+#    
+#    outtime = np.repeat(np.NaN,len(hist))
+##    outtime = bin_edges [:-1]+ mn_dx/2 #distances is taken at bins centers
+#    outtime[ok] = time
+#    
+#    #Fill the gaps if there are some
+#    if len(empty) > 0 : 
+#        #Interpolate lon,lat @ empty positions
+#        outtime[empty] = interp1d(ok, outtime[ok], empty, kind='cubic')
+#        
+#    #Get gap properties
+#    ind=np.arange(len(hist))
+#    dhist=(hist[1:] - hist[:-1])
+#    st=ind.compress(dhist==-1)+1
+#    en=ind.compress(dhist==1)
+#    gaplen=(en-st) + 1
+#    ngaps=len(st)
+#    gapedges=np.array([st,en])
+#    
+#    #Get empty bin flag
+#    interpolated=~hist.astype('bool')
+#    
+#    return outtime, gaplen, ngaps, gapedges, interpolated
+    return t
+
+def fill_gaps(lat,lon,sla,mask,remove_edges=False):
+    """
+    # FILL_GAPS
+    # @summary: This function allow interpolating data in gaps, depending on gap size. Data must be regularly gridded
+    # @param lat {type:numeric} : latitude
+    # @param lon {type:numeric} : longitude
+    # @param sla {type:numeric} : data
+    # @return:
+    #    outdst : resampled distance
+    #    outlon : resampled longitude
+    #    outlat : resampled latitude
+    #    outsla : resampled data
+    #    gaplen : length of the longest gap in data
+    #    ngaps : number of detected gaps in data
+    #    dx : average spatial sampling
+    #    interpolated : True when data was interpolated (empty bin)
+    #
+    # @author: Renaud DUSSURGET (RD) - LER/PAC, Ifremer
+    # @change: Created by RD, July 2012
+    #    29/08/2012 : Major change -> number of output variables changes (added INTERPOLATED), and rebinning modified
+    #    06/11/2012 : Included in alti_tools lib
+    """
+    
+    dst=calcul_distance(lat,lon)
+    
+    #Find gaps in data
+    dx = dst[1:] - dst[:-1]
+    mn_dx = np.median(dx)
+    nx=len(sla)
+
+    flag=~mask
+    
+    #Get filled bins indices
+    outsla = sla.copy()
+    outlon = lon.copy()
+    outlat = lat.copy()
+    outind = np.arange(nx)
+    
+    #Replace missing data on edges by the latest valid point
+    first=np.where((flag))[0].min()
+    last=np.where((flag))[0].max()
+    if remove_edges :
+        outsla=outsla[first:last+1]
+        outlon=outlon[first:last+1]
+        outlat=outlat[first:last+1]
+        outind=outind[first:last+1]
+        mask=mask[first:last+1]
+        flag=flag[first:last+1]
+    else:
+        outsla[0:first] = outsla[first]
+        outsla[last:] = outsla[last]
+    
+    #Get gap properties
+    hist=np.ones(nx,dtype=int)
+    hist[outsla.mask]=0
+    while hist[0] == 0 : 
+        hist=np.delete(hist,[0])
+    while hist[-1] == 0 :
+        hist=np.delete(hist,[len(hist)-1])
+    
+    ind=np.arange(len(hist))
+    dhist=(hist[1:] - hist[:-1])
+    st=ind.compress(dhist==-1)+1
+    en=ind.compress(dhist==1)
+    gaplen=(en-st) + 1
+    ngaps=len(st)
+    gapedges=np.array([st,en])
+    
+    
+    ok = np.where(flag)[0]
+    empty = np.where(mask)[0] 
+    
+    #Fill the gaps if there are some
+    if len(empty) > 0 : 
+        #Interpolate lon,lat @ empty positions
+        outsla[empty] = interp1d(ok, outsla[ok], empty)
+    
+    #Get empty bin flag
+    interpolated=~hist.astype('bool')
+    
+    return outsla, outlon, outlat, outind, ngaps, gapedges, gaplen, interpolated
+
+
+def cnes2modis(cnes_date,YYYYDDDHHMM=None,YYYYDDD=True):
+    """
+    #+
+    # CNES2MODIS : Convert CNES julian days to MODIS data format (YYYYDDD)
+    # 
+    # @author: Renaud DUSSURGET (LEGOS/CTOH)
+    # @history: Created by RD on 2/12/2011
+    #           Adapted to Python on 29/10/2012 by RD (now at LER PAC/IFREMER)
+    #
+    #-
+    """
+
+    #Setup defaults
+    if YYYYDDDHHMM is None : YYYYDDDHHMM = False
+    if YYYYDDD : YYYYDDDHHMM = False
+    if YYYYDDDHHMM : YYYYDDD = False
+
+    str,obj=cnes_convert(cnes_date)
+    dat=[o.strftime("%Y%j%H%M") for o in obj]
+    
+    return dat
+
+def modis2cnes(modis_date):
+    """
+    #+
+    # MODIS2CNES : Convert MODIS date format to CNES JULIAN DAYS (YYYYDDD or YYYYDDDHHMM)
+    # 
+    # @author: Renaud DUSSURGET (LER PAC/IFREMER)
+    # @history: Created by RD on 29/10/2012
+    #
+    #-
+    """
+
+    if not isinstance(modis_date,list) : modis_date=[modis_date]
+
+    if len(modis_date[0]) ==  7 :
+        obj=[datetime.datetime.strptime(d,"%Y%j") for d in modis_date] 
+    else :
+        obj=[datetime.datetime.strptime(d,"%Y%j%H%M") for d in modis_date]
+    
+#    str,obj=cnes_convert(modis_date)
+    dat=[o.strftime("%d/%m/%Y-%H:%M") for o in obj]
+    
+    return cnes_convert(dat)
+
+def modis_filename2modisdate(modis_fname):
+    """
+    #+
+    # MODIS_FILENAME2DATE : Convert MODIS file name to MODIS date
+    # 
+    # @author: Renaud DUSSURGET (LER PAC/IFREMER)
+    # @history: Created by RD on 29/10/2012
+    #
+    #-
+    """
+    
+    if not isinstance(modis_fname,list) : modis_fname=[modis_fname]
+    
+    return [os.path.splitext(os.path.basename(m))[0][1:12] for m in modis_fname]
+
+def modis_filename2cnes(modis_fname):
+
+    modis_date=modis_filename2modisdate(modis_fname)
+    return modis2cnes(modis_date)
+    
+def detrend(X,Z,deg=1):
+    if Z.shape == 1 :
+        nt = 1
+        valid=np.array([True])
+    else :
+        nt=Z.shape[0]
+        valid=(~Z.mask).sum(axis=1)
+    a=np.arange(deg+1)
+    for t in np.arange(nt)[valid > 0]:
+        fit=np.polyfit(X[~Z[t,:].mask],Z[t,:][~Z[t,:].mask], deg)
+        for d in a : Z[t,:]-=np.power(X,a[::-1][d])*fit[d]
+    return Z
+    

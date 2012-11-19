@@ -52,10 +52,10 @@ if __name__ == "__main__" :
 #    alti_pattern = "C:\\VMShared/data/alti/regional/europe/c2_cf/nrt_europe*.nc"
 
 #    alti_pattern='C:\\VMShared\\data\\alti\\regional\\PISTACH\\PISTACH_rtkRED3_NWMED\\PISTACH_L3_Product_NWMED_RED3_*.nc' #tr9_5hz.nc'
-    alti_pattern='C:\\VMShared\\data\\alti\\regional\\PISTACH\\PISTACH_rtkRED3_NWMED\\PISTACH_L3_Product_NWMED_RED3_tr9_5hz.nc'
+#    alti_pattern='C:\\VMShared\\data\\alti\\regional\\PISTACH\\PISTACH_rtkRED3_NWMED\\PISTACH_L3_Product_NWMED_RED3_tr9_5hz.nc'
 #    alti_pattern='C:\\VMShared\\data\\alti\\regional\\PISTACH\\PISTACH_rtkRED3_NWMED\\PISTACH_L3_Product_NWMED_RED3_tr146_5hz.nc'
 
-#    alti_pattern='C:\\VMShared\\data\\alti\\regional\\PISTACH\\PISTACH_rtkMLE4_NWMED\\PISTACH_L3_Product_NWMED_MLE4_tr9_5hz.nc'
+    alti_pattern='C:\\VMShared\\data\\alti\\regional\\PISTACH\\PISTACH_rtkMLE4_NWMED\\PISTACH_L3_Product_NWMED_MLE4_tr9_5hz.nc'
 #    alti_pattern='C:\\VMShared\\data\\alti\\regional\\PISTACH\\PISTACH_rtkMLE4_NWMED\\PISTACH_L3_Product_NWMED_MLE4_tr146_5hz.nc'
 
 #    alti=atools.alti_data(alti_pattern,limit=limit,verbose=verbose,time_range=trange)
@@ -238,9 +238,9 @@ if __name__ == "__main__" :
     
     import scipy.io as io
 #    outfile='Q:\\Documents\\Post_Doc\\rapports\\rapport_ete_012\\J2_spec.{0}.sav'.format(track_list_in[0])
-    outfile='Q:\\Documents\\Post_Doc\\rapports\\rapport_ete_012\\{0}.HF.{1:.0f}-{2:.0f}'.format(alti.filelist[0],limit[0],limit[2])
+    outfile='Q:\\Documents\\Post_Doc\\rapports\\rapport_ete_012\\spectras\\mat{0}.HF.{1:.0f}-{2:.0f}'.format(alti.filelist[0],limit[0],limit[2])
     print outfile
-    io.savemat(outfile,{'fq':fq,'spec':mn_psd,'fit':poly,'noise':npoly})
+    io.savemat(outfile,{'fq':fq,'spec':psdmat,'mn_spec':mn_psd})
     
     
     print 'done'
