@@ -83,6 +83,10 @@ def get_spec(dx,var):
     b = fft.imag
     c = a**2 + b**2
     
+    #Checking parseval's Theorem
+    #-->                     (c/N).sum() == (var**2).sum()
+    #OR : np.linalg.norm(fft)/np.sqrt(N) == np.linalg.norm(var)
+    
     #Get phase (not used yet)
     phase=np.angle(fft)
 
@@ -91,23 +95,85 @@ def get_spec(dx,var):
     dk = k[1] - k[0]
     dk_half = dk/2  # half of the interval
     
-    k=k[0:imx]  #Remove negative frequencies 
-    k_= k + dk_half  #Shift wavelengths by half the unit
+    ist=1
     
-    esd = k_*0.0
+    k = k[ist:imx]  #Remove negative frequencies and zero frequency (mean)
+    k_= k #k + dk  #Shift wavelengths by half the unit
+    
+    esd = c[ist:imx]
+    
     
     #Spectral integration
+    var = k_*0.0
     for i in np.arange(len(k_)):
-        esd[i] = np.mean(c[(k > (k_[i]-dk)) & (k < (k_[i]+dk))])
-#        esd[i] = sum( c[ np.nonzero(np.logical_and(k<k_[i]+dk_half,k>=k_[i]-dk_half) ) ] )
-#        esd[i] = sum( c[(k > (k_[i]-dk_half)) & (k < (k_[i]+dk_half))] )
+#        mesd[i] = np.mean(c[(k > (k_[i]-dk)) & (k < (k_[i]+dk))])
+        var[i] = 2*dk*np.sum(c[(k > (k_[i]-dk)) & (k < (k_[i]+dk))]) #This is variance units integration
 
     #Get frequencies and period  
     fq=k_
     p=1/fq
     
     psd = esd / fq
-    
+
+#from http://www.mathworks.com/matlabcentral/newsreader/view_thread/283145
+
+#N = 1024 % 1024
+#dt = 0.001 % 1e-3
+#Fs = 1/dt % 1000 fft period
+#T = N*dt % 1.024 ifft period
+#
+#t = 0:dt:T-dt;
+#
+#f0 = 30 % 30
+#T0 = 1/f0 % 0.033333 signal period
+#Nc = T/T0 % 30.72 noninteger number of cycles
+#y = sin(2*pi*f0*t);
+#
+#% Power and Energy in the Time Domain
+#
+#p = y.^2 ; % Instantaneous Power
+#P = sum(p) % 511.04 Total Power
+#Pav = mean(p) % 0.49906 Average Power
+#e = dt*p; % Instantaneous Energy
+#Et = sum(e) % 0.51104 Total Energy
+#Etav = mean(e) % 0.00049906 Average Energy
+#
+#http://groups.google.com/group/comp.soft-sys.matlab/
+#msg/009339c581e63467?hl=en
+#
+#% Power and Energy in the Freqency Domain
+#
+#df = Fs/N % 0.97656 = 1/T
+#f = 0:df:Fs-df; % Unipolar freq interval
+#fb = f - df*ceil((N-1)/2); % Bipolar freq interval
+#Y = fft(y); % Unipolar freq spectrum
+#Yb = fftshift(Y); % Bipolar freq spectrum
+#
+#% Note Y and Yb are interchangeable in most of the following
+#
+#absYb = abs(Yb);
+#PSDb = absYb.^2/N; % Power Spectral Density
+#
+#figure
+#plot(fb,PSDb)
+#axis([-Fs/2 Fs/2 0 1.1*max(PSDb)])
+#title('Power Spectrum')
+#
+#% Check Parseval's Theorem (See Wikipedia)
+#
+#check = sum(p)-sum(PSDb) % -4.5475e-013
+#
+#You can determine the appropriate expressions
+#for the frequency domain calculations of
+#P, Pav, Ef and Efav
+#
+#http://groups.google.com/group/comp.soft-sys.matlab/
+#msg/2222327db2ea7f51
+#
+#
+#Hope this helps.
+#
+#Greg 
     # Normalisation (Danioux 2011)
 #    specvar = specvar / (var.size)**2 / dk #No normalization!!
 
@@ -118,7 +184,7 @@ def get_spec(dx,var):
 #    dk=dk*1000.0/2.0 #/np.pi
 #    if fft: specvar=specvar*2.0*np.pi/1000.0
 
-    return psd,esd,fq,p
+    return {'psd':psd,'esd':esd,'var':var,'fq':fq,'p':p}
 
 
 #def get_cospec(dx,dy,var1,var2):

@@ -104,6 +104,7 @@ class hydro_data(object):
             #Load variable
             ##############
             dum=dataStr.get(key).flatten()
+            
 #            if isinstance(dum,np.ma.masked_array) : 
             
 #            #Get associated dimensions
@@ -120,8 +121,8 @@ class hydro_data(object):
         
         
         #Final sequence
-        updateDim_List = np.unique(zip(*(np.array(dimname).compress(~createDim),np.array(datalen).compress(~createDim))))
-        createDim_list = np.unique(zip(*(np.array(dimname).compress(createDim),np.array(datalen).compress(createDim))))
+        updateDim_List = np.unique(zip(*(np.array(dimname).compress(~createDim),np.array([str(i) for i in datalen]).compress(~createDim))))
+        createDim_list = np.unique(zip(*(np.array(dimname).compress(createDim),np.array([str(i) for i in datalen]).compress(createDim))))
         
         for dim in createDim_list :
             self.create_Dim(dim[0], np.int(dim[1]))
@@ -241,12 +242,22 @@ class hydro_data(object):
         fid=self.fid_list.compress([enum[1][0] == os.path.basename(filename) for enum in enumerate(zip(*(self.filelist,self.fid_list)))])
         self.__dict__.update({'fileid' :np.append(self.fileid,np.repeat(fid,N))})
     
-    def create_Variable(self,name,value,dimensions,toCreate,createDim):
+    def create_Variable(self,name,value,dimensions,toCreate=None,createDim=None):
         """
         create_Variable : This function adds a variable to the current data object
-        """    
+        """
+        
+        #Check variable name
+        ####################
+        #This allows to remove impossible variable names
+        #!!!! This is not a good solution
+        name=name.replace('.','_')
+        
         dimName = dimensions.keys()
         dimVal = list(dimensions.itervalues())
+        
+        if createDim is None : createDim = self._dimensions.has_key(dimName[0])
+        if toCreate is None : toCreate = (self.par_list == name).sum() == 0
         
         self.message(2,'Loading {0} ({1}:{2}) from {3}'.format(name,dimName[0],dimVal[0],os.path.basename(self._filename)))
 

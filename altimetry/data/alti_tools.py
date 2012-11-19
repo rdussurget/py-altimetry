@@ -50,6 +50,7 @@ import datetime
 import numpy as np
 import scipy as sc
 import scipy.interpolate
+import scipy.io as io
 import matplotlib.pyplot as plt
 import matplotlib.pylab as pylab
 from mpl_toolkits.basemap import Basemap
@@ -65,6 +66,7 @@ import os
 import hydro_tools as htools
 import esutils_stat as es
 
+from collections import OrderedDict
 
 def in_limits(lon, lat, limit):
     
@@ -405,9 +407,11 @@ class plot_map(Basemap):
         #Plot Sequence
         ##############
         self.drawcoastlines()
+        self.drawbathy()
+        
         self.drawparallels(np.arange(np.floor(self.limit[0]), np.ceil(self.limit[2]), latdel), labels=[1, 0, 0, 0])
         self.drawmeridians(np.arange(np.floor(self.limit[1]), np.ceil(self.limit[3]), londel), labels=[0, 0, 0, 1])
-        
+                
         if len(args) == 3 :
             lon=args[0]
             lat=args[1]
@@ -416,6 +420,11 @@ class plot_map(Basemap):
             else : 
                 if type(z) != type(str()) : z = '.k'
                 self.plot(lon,lat,z,ms=s)
+    
+    def drawbathy(self,fname=None):
+        bat=load_bathy(fname=fname)
+        return self.contour(bat.lon, bat.lat, bat.z)
+        
         
     def show(self):
         plt.show()
@@ -425,6 +434,22 @@ class plot_map(Basemap):
     
 #    def set_local(self,VarName,VarValue):
 #        if VarName not in locals() : exec('self.'+VarName+' = VarValue')
+
+def load_bathy(fname='C:\\VMShared\\data\\spare_products\\bathy\\bathy_menor.mat'):
+    
+    m_dict=OrderedDict( (('lon_menor',[]), ('lat_menor',[]), ('H0',[])) )
+    str=io.loadmat(fname,m_dict)
+    
+    str['lon']=np.ma.array(str['lon_menor'])
+    str['lat']=np.ma.array(str['lat_menor'])
+    str['Z']=np.ma.array(str['H0'])
+    
+    del str['lon_menor']
+    del str['lat_menor']
+    del str['H0']
+    
+    return str
+         
         
 def cnes_convert(argin,
                  julian=True,
@@ -1832,3 +1857,63 @@ def nanargmin(array,axis=None):
     ny=shape[1]
     if axis is None : return np.nanargmin()
     
+def reproject_track(dst,lat,lon,sla):
+    """
+    # REPROJECT_TRACK
+    #
+    # @author: Renaud DUSSURGET (RD) - LER/PAC, Ifremer
+    # @change: Created by RD, July 2012
+    #    29/08/2012 : Major change -> number of output variables changes (added INTERPOLATED), and rebinning modified
+    """
+    
+    #Find gaps in data
+    dx = dst[1:] - dst[:-1]
+    mn_dx = np.median(dx)
+    bins = np.ceil(dst.max() / mn_dx) + 1
+    range=(0/2.,mn_dx * bins) - mn_dx/2
+    hist,bin_edges=np.histogram(dst, bins=bins, range=range) #We have binned the data along a regular grid of size (bins) in the range (range)
+                                                             #Missing data is thus represented by no data in a given bin
+    
+    #Remove leading and trailing edges (and synchronise bin_edges)
+    while hist[0] == 0 : 
+        hist=np.delete(hist,[0])
+        bin_edges=np.delete(bin_edges,[0])
+    while hist[-1] == 0 :
+        hist=np.delete(hist,[len(hist)-1])
+        bin_edges=np.delete(bin_edges,[len(bin_edges)-1])
+    
+    #Get filled bins indices
+
+    ok = np.arange(len(hist)).compress(np.logical_and(hist,True or False))
+    empty = np.arange(len(hist)).compress(~np.logical_and(hist,True or False)) 
+    
+    outsla = np.repeat(np.NaN,len(hist))
+    outlon = np.repeat(np.NaN,len(hist))
+    outlat = np.repeat(np.NaN,len(hist))
+    outdst = bin_edges [:-1]+ mn_dx/2 #distances is taken at bins centers
+    outsla[ok] = sla
+    outlon[ok] = lon
+    outlat[ok] = lat
+    
+    #Fill the gaps if there are some
+    if len(empty) > 0 : 
+        #Interpolate lon,lat @ empty positions
+        outlon[empty] = atools.interp1d(ok, outlon[ok], empty, kind='cubic')
+        outlat[empty] = atools.interp1d(ok, outlat[ok], empty, kind='cubic')
+        outsla[empty] = atools.interp1d(ok, outsla[ok], empty, spline=True)
+        
+    
+    
+    #Get gap properties
+    ind=np.arange(len(hist))
+    dhist=(hist[1:] - hist[:-1])
+    st=ind.compress(dhist==-1)+1
+    en=ind.compress(dhist==1)
+    gaplen=(en-st) + 1
+    ngaps=len(st)
+    
+    #Get empty bin flag
+    interpolated=~hist.astype('bool')
+    
+    return outdst, outlon, outlat, outsla, gaplen, ngaps, dx, interpolated
+
