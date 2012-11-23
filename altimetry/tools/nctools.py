@@ -18,6 +18,9 @@ import os
 
 import alti_tools as atools
 from collections import OrderedDict
+import alti_tools
+
+from warnings import warn
 
 class nc :
     
@@ -299,7 +302,10 @@ class nc :
          
          @param MSG_LEVEL {in}{required}{type=int} level of the message to be compared with self.verbose
          
-         @example self.log(0,'This message will be shown for any verbose level') 
+         @example self.log(0,'This message will be shown for any verbose level')
+         @author: Renaud DUSSURGET (RD), LER PAC/IFREMER
+         @change: Added a case for variables with missing dimensions
+         
         """
         
         if MSG_LEVEL <= self.verbose : print(str)
@@ -307,19 +313,19 @@ class nc :
     def Error(self, ErrorMsg):    
         raise Exception(ErrorMsg)
 
-
 def load_ncVar(varName, nc=None, **kwargs):
         
         if (nc is None) : raise Exception('No Netcdf file passed')
         
-        #Load variable
         var = nc.variables[varName]
         
         var.set_auto_maskandscale(False)
         
         #Load dimensions
         varDim = [str(dim) for dim in var.dimensions]
-        varDimval = [len(nc.dimensions[dimname]) for dimname in varDim]
+        missDim=len(varDim) == 0
+        if (missDim): warn('No dimension found')
+        else : varDimval = [len(nc.dimensions[dimname]) for dimname in varDim]
         
         ind_list = [] #Init index list
         dims = {'_ndims':0} #Init dimensions
@@ -379,9 +385,8 @@ def load_ncVar(varName, nc=None, **kwargs):
 #        sz = [np.size(i) for i in ind_list]
         
         dstr=','.join(dstr)
-#        print len(shape)
-        
-        cmd = 'varOut = var[{0}]'.format(dstr)
+        if missDim : cmd = 'varOut = var[:]'
+        else : cmd = 'varOut = var[{0}]'.format(dstr)
         exec(cmd)
         
         #find empty variables
@@ -405,8 +410,9 @@ def load_ncVar(varName, nc=None, **kwargs):
         else : raise 'This data type {} has not been defined - code it!'.format(type(varOut))
             
         #Build up output structure
-        outStr = {'_dimensions':dims, 'data':varOut}
         dims.update({'_ndims':len(dims.keys()[1:])})
+        outStr = {'_dimensions':dims, 'data':varOut}
+        
         
         return outStr
 #            ind_list=[[]] 

@@ -49,25 +49,24 @@
 import datetime
 import numpy as np
 import scipy as sc
-import scipy.interpolate
-import scipy.io as io
-import matplotlib.pyplot as plt
-import matplotlib.pylab as pylab
+from scipy import interpolate, io as interpolate, io
+from matplotlib import pyplot, pylab as plt, pylab
 from mpl_toolkits.basemap import Basemap
 from bisect import bisect_left
 from Tkinter import Tk
 from netCDF4 import Dataset as ncfile
 import bisect
 import seawater.gibbs
+from collections import OrderedDict
 
 import glob
 import os
 
 import hydro_tools as htools
 import esutils_stat as es
-from vacu_lite.addons.nctools import nc
+from nctools import nc, load_ncVar
 
-from collections import OrderedDict
+
 
 def in_limits(lon, lat, limit):
     
@@ -601,104 +600,6 @@ def cnes_convert(argin,
 #        varout = np.array((datetime.datetime(yyyy,mm,dd) - epoch).days,dtype=float)
         
         
-    
-
-#    args={lambda:julian:None,
-#          lambda:calendar:None,
-#          lambda:nasa:None,
-#          lambda:string:None,
-#          lambda:quiet:None,
-#          lambda:calformat:None}
-
-#  ON_ERROR, 2
-#
-#  ;Set up default
-#  IF ~KEYWORD_SET(julian)  AND KEYWORD_SET(calendar) THEN BEGIN
-#    julian = 0 & calendar = 1
-#  ENDIF
-#  IF ~KEYWORD_SET(calendar) AND KEYWORD_SET(julian) THEN BEGIN
-#    julian = 1 & calendar = 0
-#  ENDIF
-#  IF ~KEYWORD_SET(calendar) AND ~KEYWORD_SET(julian) THEN BEGIN
-#    type = SIZE(in,/TYPE)
-#    IF ((type GE 1 AND type LE 5) OR (type GE 12) ) THEN BEGIN
-#      julian = 0 & calendar = 1    
-#    ENDIF ELSE IF (type EQ 7) THEN BEGIN
-#      julian = 1 & calendar = 0
-#    ENDIF
-#  ENDIF
-#  IF ~KEYWORD_SET(nasa) THEN nasa = 0
-#  IF ~(KEYWORD_SET(string)) THEN string = 0
-#  IF ~KEYWORD_SET(quiet) THEN quiet = 0
-#  
-#  IF (~exist(calformat)) THEN calformat="dd/mm/yyyy"
-#
-#  IF (N_ELEMENTS(in) EQ 1) $
-#    THEN vec = 0 $
-#    ELSE vec = 1
-#
-#  ;Detect output type
-#  IF (julian) AND ~(calendar) $
-#    THEN jul = 1 $
-#    ELSE IF ~(julian) AND (calendar) $
-#      THEN jul = 0 $datetime.date.fromordinal(argin)
-#      ELSE jul = 1
-#
-#  ;Get calendar format and ordering
-#  calsep=STREGEX(CALFORMAT,"[^a-zA-Z0-9_]",/EXTRACT)
-#  
-#  calorder=[STREGEX(CALFORMAT,'dd'),STREGEX(CALFORMAT,'mm'),STREGEX(CALFORMAT,'yyyy')]
-#  IF (MIN(CALORDER) LT 0) THEN MESSAGE, STRING(CALFORMAT, FORMAT='(%"Invalid format %s")')
-#  calorder=SORT(calorder)
-#  juldayorder=calorder[[1,0,2]]
-#  
-#
-#  ;Get reference time, 
-#  IF ~(nasa) $
-#    THEN ref = JULDAY(01,01,1950) $
-#    ELSE ref = JULDAY(01,01,1958)
-#    
-#  SWITCH (vec * 2^1 + jul * 2^0) OF
-#    ;Vector + julian output
-#    3: BEGIN
-#      date = MAKE_ARRAY(3,N_ELEMENTS(in))
-#      FOR i = 0L, N_ELEMENTS(in) - 1 DO date[*,i] =  STRSPLIT(in[i],calsep,/EXTRACT)
-#;      out = JULDAY(date[1,*],date[0,*],date[2,*]) - ref
-#      out = JULDAY(date[juldayorder[0],*], date[juldayorder[1],*], date[juldayorder[2],*]) - ref
-#      BREAK
-#    END
-#    ;Vector + calendar output
-#    2:BEGIN
-#      CALDAT, ref + in, mm, dd, yyyy
-#      out=TRANSPOSE(([[dd],[mm],[yyyy]])[*,[calorder]]) ;WARNING TRANSPOSITION AND CONCATENATION
-#                                                        ;SUBJECT TO INPUT VECTOR DIMENSIONS!!!get arguments
-#      IF (string) $
-#        THEN out = STRTRIM(out[calorder[0],*],2)+calsep+STRTRIM(out[calorder[1],*],2)+calsep+STRTRIM(out[calorder[2],*],2)
-#      BREAK
-#    END
-#    ;Scalar + julian output
-#    1: BEGIN
-#      date = STRSPLIT(in,calsep,/EXTRACT)
-#;      out = JULDAY(date[1],date[0],date[2]) - ref
-#      out = JULDAY(date[juldayorder[0]], date[juldayorder[1]], date[juldayorder[2]]) - ref
-#      IF (~quiet) THEN PRINT, out, FORMAT='(%"Julian day : %d ",$)'
-#      IF ~(nasa) $
-#        THEN IF (~quiet) THEN PRINT, "(CNES time)" $
-#        ELSE IF (~quiet) THEN PRINT, "(NASA time)"
-#      BREAK
-#    END
-#    ;Scalar + calendar output
-#    0: BEGIN
-#      CALDAT, ref + in, mm, dd, yyyy
-#      out=TRANSPOSE(([[dd],[mmdef main():
-#                                ;strout=STRTRIM(out[calorder[0]],2)+calsep+STRTRIM(out[calorder[1]],2)+calsep+STRTRIM(out[calorder[2]],2)
-#      IF (string) $
-#        THEN out = STRTRIM(out[calorder[0]],2)+calsep+STRTRIM(out[calorder[1]],2)+calsep+STRTRIM(out[calorder[2]],2)
-#      IF (~quiet) THEN PRINT, dd,mm,yyyy, FORMAT='(%"Calendar date : '+STRJOIN((['%d','%d','%4d'])[calorder],calsep)+'")'
-#      BREAK
-#    END
-#  ENDSWITCH
-
 
 def calcul_distance(*args):
     """
@@ -921,17 +822,19 @@ class alti_data(htools.hydro_data) :
             filelist=[os.path.basename(p) for p in ls]
             st=[f.split('_')[-3] for f in filelist]
             en=[f.split('_')[-2] for f in filelist]
-#            print st
-            jst = [cnes_convert('{0}/{1}/{2}'.format(s[-2:],s[-4:-2],s[0:4]))[0] for s in st]
-            jen = [cnes_convert('{0}/{1}/{2}'.format(s[-2:],s[-4:-2],s[0:4]))[0] for s in en]
-            dt=np.fix(np.median(np.array(jst[1:]) - np.array(jst[:-1])))
-
-            hist,R= es.histogram(np.array(jst),binsize=dt,use_weave=False,rev=True,min=time_range[0] - dt/2.,max=time_range[1] + dt/2.)
-            dumind = histogram_indices(hist, R)
-            ind=np.array([])
-            for i in dumind : ind=np.append(ind,i)
-            ind=ind.tolist()
-            file_pattern=np.array(ls)[ind]
+            if (~pylab.is_numlike(st) & ~pylab.is_numlike(en)) :
+                self.warning('Date range cannot be found - extract all files from file_pattern')
+            else :
+                jst = [cnes_convert('{0}/{1}/{2}'.format(s[-2:],s[-4:-2],s[0:4]))[0] for s in st]
+                jen = [cnes_convert('{0}/{1}/{2}'.format(s[-2:],s[-4:-2],s[0:4]))[0] for s in en]
+                dt=np.fix(np.median(np.array(jst[1:]) - np.array(jst[:-1])))
+    
+                hist,R= es.histogram(np.array(jst),binsize=dt,use_weave=False,rev=True,min=time_range[0] - dt/2.,max=time_range[1] + dt/2.)
+                dumind = histogram_indices(hist, R)
+                ind=np.array([])
+                for i in dumind : ind=np.append(ind,i)
+                ind=ind.tolist()
+                file_pattern=np.array(ls)[ind]
             
         htools.hydro_data.__init__(self,file_pattern,**kwargs)
         self.set_sats()
@@ -955,23 +858,25 @@ class alti_data(htools.hydro_data) :
             if os.path.basename(filename).split(delim)[0] == 'nrt' : datatype='NRT'
             if os.path.basename(filename).split(delim)[0] == 'dt' : datatype='DT'
         else :
-            datatype='dt' #Setup default as AVISO dt
+            datatype=datatype.upper() #Setup default as AVISO dt
         
         if (datatype == 'DT') | (datatype == 'NRT') | (datatype == 'PISTACH') :
-            outStr=self.read_sla(filename,datatype=datatype,**kwargs)
+            outStr=self.read_SLACF(filename,datatype=datatype,**kwargs)
             self.update_fid_list(os.path.basename(filename),outStr['_dimensions']['time'])
         elif (datatype == 'CTOH') :
             outStr=self.read_CTOH(filename,**kwargs)
             self.update_fid_list(os.path.basename(filename),outStr['_dimensions']['time'])
-        
+        if (datatype == 'RES') :
+            outStr=self.read_SLARES(filename,**kwargs)
+            self.update_fid_list(os.path.basename(filename),outStr['_dimensions']['Data'])
        
         
         return outStr
     
-    def read_sla(self,filename,params=None,force=False,timerange=None,datatype=None,**kwargs):
+    def read_SLACF(self,filename,params=None,force=False,timerange=None,datatype=None,**kwargs):
         
         """
-        READ_SLAEXT : Read AVISO Along-Track SLA regional products
+        READ_SLACF : Read AVISO Along-Track SLA CF-compliant products
         
         @return: outStr {type:dict} Output data structure containing all recorded parameters as specificied by NetCDF file PARAMETER list.
         @author: Renaud Dussurget
@@ -998,9 +903,9 @@ class alti_data(htools.hydro_data) :
         
         self.message(2,'Recorded parameters : '+str(nparam)+' -> '+str(par_list))
      
-        lon = self.load_ncVar('longitude',**kwargs)
+        lon = load_ncVar('longitude',nc=self._ncfile,**kwargs)
         lon['data'] = recale(lon['data'], degrees=True, zero_2pi=True) #shift longitudes
-        lat = self.load_ncVar('latitude',**kwargs)
+        lat = load_ncVar('latitude',nc=self._ncfile,**kwargs)
 
         
         #Extract within limits
@@ -1013,14 +918,14 @@ class alti_data(htools.hydro_data) :
         sz=np.shape(lon)
         ndims=np.size(sz)
             
-        date = self.load_ncVar('time',time=ind,**kwargs)
+        date = load_ncVar('time',nc=self._ncfile,time=ind,**kwargs)
         dimStr = date['_dimensions']
         date=date['data']
         
         outStr={'_dimensions':dimStr,'lon':lon,'lat':lat,'date':date}
         
         for param in par_list :
-            dumVar = self.load_ncVar(param,time=ind,**kwargs) #Load variables
+            dumVar = load_ncVar(param,nc=self._ncfile,time=ind,**kwargs) #Load variables
             dimStr=dumVar['_dimensions']
             
             #update dimensions
@@ -1046,10 +951,92 @@ class alti_data(htools.hydro_data) :
         
         return outStr
 
+    def read_SLARES(self,filename,params=None,force=False,timerange=None,datatype=None,**kwargs):
+        
+        """
+        READ_SLARES : Read AVISO Along-Track SLA older format products (RES files)
+        
+        @return: outStr {type:dict} Output data structure containing all recorded parameters as specificied by NetCDF file PARAMETER list.
+        @author: Renaud Dussurget
+        """
+        
+        #Open file
+        self._filename = filename
+        self._ncfile = ncfile(self._filename, "r")
+        
+        #Get delimiter
+        if os.path.basename(filename).count('.') > os.path.basename(filename).count('_'): delim='.'
+        else : delim = '_'
+        
+#        #Gat sat name
+#        splitted=os.path.basename(filename).split(delim)
+#        if (datatype == 'DT') | (datatype == 'NRT') : sat_name = splitted[2] if splitted[0] == 'nrt' else splitted[3]
+#        if datatype == 'PISTACH' : sat_name = 'J2'
+        
+     
+        #Get list of recorded parameters:
+        par_list=[i.encode() for i in self._ncfile.variables.keys()]
+        for i in ['BeginDates','Longitudes','Latitudes'] : par_list.pop(par_list.index(i))
+        nparam=len(par_list)
+        
+        self.message(2,'Recorded parameters : '+str(nparam)+' -> '+str(par_list))
+     
+        lon = load_ncVar('Longitudes',nc=self._ncfile,**kwargs)
+        lon['data'] = recale(lon['data'], degrees=True, zero_2pi=True) #shift longitudes
+        lat = load_ncVar('Latitudes',nc=self._ncfile,**kwargs)
+
+        
+        #Extract within limits
+        ind, flag = in_limits(lon['data'],lat['data'],limit=self.limit) #This ve
+        dim_lon = lon['_dimensions']
+        lat = lat['data'].compress(flag)
+        lon = lon['data'].compress(flag)
+        dist=cumulative_distance(lat, lon)
+        
+        sz=np.shape(lon)
+        ndims=np.size(sz)
+            
+#        cyc = load_ncVar('Cycles',nc=self._ncfile,**kwargs)
+        date = load_ncVar('BeginDates',nc=self._ncfile,**kwargs) #This vector is no longer in phase with indexed data.
+        dimStr = date['_dimensions']
+        dimStr.update({dim_lon.keys()[1]:len(lon)})
+        dimStr['_ndims']+=1
+        date=date['data']
+        
+        outStr={'_dimensions':dimStr,'lon':lon,'lat':lat,'date':date}
+        
+        for param in par_list :
+            dumVar = load_ncVar(param,nc=self._ncfile,Data=ind,**kwargs) #Load variables
+            dimStr=dumVar['_dimensions']
+            
+            #update dimensions
+            curDim = [str(dimname) for dimname in dimStr.keys()[1:]] #[str(dimname) for dimname in self._ncfile.variables['LONGITUDE'].dimensions]
+            curDimval = [dimStr[dim] for dim in curDim] #[len(self._ncfile.dimensions[dimname]) for dimname in curDim]
+            flag = [(np.array(dimname) == outStr['_dimensions'].keys()).sum() == 0 for dimname in curDim] #find dimensions to update
+            dimUpdate = np.array(curDim).compress(flag)
+            for enum in enumerate(dimUpdate) : 
+                self.message(3, 'Appending dimensions {0}:{1} to dataStructure'.format(enum[1],np.array(curDimval).compress(flag)[enum[0]]))
+                outStr['_dimensions'].update({enum[1]:np.array(curDimval).compress(flag)[enum[0]]}) #Append new dimension
+                outStr['_dimensions']['_ndims']+=1 #update dimension counts
+            
+            cmd = 'dumStr = {\''+param.lower()+'\':dumVar[\'data\']}'
+            self.message(4, 'exec : '+cmd)
+            exec(cmd)
+            outStr.update(dumStr)
+        
+        id=np.repeat(self._ncfile.__dict__['Mission'].lower(),outStr['_dimensions']['Data'])
+        
+        
+        outStr.update({'id':id})
+        self._ncfile.close()
+        
+        return outStr
+
+
     def read_CTOH(self,filename,params=None,force=False,timerange=None,datatype=None,**kwargs):
         
         """
-        READ_SLAEXT : Read AVISO Along-Track SLA regional products
+        READ_CTOH : Read CTOH data products
         
         @return: outStr {type:dict} Output data structure containing all recorded parameters as specificied by NetCDF file PARAMETER list.
         @author: Renaud Dussurget
@@ -1073,9 +1060,9 @@ class alti_data(htools.hydro_data) :
         
         self.message(2,'Recorded parameters : '+str(nparam)+' -> '+str(par_list))
      
-        lon = self.load_ncVar('lon',**kwargs)
+        lon = load_ncVar('lon',nc=self._ncfile,**kwargs)
         lon['data'] = recale(lon['data'], degrees=True, zero_2pi=True) #shift longitudes
-        lat = self.load_ncVar('lat',**kwargs)
+        lat = load_ncVar('lat',nc=self._ncfile,**kwargs)
 
         
         #Extract within limits
@@ -1089,36 +1076,7 @@ class alti_data(htools.hydro_data) :
         ndims=np.size(sz)
         
         #Get date table and convert it to dimension
-        date = self.load_ncVar('time',nbpoints=ind,**kwargs)
-        
-#        mn = np.min(date['data'],1)
-#        mx = np.max(date['data'],1)
-#        trange=mx - mn
-#        mxid = np.argmax(trange)
-#        mxtrange = trange[mxid] #Get maximum time range
-#        deltat = (date['data'][mxid]))[0,1:data[mxid].mes-1] - (*(data[mxid].data))[0,0:data[mxid].mes-2]
-        
-#        ;Get theoretical time range
-#          FOR i=0, N_ELEMENTS(data) - 1 DO mn = (i EQ 0)? (*(data[i].data))[0,0] : [mn,(*(data[i].data))[0,0]]; Get minimum time at each time series
-#          FOR i=0, N_ELEMENTS(data) - 1 DO mx = (i EQ 0)? (*(data[i].data))[0,data[i].mes - 1] : [mx,(*(data[i].data))[0,data[i].mes - 1]] ;same for max time
-#          trange=[mx - mn] ;Get time range for each time series
-#          mxtrange=max(trange,mxid) ;Get maximum time range
-#          deltat=(*(data[mxid].data))[0,1:data[mxid].mes-1] - (*(data[mxid].data))[0,0:data[mxid].mes-2]
-#          hist=HISTOGRAM(deltat,LOCATIONS=loc,BINSIZE=1);Put deltat into 1 day boxes
-#          dum=MAX(hist,histmx) ;Get modal class
-#          tstep=MAX(deltat[WHERE(deltat LT loc[histmx] + 1.AND deltat GT loc[histmx])]) ;delta is the time spelled btw.
-#                                                                                        ;max time from previous pass and
-#                                                                                        ;min time of following pass.
-#                                                                                        ;Thus the greatest time is the closest
-#                                                                                        ;to the complete cycle
-#          
-#          ;tstep=MIN(DERIV((*(data[mxid].data))[0,*]))
-#        ;  nt=ROUND(( (*(data[mxid].data))[0,data[mxid].mes - 1] - (*(data[mxid].data))[0,0] ) / tstep) + 1
-#          nt=LONG(ROUND(( (*(data[mxid].data))[0,data[mxid].mes - 1] - (*(data[mxid].data))[0,0] ) / tstep) + 1)
-#        ;  theoretical_time=Scale_Vector(DINDGEN(nt), MEDIAN(mn),MEDIAN(mx))
-#          
-#          theoretical_time=DINDGEN(nt)*tstep + MIN(mn) ;This is the theoretical time from reference date MIN(min)
-        
+        date = load_ncVar('time',nc=self._ncfile,nbpoints=ind,**kwargs)
         
         dimStr = date['_dimensions']
         date=date['data']
@@ -1126,7 +1084,7 @@ class alti_data(htools.hydro_data) :
         outStr={'_dimensions':dimStr,'lon':lon,'lat':lat,'date':date}
         
         for param in par_list :
-            dumVar = self.load_ncVar(param,time=ind,**kwargs) #Load variables
+            dumVar = load_ncVar(param,nc=self._ncfile,time=ind,**kwargs) #Load variables
             dimStr=dumVar['_dimensions']
             
             #update dimensions
@@ -1566,12 +1524,7 @@ def deriv(*args):
         d[0] = (-3.0*x[0] + 4.0*x[1] - x[2])/2.
         d[n-1] = (3.*x[n-1] - 4.*x[n-2] + x[n-3])/2.
 
-    return d
-
-
-
-
-    
+    return    
 def track_orient(x,y,orient=False):
 #    ;Calculate track orientation (on 3 points lagrangian interpolation - see DERIV help page)
     
