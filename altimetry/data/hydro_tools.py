@@ -14,6 +14,7 @@ import seawater.csiro as csw
 
 import alti_tools as atools
 from scipy import interpolate
+from warnings import warn
 
 
 
@@ -42,7 +43,7 @@ class hydro_data(object):
         if len(ls) == 0 :
             self.Error('File pattern not matched : '+file_pattern)
                 
-        self.filelist=[os.path.basename(i) for i in ls]
+        self.filelist=[os.path.basename(j) for i,j in enumerate(ls)]
         self.filelist_count = [0]*len(self.filelist)
         enum=list(enumerate(ls))
         enum = zip(*enum)
@@ -63,6 +64,8 @@ class hydro_data(object):
             filename = enum[1][i]
             self.message(1,"Loading "+os.path.basename(filename))
             
+            self.current_file=enum[0][i]
+            
             res=self.read(filename,**kwargs) #read() function is specific of each class
             self.update_dataset(res) #update class with loaded data
             
@@ -70,7 +73,7 @@ class hydro_data(object):
         
 #        self.update()
 
-    def update_dataset(self,dataStr):
+    def update_dataset(self,dataStr,flatten=False):
 
         #Load keys and dimensions
         #########################
@@ -81,16 +84,18 @@ class hydro_data(object):
         keys = dataStr.keys()
         self.message(2, 'Loaded variables : '+str(keys))
         
-        datalen = [np.size(dataStr[key]) for key in keys]
+#        datalen = [np.size(dataStr[key]) for key in keys]
+        datalen = [list(np.shape(dataStr[key])) for key in keys] #####!!!!!! WARNING!!!! NEW FEATURE TO TEST
         
-        ind = atools.where_list(datalen,dimensions[1])
-        if (np.array(ind).sum == -1) != 0 : self.Error('At least one variable have not been properly defined')
-        dimname = np.array(dimensions[0])[ind].tolist() #Get correspondance between data structure dimensions and variables
-        
+        ind = [atools.where_list(dlen,dimensions[1]) for dlen in datalen] #Dimensions indices ###!!!NEW!
+        if (np.array(ind).sum() == -1) != 0 : self.Error('At least one variable have not been properly defined')
+        dimname = [np.array(dimensions[0])[i].tolist() for i in ind]  #Get correspondance between data structure dimensions and variables
+                
         curDim, nself=self.get_currentDim()
-        curInd = atools.where_list(dimname,curDim[0]) #Get correspondance between data structure dimensions and object dimensions
+        createDim=[[w == -1 for w in atools.where_list(j, curDim[0])] for i,j in enumerate(dimname) ]
+#        curInd = atools.where_list(dimname_reduced,curDim[0]) #Get correspondance between data structure dimensions and object dimensions
         
-        createDim = (np.array(curInd) == -1) #Get dimensions to be created   
+#        createDim = (np.array(curInd) == -1) #Get dimensions to be created   
         toCreate = [not self.__dict__.has_key(key) for key in keys]
         
         updateDim=[]  
@@ -104,7 +109,7 @@ class hydro_data(object):
             
             #Load variable
             ##############
-            dum=dataStr.get(key).flatten()
+            dum=dataStr.get(key).flatten() if flatten else dataStr.get(key)
             
 #            if isinstance(dum,np.ma.masked_array) : 
             
@@ -117,8 +122,9 @@ class hydro_data(object):
             
             #Initialize variable if required
 #            if toCreate :
-            updateDim.append(self.create_Variable(key, dum, dimensions={dimname[ind]:datalen[ind]},toCreate=toCreate[ind],createDim=createDim[ind]))
-        
+#            updateDim.append(self.create_Variable(key, dum, dimensions={dimname[ind]:datalen[ind]},toCreate=toCreate[ind],createDim=createDim[ind]))
+            updateDim.append(self.create_Variable(key, dum, dimensions=dict(zip(dimname[ind],datalen[ind])),toCreate=toCreate[ind],createDim=createDim[ind]))
+
         
         
         #Final sequence
@@ -254,13 +260,16 @@ class hydro_data(object):
         #!!!! This is not a good solution
         name=name.replace('.','_')
         
-        dimName = dimensions.keys()
-        dimVal = list(dimensions.itervalues())
+        dimName = np.array(dimensions.keys())
+        dimVal = np.array(list(dimensions.itervalues()))
         
-        if createDim is None : createDim = self._dimensions.has_key(dimName[0])
+        keys=np.array(self._dimensions.keys())
+        
+#        if createDim is None : createDim = self._dimensions.has_key(dimName[0])
+        createDim = np.array([not self._dimensions.has_key(dim) for dim in dimName]) if createDim is None else np.array(createDim)
         if toCreate is None : toCreate = (self.par_list == name).sum() == 0
         
-        self.message(3,'Loading {0} ({1}:{2}) from {3}'.format(name,dimName[0],dimVal[0],os.path.basename(self._filename)))
+        self.message(3,'Loading {0} ({1}:{2}) from {3}'.format(name,dimName,dimVal,os.path.basename(self._filename)))
 
         #Cast variable into masked array first
         ######################################
@@ -269,26 +278,45 @@ class hydro_data(object):
             self.message(4,'Casting variable to np.ma.MaskedArray')
         
         curDim, nself=self.get_currentDim()
-        curInd = atools.where_list(dimVal,curDim[1])[0]        
+        
+        
+        curInd=np.array(atools.where_list(dimName,curDim[0]))
+        curDimVal=np.array(atools.where_list(dimVal,curDim[1]))
+        
+        existDims= (curInd != -1)
+        createDim = (curInd == -1)
+        createInd = np.where(createDim)[0]
+        
+        appendDim=existDims & (curDimVal == -1)
+        appendInd=curInd[appendDim]
+        
+        
+#        curInd = set(atools.where_list(dimVal,curDim[1])).intersection(set(atools.where_list(dimName,curDim[0]))) 
+
+        #Get dims to be created
+        #######################
+        
+        
 
         #Choose case between all different solutions :
         ##############################################
-        # 1: create a new variable with new dimensions
+        # 1: create a new variable with at least 1 new dimension
         # 2: extend -> create a new variable using existing dimensions
         # 3: append exisiting variable with data
         # 4: impossible case ?
-        if createDim & toCreate :
+        if createDim.any() & toCreate :
+            
             #Create Variable
             self.message(4,'Create variable '+name)
             cmd='self.'+name+'=value'
 
             #Append variable infos to object
             self.par_list=np.append(self.par_list,name)
-            self.dim_list=np.append(self.dim_list,dimName)
+            self.dim_list=np.append(self.dim_list,dimName.tolist())
         
             updateDim=False
         
-        elif (not createDim) & toCreate :
+        elif (not createDim.any()) & toCreate :
             #extend variable
 #            dumVar = np.ma.masked_array(np.zeros(curDim[1][curInd]),mask=np.zeros(curDim[1][curInd],dtype='bool'))
             value = np.ma.masked_array(np.append(np.zeros(curDim[1][curInd]),value.data),mask=np.append(np.ones(curDim[1][curInd],dtype='bool'),value.mask))
@@ -305,7 +333,7 @@ class hydro_data(object):
             
             updateDim=True
         
-        elif (not createDim) & (not toCreate) :
+        elif (not createDim.any()) & (not toCreate) :
             #append variable
             self.message(4,'Append data to variable '+name)
 #            cmd = 'self.'+name+'=np.ma.concatenate((self.'+name+',value),mask=np.append(self.dac))' #buggy command : concatenate do not always work..
@@ -316,7 +344,7 @@ class hydro_data(object):
         
             updateDim=True
         
-        elif createDim & (not toCreate) :
+        elif createDim.any() & (not toCreate) :
             #Impossible case ?
             self.Error('Impossible case : create Dimensions and variable already existing in dataset')
         
@@ -383,11 +411,22 @@ class hydro_data(object):
          
          @param MSG_LEVEL {in}{required}{type=int} level of the message to be compared with self.verbose
          
-         @example self.log(0,'This message will be shown for any verbose level') 
+         @example self.message(0,'This message will be shown for any verbose level') 
         """
         
         if MSG_LEVEL <= self.verbose : print(str)
-
+    
+    def warning(self,MSG_LEVEL,str):
+        """
+         WARNING : Wrapper to the warning function. Returns a warning when verbose level is not 0. 
+         
+         @param MSG_LEVEL {in}{required}{type=int} level of the message to be compared with self.verbose
+         
+         @example self.waring(1,'Warning being issued) 
+        """
+        
+        if self.verbose <= 1 : warn(str)
+    
     def Error(self,ErrorMsg):    
         raise Exception(ErrorMsg)
     
