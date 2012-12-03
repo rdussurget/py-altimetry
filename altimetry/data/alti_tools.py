@@ -1524,7 +1524,8 @@ def deriv(*args):
         d[0] = (-3.0*x[0] + 4.0*x[1] - x[2])/2.
         d[n-1] = (3.*x[n-1] - 4.*x[n-2] + x[n-3])/2.
 
-    return    
+    return d
+
 def track_orient(x,y,orient=False):
 #    ;Calculate track orientation (on 3 points lagrangian interpolation - see DERIV help page)
     
