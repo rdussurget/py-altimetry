@@ -1,0 +1,7 @@
+# use glob syntax.
+syntax: glob
+
+.project
+.pydevproject
+.settings
+*.pyc
