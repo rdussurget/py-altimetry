@@ -29,10 +29,28 @@ def modis_sst(file_name,
     #Read MODIS HDF4 data
     f = SD(file_name, SDC.READ)
     fattr=f.attributes()
+    
+    #Get dimensions
+    nScans=fattr['Number of Scan Lines']
+    sCtl=fattr['Number of Scan Control Points']
+    pCtl=fattr['Number of Pixel Control Points']
+    nPix=fattr['Pixels per Scan Line']
 
     #Load coordinates
-    lon=f.select('longitude')
-    lat=f.select('latitude')
+    lonsel=f.select('longitude')
+    latsel=f.select('latitude')
+    
+    pCtl_ind=np.arange(pCtl,dtype=np.float32)
+    p_ind=(pCtl-1)*np.arange(nPix,dtype=np.float32)/(nPix-1)
+    
+    sCtl_ind=np.arange(sCtl,dtype=np.float32)
+    s_ind=(sCtl-1)*np.arange(nScans,dtype=np.float32)/(nScans-1)
+    
+    dum=atools.interp2d2d(sCtl_ind, pCtl_ind, lonsel.get(), s_ind, p_ind)
+    dumlon=atools.interp1d(p_ind, lonsel.get(), pCtl_ind, spline=True)
+    dumlat=atools.interp1d(p_ind, lonsel.get(), pCtl_ind, spline=True)
+
+#    shlon=shlat=lon.dimensions().values()
 
     #Shrink image
     #############

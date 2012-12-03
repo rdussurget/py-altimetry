@@ -1294,7 +1294,6 @@ def interp1d(x,Z,xout,spline=False,kind='linear',**kwargs):
         except RuntimeError : Zout = np.repeat(np.NaN,nx)
 
     return Zout
-    
 
 def interp2d(x,y,Z,xout,yout,**kwargs):
     """    
@@ -1302,32 +1301,198 @@ def interp2d(x,y,Z,xout,yout,**kwargs):
     
     @param x: 1st dimension vector of size NX
     @param y: 2nd dimension vector of size NY
+    @param Z: Array to interpolate (NXxNY)
+    @param xout: 1st dimension vector of size Nout
+    @param yout: 2nd dimension vector of size Nout
+    
+    @return: Interpolated array (Nout)
     
     @author: Renaud DUSSURGET, LER/PAC, Ifremer La Seyne
     """
-#    gx, gy = np.meshgrid(x,y)
-#    gz = np.reshape(Z.transpose(),Z.size)
-#     
-#    points = zip(*(np.reshape(gx,gx.size),np.reshape(gy,gy.size)))
-#    xi = zip(*(xout,yout))
-#    
-#    Zout = sc.interpolate.griddata(points, gz, xi, **kwargs)
-#    return Zout
 
     gx = np.reshape(np.repeat(x,y.size),(x.size,y.size))
     gy = np.reshape(np.repeat(y,x.size),(y.size,x.size)).transpose((1,0))
 
+    gxout = np.reshape(np.repeat(xout,yout.size),(xout.size,yout.size)).flatten()
+    gyout = np.reshape(np.repeat(yout,xout.size),(yout.size,xout.size)).transpose((1,0)).flatten()
+
     gz = Z.flatten()
      
     points = zip(*(gx.flatten(),gy.flatten())) 
-    xi = zip(*(xout,yout))
+    xi = zip(*(gxout,gyout))
     
     try : Zout = scipy.interpolate.griddata(points, gz, xi, **kwargs)
     except RuntimeError : Zout = np.NaN
 #    Zout = sc.interpolate.griddata(points, gz, xi, **kwargs)
-    return Zout
-    
+    return Zout.reshape((xout.size,yout.size))      
 
+import threading
+import Queue
+def interp2d2d(x,y,Z,xout,yout,split_factor=2,**kwargs):
+    """    
+    INTERP2D2D : Interpolate a 2D matrix into another 2D matrix
+    
+    @param x: 1st dimension vector of size NX
+    @param y: 2nd dimension vector of size NY
+    @param Z: Array to interpolate (NXxNY)
+    @param xout: 1st dimension vector of size NXout
+    @param yout: 2nd dimension vector of size NYout
+    
+    @keyword split_factor:Nummber of times to split arrays. Nb of threads is equal to split_factor**2. 
+    
+    @return: Interpolated array (NXoutxNYout)
+    
+    @author: Renaud DUSSURGET, LER/PAC, Ifremer La Seyne
+    """
+    
+    #Queued thread
+    ##############
+    class ThreadClass(threading.Thread):
+        
+        #We override the __init__ method
+        def __init__(self, input_q,indices_q,result_q):
+            threading.Thread.__init__(self)
+            self.Z = input_q
+#            self.indices = indices_q
+            self.result = result_q
+        
+        def task(self,NaN=True):
+            
+            #grabs host from queue
+            inargs = self.input.get()
+            x = inargs[0]
+            y = inargs[1]
+            Z = inargs[2]
+            xout = inargs[3]
+            yout = inargs[4]
+            
+            #Get dimensions to split matrix
+            nxin=x.size
+            nyin=y.size
+            nxout=xout.size
+            nyout=yout.size
+            
+#            if verbose > 0 : print "%s started at time: %s" % (self.getName(), datetime.datetime.now())
+            
+            gx = np.reshape(np.repeat(x,nyin),(nxin,nyin))
+            gy = np.reshape(np.repeat(y,nxin),(nyin,nxin)).transpose((1,0))
+        
+            gxout = np.reshape(np.repeat(xout,nyout),(nxout,nyout)).flatten()
+            gyout = np.reshape(np.repeat(yout,nxout),(nyout,nxout)).transpose((1,0)).flatten()
+        
+            gz = Z.flatten()
+             
+            points = zip(*(gx.flatten(),gy.flatten())) 
+            xi = zip(*(gxout,gyout))
+            
+            try : Zout = scipy.interpolate.griddata(points, gz, xi, **kwargs)
+            except RuntimeError : Zout = np.ones((xout.size,yout.size))*np.NaN
+        #    Zout = sc.interpolate.griddata(points, gz, xi, **kwargs)
+            return Zout.reshape((xout.size,yout.size))   
+                   
+#            self.indices.put(h)
+            self.result.put(Zout)
+    
+            del Zout
+            
+#            if verbose > 0 : print "%s ended at time: %s" % (self.getName(), datetime.datetime.now())
+        
+        def run(self):
+            
+                #Starts the queue
+                self.task()
+                #signals to queue job is done
+                self.input.task_done()
+       
+
+    #Setup input and output queues
+    input_q = Queue.Queue()
+    indices_q = Queue.Queue()
+    result_q = Queue.Queue()
+    
+    #Map the data along X axis
+    N_threads=split_factor**2
+#    over=np.ceil(cut/dx) #Overlay between each time series processed in parallel
+    
+    #Get dimensions to split matrix
+    nxin=x.size
+    nyin=y.size
+    nxout=xout.size
+    nyout=yout.size
+    
+    gx = np.reshape(np.repeat(x,nyin),(nxin,nyin))
+    gy = np.reshape(np.repeat(y,nxin),(nyin,nxin)).transpose((1,0))
+
+    gxout = np.reshape(np.repeat(xout,nyout),(nxout,nyout))
+    gyout = np.reshape(np.repeat(yout,nxout),(nyout,nxout)).transpose((1,0))
+    
+    #Map output coordinates
+    xsplit=[]
+    ysplit=[]
+    for i in np.arange(split_factor) : 
+        for j in np.arange(split_factor) :
+            xsplit.append(i*(nxout/float(split_factor)))
+            xsplit.append((i+1)*(nxout/float(split_factor)))
+            ysplit.append(j*(nyout/float(split_factor)))
+            ysplit.append((j+1)*(nyout/float(split_factor)))
+    
+    #Round
+    xsplit=np.round(xsplit).astype(int)
+    ysplit=np.round(ysplit).astype(int)
+    
+    N_threads = len(xsplit)/2
+    
+    
+    
+#    th_xout=gxout[0:nxout/split_factor,0:2]
+#    th_yout=
+
+#    gz = Z.flatten()
+     
+#    points = zip(*(gx.flatten(),gy.flatten())) 
+    
+    #spawn a pool of threads, and pass them queue instance 
+    for i in np.arange(N_threads):
+        t = ThreadClass(input_q,indices_q,result_q)
+        t.setDaemon(True)
+        t.start()
+    
+    #Feed threads with data
+    for i in range(N_threads):
+        xoind=np.array(xsplit)[[i*2,(i*2)+1]]
+        yoind=np.array(ysplit)[[i*2,(i*2)+1]]
+        xiind=x[xout[xoind].astype(int)].astype(int)
+        yiind=y[yout[yoind].astype(int)].astype(int)
+        th_x=gx[xiind[0]:xiind[1],yiind[0]:yiind[1]]
+        th_y=gy[xiind[0]:xiind[1],yiind[0]:yiind[1]]
+        th_xo=gx[xoind[0]:xoind[1],yoind[0]:yoind[1]]
+        th_yo=gy[xoind[0]:xoind[1],yoind[0]:yoind[1]]
+        th_z=Z[xiind[0]:xiind[1],yiind[0]:yiind[1]]
+        print i
+#        input_q.put((i,th_x,th_y,Z[indices[i]],x[indices[i]],cut,ind_out[i]))
+
+#    #wait on the queue until everything has been processed     
+#    input_q.join()
+#    
+#    #Sort threads
+#    tnb=[]
+#    for i in range(N_threads) : tnb.append(indices_q.get(i))
+#    tsort=np.argsort(tnb)
+#    
+#    #Get back the results for each thread in a list of results
+#    for i in np.arange(N_thread) :
+#        r=result_q.get(i)
+#        if i == 0 : dum = [r]
+#        else : dum.append(r)
+#
+#    #Reorder data from each thread into output matrix
+#    for i in tsort :
+#        if i == tsort[0] : outmat = dum[i]
+#        else : outmat=np.ma.concatenate((outmat,dum[i]),0) if isinstance(h,np.ma.masked_array) else np.concatenate((outmat,dum[i]),0)
+#    
+#    if len(outmat) != len(h) :
+#        raise '[ERROR]Output array is not coherent with input array - check array reconstruction'
+#    return(outmat)
 
 
 def interp3d(x,y,t,Z,xout,yout,tout,**kwargs):
@@ -2475,15 +2640,21 @@ def modis_filename2cnes(modis_fname):
     return modis2cnes(modis_date)
     
 def detrend(X,Z,deg=1):
-    if Z.shape == 1 :
-        nt = 1
-        valid=np.array([True])
-    else :
-        nt=Z.shape[0]
-        valid=(~Z.mask).sum(axis=1)
+    ndims=len(Z.shape)
+    isVector=False
+    if ndims == 1:
+        Z=np.reshape(Z,(1,Z.size))
+        isVector=True
+    notMa=False
+    if ~isinstance(Z,np.ma.masked_array):
+        notMa=True
+        Z=np.ma.array(Z,mask=np.zeros(Z.shape))
+    nt=Z.shape[0]
+    valid=(~Z.mask).sum(axis=1)
     a=np.arange(deg+1)
     for t in np.arange(nt)[valid > 0]:
         fit=np.polyfit(X[~Z[t,:].mask],Z[t,:][~Z[t,:].mask], deg)
         for d in a : Z[t,:]-=np.power(X,a[::-1][d])*fit[d]
-    return Z
+    if isVector : Z=Z.reshape(Z.size) 
+    return Z.data if notMa else Z
     

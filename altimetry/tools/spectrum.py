@@ -1,5 +1,7 @@
+# -*- coding: utf-8 -*-
 import numpy as np
-import alti_tools as atools
+import scipy.fftpack as ft
+import alti_tools as AT
 
 from scipy import stats
 
@@ -28,25 +30,26 @@ def get_kx(N,dx):
     #Odd or even
     odd = N&1 and True or False
     
-    #Get wavenumber
-    k=np.fft.fftfreq(N)*N
+    #Get frequency & wavenumber
+    k=ft.fftfreq(N,d=dx)
+#    k=f*N
     
     imx = (N-1)/2 if odd else N/2 #Maximum frequency
     
     #Convert into frequencies
-    k/=L
+#    k/=L
     
-    return k, L,imx
+    return k, L, imx
 
 
-def get_spec(dx,var):
+def get_spec(dx,Vin,verbose=False,gain=1.0):
     """
     #+
     # GET_SPEC
     # @summary: Returns the spectrum of a regularly sampled dataset
     #
     # @param dq {type:numeric} : sampling interval (1D)
-    # @param var {type:numeric} : data to analyse (1D).
+    # @param V {type:numeric} : data to analyse (1D).
     #
     # @note: NaN can not be used. 
     #
@@ -59,10 +62,11 @@ def get_spec(dx,var):
     # @author: Renaud DUSSURGET (RD) - LER/PAC, Ifremer
     # @change: Created by RD, July 2012
     #     29/08/2012 : Changed the computation of frequencies and the spectral integration (spectrum is averaged at mid-width frequencies)
+    #     30/11/2012 : Outstanding changes : corrected the spectral integration for computing psd and corrected the normalisation
     #-
     """
-    
-    N=var.size
+    V=Vin.copy()
+    N=V.size
 
     # part 1 - estimate of the wavenumbers
     ######################################
@@ -74,106 +78,65 @@ def get_spec(dx,var):
     # part 2 - estimate of the spectrum
     # fast fourier transform
     ##########################
-    fft=np.fft.fft(var)
-    
+    fft=ft.fft(V)/(gain)
+    if verbose : print 'Check parseval theorem 1: SUM|Y(f)|²={0}, SUM|y(t)|²={1}'.format(((np.abs(fft)**2)/N).sum(),(V**2).sum()) 
+
 #        Compute magnitude
 #        CF.Wilks, 2006. Statistical Methods in the Atmopsheric Sciences. 2nd Edition. International Geophysics Series vol.96. Elsevier.
 #        => Ck = [Ak^2 + Bk^2]^(1/2), where e^(iwt) = cos(wt) + i.sin(wt)
     a = fft.real
     b = fft.imag
-    c = a**2 + b**2
+    c = np.sqrt(a**2.0 + b**2.0) #This is the energy
     
-    #Checking parseval's Theorem
-    #-->                     (c/N).sum() == (var**2).sum()
-    #OR : np.linalg.norm(fft)/np.sqrt(N) == np.linalg.norm(var)
+    if verbose : print 'Check parseval theorem 2: SUM|Y(f)|²={0}, SUM|y(t)|²={1}'.format(((c**2)/N).sum(),(V**2).sum()) 
     
-    #Get phase (not used yet)
-    phase=np.angle(fft)
-
+    #Normalise data
+    c /= np.float32(N)
+    
+    if verbose : print 'Check parseval theorem 3: SUM|Y(f)|²={0}, SUM|y(t)|²={1}'.format(((c**2)*N).sum(),(V**2).sum()) 
+    
+    mean=fft.real[0]/N #Get average
+    
+    #Remove negative frequencies
+    phase=np.angle(2*fft[1:imx]) #Get phase (not used yet)
+    c = 2*c[1:imx-1] #Multiply by 2 (because of negative frequencies removal) - loses a bit of energy
+    
+    if verbose : print 'Check parseval theorem 4: SUM|Y(f)|²={0}, SUM|y(t)|²={1}'.format(((c**2)*(N/2.0)).sum(),((V-V.mean())**2).sum()) 
+    
+#    if not(N&1 and True or False) : print (np.sum(fft[1:N/2+1])-np.sum(fft[N/2+1:])), fft[N/2] #This is equal to fft[n/2] 
+#    cbis=np.absolute(2*fft[0:imx-1]) #Slightly differing from previous one    
+#    cbis /= np.float32(N)
+   
     # integration of the spectrum
     # shift to have values centered on the intervals
     dk = k[1] - k[0]
     dk_half = dk/2  # half of the interval
+        
+    k = k[1:imx-1]  
+    k_= k + dk_half  #Shift wavelengths by half the unit
     
-    ist=1
+    cesd = c**2 *(N/2) #Energy (ESD)
+    csquared = c ** 2
     
-    k = k[ist:imx]  #Remove negative frequencies and zero frequency (mean)
-    k_= k #k + dk  #Shift wavelengths by half the unit
-    
-    esd = c[ist:imx]
-    
+    if verbose : print 'Check parseval theorem 5: SUM|Y(f)|²={0}, SUM|y(t)|²={1}'.format((csquared*(N/2)).sum(),((V-V.mean())**2).sum())
     
     #Spectral integration
-    var = k_*0.0
+    esd = k_*0.0
+    psd = k_*0.0
     for i in np.arange(len(k_)):
-#        mesd[i] = np.mean(c[(k > (k_[i]-dk)) & (k < (k_[i]+dk))])
-        var[i] = 2*dk*np.sum(c[(k > (k_[i]-dk)) & (k < (k_[i]+dk))]) #This is variance units integration
+        esd[i] = np.sum((csquared * (N/2.0))[(k > (k_[i]-dk)) & (k < (k_[i]+dk))])/2
+        psd[i] = np.sum(csquared[(k > (k_[i]-dk)) & (k < (k_[i]+dk))]) #This is variance units integration
+        
+    psd = psd /dk 
+
+    if verbose : print 'Check parseval theorem 6: SUM|Y(f)|²={0}, SUM|y(t)|²={1}'.format(esd.sum(),((V-V.mean())**2).sum())
 
     #Get frequencies and period  
     fq=k_
     p=1/fq
     
-    psd = esd / fq
-
-#from http://www.mathworks.com/matlabcentral/newsreader/view_thread/283145
-
-#N = 1024 % 1024
-#dt = 0.001 % 1e-3
-#Fs = 1/dt % 1000 fft period
-#T = N*dt % 1.024 ifft period
-#
-#t = 0:dt:T-dt;
-#
-#f0 = 30 % 30
-#T0 = 1/f0 % 0.033333 signal period
-#Nc = T/T0 % 30.72 noninteger number of cycles
-#y = sin(2*pi*f0*t);
-#
-#% Power and Energy in the Time Domain
-#
-#p = y.^2 ; % Instantaneous Power
-#P = sum(p) % 511.04 Total Power
-#Pav = mean(p) % 0.49906 Average Power
-#e = dt*p; % Instantaneous Energy
-#Et = sum(e) % 0.51104 Total Energy
-#Etav = mean(e) % 0.00049906 Average Energy
-#
-#http://groups.google.com/group/comp.soft-sys.matlab/
-#msg/009339c581e63467?hl=en
-#
-#% Power and Energy in the Freqency Domain
-#
-#df = Fs/N % 0.97656 = 1/T
-#f = 0:df:Fs-df; % Unipolar freq interval
-#fb = f - df*ceil((N-1)/2); % Bipolar freq interval
-#Y = fft(y); % Unipolar freq spectrum
-#Yb = fftshift(Y); % Bipolar freq spectrum
-#
-#% Note Y and Yb are interchangeable in most of the following
-#
-#absYb = abs(Yb);
-#PSDb = absYb.^2/N; % Power Spectral Density
-#
-#figure
-#plot(fb,PSDb)
-#axis([-Fs/2 Fs/2 0 1.1*max(PSDb)])
-#title('Power Spectrum')
-#
-#% Check Parseval's Theorem (See Wikipedia)
-#
-#check = sum(p)-sum(PSDb) % -4.5475e-013
-#
-#You can determine the appropriate expressions
-#for the frequency domain calculations of
-#P, Pav, Ef and Efav
-#
-#http://groups.google.com/group/comp.soft-sys.matlab/
-#msg/2222327db2ea7f51
-#
-#
-#Hope this helps.
-#
-#Greg 
+    return {'psd':psd,'esd':esd,'fq':fq,'p':p}
+    
     # Normalisation (Danioux 2011)
 #    specvar = specvar / (var.size)**2 / dk #No normalization!!
 
@@ -184,8 +147,122 @@ def get_spec(dx,var):
 #    dk=dk*1000.0/2.0 #/np.pi
 #    if fft: specvar=specvar*2.0*np.pi/1000.0
 
-    return {'psd':psd,'esd':esd,'var':var,'fq':fq,'p':p}
+def spectral_analysis(dx,Ain,tapering=None,overlap=None,wsize=None,alpha=3.0,detrend=False,normalise=False):
 
+    A=Ain.copy()
+
+    #Check dimensions
+    sh = A.shape
+    ndims = len(sh)
+    N = sh[ndims-1] #Time series are found along the last dimension
+    
+    #If vector, add one dimension
+    if ndims == 1 :
+        A = A.reshape((N,1))
+        sh = A.shape
+        ndims = len(sh)
+    
+    nr = sh[1] #Number of repeats  
+    
+#    gain=1.0 #Scaling gain... (used for tapering issues)
+    
+#    #Get the overall energy
+#    spec=get_spec(dx, A[:,0])
+#    F=spec['fq']   
+#    Eref = ((A[:,0]-A[:,0].mean())**2).sum() #Get the reference energy level
+#    ESDref=spec['esd']
+#    SFactor=Eref/spec['esd'].sum()
+#    ESDref*=SFactor
+#    PSDref=spec['psd']*SFactor
+#    print 'Check parseval theorem : SUM|Y(f)|²={0}, SUM|y(t)|²={1}'.format(spec['esd'].sum(),((A[:,0]-A[:,0].mean())**2).sum())
+    
+    
+    #Apply tapering if asked
+    ########################
+    if tapering is not None:
+        
+        #Set tapering defaults
+        overlap=0.50 if overlap is None else overlap
+        wsize=0.5*N if wsize is None else wsize
+
+        #Get time splitting (tapering) parameters
+        #########################################
+        a = np.float32(wsize)
+        b = np.float32(overlap) 
+        c = np.float32(N) 
+        nn=(c - (a * b))/(a - (a * b)) #This is the number of segments
+        ix = np.arange(nn) * ((1.0 - b) * a) #These are the starting points of each segments
+
+        #Moving window
+        ##############
+        dum = np.zeros((wsize, nn),dtype=np.float64)
+        for i in np.arange(nn): #looping through time to get splitted time series 
+            dum[:,i] = AT.detrend(np.arange(wsize),A[ix[i] : ix[i] + wsize,0]) if detrend else A[ix[i] : ix[i] + wsize,0]
+        
+        #Set up tapering window
+        #######################
+        beta=np.pi*alpha
+        hamm = np.hamming(wsize)
+        hann = np.hanning(wsize)
+        kbess = np.kaiser(wsize,beta)
+        notaper = np.ones(wsize) #overpass tapering option
+        gain=1.0
+        
+        if isinstance(tapering,bool) : which='hamm'
+        elif isinstance(tapering,str) :
+            if tapering.upper() == 'HAMMING' :
+                which='hamm'
+                gain=0.54
+            elif tapering.upper() == 'HANNING' :
+                which='hann'
+                gain=0.50
+            if tapering.upper() == 'KAISER' :
+                which='kbess'
+                gain=0.40
+            if tapering.upper() == 'NONE' :
+                which='notaper'
+                gain=1.0
+        elif isinstance(tapering,np.ndarray) : pass
+        else :
+            raise Exception('Bad value for tapering keyword')
+        if not isinstance(tapering,np.ndarray) : exec('window='+which)
+        else : window=tapering
+        window = np.repeat(window,nn).reshape((wsize,nn))
+    
+        #Apply tapering on segmented data
+        A=dum.copy()*window
+        nr=nn
+    
+    #Run transform
+    ###############
+    for i in np.arange(nr):
+        spec=get_spec(dx, A[:,i])
+        if i == 0:
+            esd = spec['esd']
+            psd = spec['psd']
+            fq = spec['fq']
+        else : 
+            esd = np.append(esd,spec['esd'])
+            psd = np.append(psd,spec['psd'])
+    
+#    factor=((A[:,0]-A[:,0].mean())**2).sum()/spec['esd'].sum()
+    
+    #Average spectrum
+    #################
+    nf=len(fq)
+    p=1./fq
+    esd=esd.reshape(nr,nf)
+    psd=psd.reshape(nr,nf)
+    esd=(np.sum(esd,axis=0)/nr)#/gain
+    psd=(np.sum(psd,axis=0)/nr)#/gain
+
+    #Normalise by energy content    
+    Scaling_Factor=len(fq)/esd.sum()
+    esd*=Scaling_Factor
+    psd*=Scaling_Factor
+    
+    if tapering is not None : return {'params':{'tapering':tapering is not None,'which':which,'wsize':int(wsize),'nwind':int(nn),'overlap':int(100.*overlap)},'psd':psd,'esd':esd,'fq':fq,'p':p}
+    else : return {'params':{'tapering':tapering is not None},'psd':psd,'esd':esd,'fq':fq,'p':p}
 
 #def get_cospec(dx,dy,var1,var2):
 #
@@ -280,9 +357,9 @@ def grid_track(dst,lat,lon,sla,remove_edges=True,backbone=None):
     #Fill the gaps if there are some
     if len(empty) > 0 : 
         #Interpolate lon,lat @ empty positions
-        outlon[empty] = atools.interp1d(ok, outlon[ok], empty, kind='cubic')
-        outlat[empty] = atools.interp1d(ok, outlat[ok], empty, kind='cubic')
-        outsla[empty] = atools.interp1d(ok, outsla[ok], empty, spline=True)
+        outlon[empty] = AT.interp1d(ok, outlon[ok], empty, kind='cubic')
+        outlat[empty] = AT.interp1d(ok, outlat[ok], empty, kind='cubic')
+        outsla[empty] = AT.interp1d(ok, outsla[ok], empty, spline=True)
         
     
     
@@ -323,8 +400,8 @@ def grid_track_backbone(lat,lon,sla,backlat,backlon,fill=None):
     """
     
     #Find gaps in data
-    dst=atools.calcul_distance(backlat[0],backlon[0],lat,lon)
-    dstback=atools.calcul_distance(backlat,backlon)
+    dst=AT.calcul_distance(backlat[0],backlon[0],lat,lon)
+    dstback=AT.calcul_distance(backlat,backlon)
     dx = dstback[1:] - dstback[:-1]
     mn_dx = np.median(dx)
     
@@ -348,9 +425,9 @@ def grid_track_backbone(lat,lon,sla,backlat,backlon,fill=None):
     #Fill the gaps if there are some
     if (fill is not None) & (len(empty) > fill) : 
         #Interpolate lon,lat @ empty positions
-        outlon[empty] = atools.interp1d(ok, outlon[ok], empty, kind='cubic')
-        outlat[empty] = atools.interp1d(ok, outlat[ok], empty, kind='cubic')
-        outsla[empty] = atools.interp1d(ok, outsla[ok], empty, spline=True)
+        outlon[empty] = AT.interp1d(ok, outlon[ok], empty, kind='cubic')
+        outlat[empty] = AT.interp1d(ok, outlat[ok], empty, kind='cubic')
+        outsla[empty] = AT.interp1d(ok, outsla[ok], empty, spline=True)
     
     #Get empty bin flag
     interpolated=(~hist.astype('bool'))
