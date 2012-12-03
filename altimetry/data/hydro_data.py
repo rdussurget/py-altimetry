@@ -3,8 +3,6 @@ import glob
 import inspect
 import fnmatch
 
-import datetime
-
 import numpy as np
 
 import matplotlib.pyplot as plt
@@ -12,7 +10,7 @@ from netCDF4 import Dataset as ncfile
 import seawater.gibbs as gsw
 import seawater.csiro as csw
 
-import alti_tools as atools
+#import alti_tools as atools
 from scipy import interpolate
 from warnings import warn
 

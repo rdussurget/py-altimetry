@@ -15,10 +15,10 @@ import matplotlib.pylab as pylab
 from netCDF4 import Dataset as ncfile
 import glob
 import os
-
-import alti_tools as atools
+import altimetry
+from altimetry.tools import recale, in_limits, where_list, recale_limits
+#import altimetry.data.alti_tools as atools
 from collections import OrderedDict
-import alti_tools
 
 from warnings import warn
 
@@ -29,7 +29,7 @@ class nc :
         #Init system variables
 #        if limit is None : limit=[-90.,0.,90.,360.]
         self.zero_2pi = zero_2pi
-        self.limit = np.array(atools.recale_limits(limit, zero_2pi=self.zero_2pi))
+        self.limit = np.array(recale_limits(limit, zero_2pi=self.zero_2pi))
         self.verbose = verbose
         self.fileid = np.array([])
 
@@ -193,8 +193,8 @@ class nc :
         
         #Extract within limits
         if (existDim[0] > -1) & (existDim[1] > -1):
-            llind, flag = atools.in_limits(lon['data'],lat['data'], limit=self.limit)
-            lon = atools.recale(lon['data'].compress(flag),degrees=True)
+            llind, flag = in_limits(lon['data'],lat['data'], limit=self.limit)
+            lon = recale(lon['data'].compress(flag),degrees=True)
             lat = lat['data'].compress(flag)
             dimStr['lon']=len(lon)
             dimStr['lat']=len(lat)
@@ -274,7 +274,7 @@ class nc :
             curDim = [str(dimname) for dimname in dimStr.keys()[1:]] #[str(dimname) for dimname in ncf.variables['LONGITUDE'].dimensions]
             curDimval = [dimStr[dim] for dim in curDim] #[len(ncf.dimensions[dimname]) for dimname in curDim]
             
-            curDim = dimlist[atools.where_list(curDim, ncdimlist.tolist())] #Convert to object dimension names
+            curDim = dimlist[where_list(curDim, ncdimlist.tolist())] #Convert to object dimension names
             
 ##            curDim = [str(dimname) for dimname in ncf.variables[param].dimensions]
 ##            curDimval = [len(ncf.dimensions[dimname]) for dimname in curDim]
@@ -353,12 +353,12 @@ def load_ncVar(varName, nc=None, **kwargs):
                     dumvar = nc.variables[vn][:]
                 else :
                     dumvar = np.arange(len(nc.dimensions[vn]))
-                if vn.startswith('lon') : dumvar=atools.recale(dumvar,degrees=True)
+                if vn.startswith('lon') : dumvar=recale(dumvar,degrees=True)
                 fg=(dumvar >= drange[0]) & (dumvar <= drange[1])
                 if fg.sum() == 0 :
                     #retry switrhcing lon/lat
-                    dumvar=atools.recale(dumvar,degrees=True)
-                    drange=tuple(atools.recale(drange,degrees=True).astype(np.long))
+                    dumvar=recale(dumvar,degrees=True)
+                    drange=tuple(recale(drange,degrees=True).astype(np.long))
                     fg=(dumvar >= drange[0]) & (dumvar <= drange[1])
                 if fg.sum() == 0 : raise IndexError('{0} {1} is not matching given dimensions {2}'.format(vn,(np.nanmin(nc.variables[vn][:]),np.nanmax(nc.variables[vn][:])),drange))
                 if len(fg) == 1 :

@@ -1,9 +1,10 @@
+# -*- coding: utf-8 -*-
 import threading
 import datetime
 import numpy as np
 import Queue
 
-import alti_tools as atools
+#import alti_tools as atools
 
 
 ##Global variables (rq: global keyword should be called by a function to set/modify global vars
@@ -46,9 +47,9 @@ class ThreadClass(threading.Thread):
         if verbose > 0 : print "%s started at time: %s" % (self.getName(), datetime.datetime.now())
         
         try :
-            res=atools.loess(h, x, cut)
+            res=loess(h, x, cut)
         except (ValueError):
-            res=atools.loess(h, x, cut) #Retry if problem
+            res=loess(h, x, cut) #Retry if problem
                
         self.indices.put(id)
         self.result.put(res[edges[0]:edges[1]])

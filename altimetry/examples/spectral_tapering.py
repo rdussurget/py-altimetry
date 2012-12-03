@@ -1,6 +1,6 @@
 import numpy as np
-import alti_tools as AT
-import spectrum as sp
+import altimetry.alti_tools as AT
+import altimetry.spectrum as sp
 import matplotlib.pyplot as plt
 
 """

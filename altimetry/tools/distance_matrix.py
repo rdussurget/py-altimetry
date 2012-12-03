@@ -1,9 +1,10 @@
+# -*- coding: utf-8 -*-
 import threading
 import datetime
 import numpy as np
 import Queue
 
-import alti_tools as atools
+#import alti_tools as atools
 
 
 ##Global variables (rq: global keyword should be called by a function to set/modify global vars
@@ -95,7 +96,7 @@ class ThreadClass(threading.Thread):
             self.input.task_done()
        
 
-def distance_matrix(alat,alon,blat,blon,N_thread=4):
+def distance_matrix_parallel(alat,alon,blat,blon,N_thread=4):
     
     
     #Setup input and output queues
@@ -115,7 +116,7 @@ def distance_matrix(alat,alon,blat,blon,N_thread=4):
     #If the serie is not long enough, go back to sequential version
     if step <= N_thread :
         if verbose > 1 : print "[WARNING] series too short. back to sequential code"
-        return atools.distance_matrix(alat,alon,blat,blon)
+        return distance_matrix(alat,alon,blat,blon)
     
     indices = []
     for i in np.arange(N_thread) : indices.append(np.arange(i*step,i*step+step))
@@ -164,3 +165,55 @@ def distance_matrix(alat,alon,blat,blon,N_thread=4):
         raise Exception('[ERROR]Output matrix is not coherent with input data - check matrix reconstruction')
 
     return(dist_matrix)
+
+def distance_matrix_inline(lat_a, lon_a, lat_b, lon_b):
+    
+    na = np.size(lat_a)
+    nb = np.size(lat_b)
+    
+    #Earth radius (km)
+    rt = 6378.137
+    
+#    lon_a_tile = np.tile(np.deg2rad(lon_a), (nb, 1))
+#    lat_a_tile = np.tile(np.deg2rad(lat_a), (nb, 1))
+#    lon_b_tile = np.tile(np.deg2rad(lon_b).transpose(), (na, 1)).transpose()
+#    lat_b_tile = np.tile(np.deg2rad(lat_b).transpose(), (na, 1)).transpose()
+
+#    plt.figure()
+#    plt.imshow(lon_a_tile,interpolation='NEAREST',aspect='auto')
+#    plt.show()
+#    
+#    plt.figure()
+#    plt.imshow(lon_b_tile,interpolation='NEAREST',aspect='auto')
+#    plt.show()
+    
+#    interm = np.cos(lat_a_tile) * np.cos(lat_b_tile) * np.cos(lon_a_tile - lon_b_tile) + np.sin(lat_a_tile) * np.sin(lat_b_tile)
+    
+    #lower memory usage for huge matrices
+    dum = np.tile(np.deg2rad(lat_a), (nb, 1))
+    dist_matrix = np.cos(dum)
+    interm = np.sin(dum)
+    
+    del dum
+    dum =  np.tile(np.deg2rad(lat_b).transpose(), (na, 1)).transpose()
+    dist_matrix *= np.cos(dum)
+    interm *= np.sin(dum)
+    
+    del dum
+    dum = np.tile(np.deg2rad(lon_a), (nb, 1))
+    dum -= np.tile(np.deg2rad(lon_b).transpose(), (na, 1)).transpose()
+    dist_matrix *= np.cos(dum)
+    
+    del dum
+    
+    dist_matrix += interm
+    
+    del interm
+        
+    dist_matrix = rt * np.arccos(dist_matrix)
+    
+    return dist_matrix
+
+def distance_matrix(alat,alon,blat,blon,parallel=True,**kwargs):
+    if parallel : return distance_matrix_inline(alat, alon, blat, blon,**kwargs)
+    else : return distance_matrix_inline(alat, alon, blat, blon)

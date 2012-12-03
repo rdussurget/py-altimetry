@@ -5,10 +5,15 @@ import glob
 import datetime
 
 import numpy as np
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 from pyhdf.SD import SD, SDC
+#from altimetry.tools.spatial_tools import in_limits
+#from altimetry.tools.interp_tools import interp1d,interp2d2d
+from altimetry.tools.dates import cnes_convert, modis2cnes
+from altimetry.tools.others import nearest
+from altimetry.tools import in_limits,interp1d,interp2d,cnes_convert, modis2cnes, nearest
 
-import alti_tools as atools
+#import alti_tools as atools
 
 
 #Read HDF data
@@ -46,9 +51,9 @@ def modis_sst(file_name,
     sCtl_ind=np.arange(sCtl,dtype=np.float32)
     s_ind=(sCtl-1)*np.arange(nScans,dtype=np.float32)/(nScans-1)
     
-    dum=atools.interp2d2d(sCtl_ind, pCtl_ind, lonsel.get(), s_ind, p_ind)
-    dumlon=atools.interp1d(p_ind, lonsel.get(), pCtl_ind, spline=True)
-    dumlat=atools.interp1d(p_ind, lonsel.get(), pCtl_ind, spline=True)
+    dum=interp2d2d(sCtl_ind, pCtl_ind, lonsel.get(), s_ind, p_ind)
+    dumlon=interp1d(p_ind, lonsel.get(), pCtl_ind, spline=True)
+    dumlat=interp1d(p_ind, lonsel.get(), pCtl_ind, spline=True)
 
 #    shlon=shlat=lon.dimensions().values()
 
@@ -68,7 +73,7 @@ def modis_sst(file_name,
     
     #Get points within domain
     if limit is not None :
-       indvec,flagvec=atools.in_limits(lonvec, latvec, limit)
+       indvec,flagvec=in_limits(lonvec, latvec, limit)
     
     flagmat=flagvec.reshape(d[0],d[1])
     rowsum=np.sum(flagmat, 0)
@@ -200,7 +205,7 @@ def modis_oc(file_name,
     
     #Get points within domain
     if limit is not None :
-       indvec,flagvec=atools.in_limits(lonvec, latvec, limit)
+       indvec,flagvec=in_limits(lonvec, latvec, limit)
     
     flagmat=flagvec.reshape(d[0],d[1])
     rowsum=np.sum(flagmat, 0)
@@ -283,7 +288,7 @@ def modis_date_convert(argin,
         if calendar is True :
             return [x.strftime('%d/%m/%Y') for x in moddate]
     else :
-        _,dateObj=atools.cnes_convert(argin)
+        _,dateObj=cnes_convert(argin)
         if type(argin[0]) is float : strftime_fmt="%Y%j%H%M%S"
         else : strftime_fmt="%Y%j"
         
@@ -305,6 +310,25 @@ def modis_date_from_filename(argin,
     
     return modis_date_convert([x[1:12] for x in argin],julian=julian,calendar=calendar)
 
+def modis_filename2cnes(modis_fname):
+
+    modis_date=modis_filename2modisdate(modis_fname)
+    return modis2cnes(modis_date)
+
+def modis_filename2modisdate(modis_fname):
+    """
+    #+
+    # MODIS_FILENAME2DATE : Convert MODIS file name to MODIS date
+    # 
+    # @author: Renaud DUSSURGET (LER PAC/IFREMER)
+    # @history: Created by RD on 29/10/2012
+    #
+    #-
+    """
+    
+    if not isinstance(modis_fname,list) : modis_fname=[modis_fname]
+    
+    return [os.path.splitext(os.path.basename(m))[0][1:12] for m in modis_fname]
 
 #Data manipoulation object
 ##########################
@@ -366,7 +390,7 @@ class image_data:
         pmap.title(title)
 
     def set_current(self,date,**kwargs):
-        self.current=atools.nearest(self.datelist, date) #return nearest value index
+        self.current=nearest(self.datelist, date) #return nearest value index
         self.offset=-datetime.timedelta(days=self.datelist[self.current] - date)
         self.filename=self.filelist[self.current]
         self.date=self.datelist[self.current] # date in days
@@ -379,7 +403,7 @@ class image_data:
         
         self.chosen_date=self.datetime+self.offset
         self.chosen_date_modis=modis_date_convert(date)[0]
-        self.chosen_date_cal=atools.cnes_convert(date)[0][0]
+        self.chosen_date_cal=cnes_convert(date)[0][0]
         self.load(**kwargs)
         
     def load(self,**kwargs):
