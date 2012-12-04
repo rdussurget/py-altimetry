@@ -40,39 +40,39 @@ def where_list(list1,list2):
 
     return index
 
-#from scipy.interpolate import lagrange, BarycentricInterpolator, barycentric_interpolate
-def deprecated_deriv(*args):
-    if len(args) == 1 :
-        y = args[0]
-        x = np.arange(len(y))
-    if len(args) == 2 :
-        x = args[0]
-        y = args[1]
-    
-    dx = x[1:] - x[:-1]
-    dy = y[1:] - y[:-1]
-    
-#    d2 = lagrange(np.arange(len(x)),np.arange(len(dx))+0.5,dy/dx)
-
-    dx = np.append(np.array(2*dx[1] - dx[0]),dx)
-    dx = np.append(dx,np.array(2*dx[-1] - dx[-2]))
-    
-    dy = np.append(np.array(2*dy[1] - dy[0]),dy)
-    dy = np.append(dy,np.array(2*dy[-1] - dy[-2]))
-    
-#    dxint=lagrange(np.arange(nx),np.arange(nx-1)+0.5,dx)
-#    dyint = lagrange(np.arange(nx),np.arange(nx-1)+0.5,dy)
-    
-#    d = BarycentricInterpolator(dx)
-#    dxint = lagrange(np.arange(len(dx)-1) + 0.5,np.arange(len(dx)),dx)
-#    dyint = lagrange(np.arange(len(dx)-1) + 0.5,np.arange(len(dx)),dy)
-    d = lagrange(np.arange(len(x)) + 0.5,np.arange(len(dx)),dy/dx)
-    
-#    p = barycentric_interpolate(np.arange(len(dx))+0.5,dy/dx,np.arange(len(dx)))
-#    p(np.arange(len(dx)))
-#    p(np.arange(len(dx)))
-    
-    return d
+##from scipy.interpolate import lagrange, BarycentricInterpolator, barycentric_interpolate
+#def deprecated_deriv(*args):
+#    if len(args) == 1 :
+#        y = args[0]
+#        x = np.arange(len(y))
+#    if len(args) == 2 :
+#        x = args[0]
+#        y = args[1]
+#    
+#    dx = x[1:] - x[:-1]
+#    dy = y[1:] - y[:-1]
+#    
+##    d2 = lagrange(np.arange(len(x)),np.arange(len(dx))+0.5,dy/dx)
+#
+#    dx = np.append(np.array(2*dx[1] - dx[0]),dx)
+#    dx = np.append(dx,np.array(2*dx[-1] - dx[-2]))
+#    
+#    dy = np.append(np.array(2*dy[1] - dy[0]),dy)
+#    dy = np.append(dy,np.array(2*dy[-1] - dy[-2]))
+#    
+##    dxint=lagrange(np.arange(nx),np.arange(nx-1)+0.5,dx)
+##    dyint = lagrange(np.arange(nx),np.arange(nx-1)+0.5,dy)
+#    
+##    d = BarycentricInterpolator(dx)
+##    dxint = lagrange(np.arange(len(dx)-1) + 0.5,np.arange(len(dx)),dx)
+##    dyint = lagrange(np.arange(len(dx)-1) + 0.5,np.arange(len(dx)),dy)
+#    d = lagrange(np.arange(len(x)) + 0.5,np.arange(len(dx)),dy/dx)
+#    
+##    p = barycentric_interpolate(np.arange(len(dx))+0.5,dy/dx,np.arange(len(dx)))
+##    p(np.arange(len(dx)))
+##    p(np.arange(len(dx)))
+#    
+#    return d
 
 
 def deriv(*args):

@@ -3,32 +3,47 @@ import matplotlib.pyplot as plt
 import matplotlib.pylab as pylab
 from mpl_toolkits.basemap import Basemap
 import numpy as np
+from altimetry.tools import track_orient, in_limits, calcul_distance, recale, nctools as nc
+#from altimetry.data import nctools as nc
+from collections import OrderedDict
+from scipy import io
 
 class plot_map(Basemap):
-    def __init__(self,lon,lat,z,
-                 resolution='i',
-                 xoffset=.05,
-                 yoffset=.05,
-                 length=50.,
-                 scale_lon=None,
-                 scale_lat=None,
-                 s=25,
-                 c='k',
-                 limit=None,
-                 edgecolor='none'):
-    
-#        super(plot_map,self).__init__()#lon,lat,s=25,
-#                 c=None,
-#                 limit=None,
+    def __init__(self,*args,**kwargs):
 #                 resolution='i',
-#                 xoffset=0.05,
-#                 yoffset=0.05,
+#                 xoffset=.05,
+#                 yoffset=.05,
 #                 length=50.,
 #                 scale_lon=None,
-#                 scale_lat=None)
-
+#                 scale_lat=None,
+#                 s=25,
+#                 c='k',
+#                 limit=None,
+#                 edgecolor='none'):
+    
         #Startup sequence
         #################
+        
+        c = kwargs.pop('c', 'k')
+        s = kwargs.pop('s', 25)
+        edgecolor = kwargs.pop('edgecolor', 'none')
+        limit = kwargs.pop('limit', None)
+        resolution = kwargs.pop('resolution', 'i')
+        xoffset = kwargs.pop('xoffset', 0.05)
+        yoffset = kwargs.pop('yoffset', 0.05)
+        length = kwargs.pop('length', 50.)
+        scale_lon = kwargs.pop('scale_lon', None)
+        scale_lat = kwargs.pop('scale_lat', None)
+        
+        lon=[]
+        lat=[]
+        z=[]
+        if len(args) >= 2 :
+            lon=args[0]
+            lat=args[1]
+        if len(args) == 3:
+            z=args[2]
+        if np.size(lon) == 1: c='o'+c
         
         #Force fields
         lon=np.array(lon)
@@ -72,10 +87,20 @@ class plot_map(Basemap):
         self.resolution=resolution
         self.length=length
 
-        #Draw map 
-        if np.size(z) > 1 : return self.setup_map(lon, lat, z, s=s, edgecolor=edgecolor)
-        else :
-            if z != 0 :  return self.setup_map(lon, lat, z, s=s, edgecolor=edgecolor)
+        #Draw map
+        if np.size(z) > 1 : self.scatter(lon,lat,z,s=s,edgecolor=edgecolor,**kwargs)
+        elif np.size(z) == 1 :
+            if z != 0 : self.plot(lon,lat,z,s=s,edgecolor=edgecolor,**kwargs)
+            else : self.plot(lon,lat,c,s=s,**kwargs)
+        elif np.size(z) == 0 :
+            self.plot(lon,lat,c,s=s,**kwargs)
+    
+        self.setup_map(**kwargs)
+#        if np.size(z) > 1 : return self.setup_map(lon, lat, z, s=s, edgecolor=edgecolor)
+#        elif np.size(z) != 0 :
+#            if z != 0 :  return self.setup_map(lon, lat, z, s=s, edgecolor=edgecolor)
+#        elif np.size(z) == 0 :
+#            self.setup_map()
         
 #        self.show() #RQ : Show erase everything!!       
 #        self.m.drawmapscale(self.scale_lon, self.scale_lat, self.mcenter[0], self.mcenter[1], length=self.length)
@@ -234,7 +259,8 @@ class plot_map(Basemap):
             kwargs['ms'] = kwargs['s']
             del kwargs['s']
         
-        if isinstance(c,str) : return Basemap.plot(self,mlon,mlat,c,**kwargs)
+        if isinstance(c,str) :
+            return Basemap.plot(self,mlon,mlat,c,**kwargs)
 #        self.colorbar(orientation='horizontal')
     
 #    def plot(self,lon,lat,
@@ -317,14 +343,21 @@ class plot_map(Basemap):
         self.drawparallels(np.arange(np.floor(self.limit[0]), np.ceil(self.limit[2]), latdel), labels=[1, 0, 0, 0])
         self.drawmeridians(np.arange(np.floor(self.limit[1]), np.ceil(self.limit[3]), londel), labels=[0, 0, 0, 1])
                 
-        if len(args) == 3 :
-            lon=args[0]
-            lat=args[1]
-            z=args[2]
-            if np.size(z) > 1 : self.scatter(lon,lat,z,s=s,edgecolor=edgecolor)
-            else : 
-                if type(z) != type(str()) : z = '.k'
-                self.plot(lon,lat,z,ms=s)
+#        if len(args) == 3 :
+#            lon=args[0]
+#            lat=args[1]
+#            z=args[2]
+#            if np.size(z) > 1 : self.scatter(lon,lat,z,s=s,edgecolor=edgecolor)
+#            else : 
+#                if type(z) != type(str()) : z = '.k'
+#                self.plot(lon,lat,z,ms=s)*
+#        if len(args) == 2 :
+#            lon=args[0]
+#            lat=args[1]
+#            if np.size(z) > 1 : self.plot(lon,lat,z,s=s,edgecolor=edgecolor)
+#            else : 
+#                if type(z) != type(str()) : z = '.k'
+#                self.plot(lon,lat,z,ms=s)
         return cs
     
     def drawbathy(self,fname=None,V=[-250,-2000],Nlevels=None,step=None,colors='k',linestyles='dotted', linewidths=2,**kwargs):
@@ -364,7 +397,7 @@ def load_bathy(bathy='MENOR',**kwargs):
     
     if bathy == 'ETOPO' :
         fname='C:\\VMShared\\data\\spare_products\\bathy\\ETOPO2v2g_f4.nc'
-        ncf=nc(fname)
+        ncf=nc.nc(fname)
         if kwargs.has_key('lon') : kwargs['x']=recale(kwargs.pop('lon'),degrees=True)
         if kwargs.has_key('lat') : kwargs['y']=kwargs.pop('lat')
         if kwargs.has_key('limit') :

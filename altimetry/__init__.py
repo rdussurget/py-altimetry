@@ -5,8 +5,8 @@ altimetry module
 @author: Renaud DUSSURGET, LER/PAC IFREMER.
 @change: Create in December 2012 by RD.
 '''
-import tools
-import externals
-import data
+from tools import *
+from externals import *
+from data import *
 
 #from external-tools import *

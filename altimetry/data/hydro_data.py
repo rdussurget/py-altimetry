@@ -13,6 +13,10 @@ import seawater.csiro as csw
 #import alti_tools as atools
 from scipy import interpolate
 from warnings import warn
+from altimetry.tools import recale_limits, in_limits, cumulative_distance, calcul_distance, \
+    where_list, \
+    cnes_convert, \
+    plot_map
 
 
 
@@ -24,7 +28,7 @@ class hydro_data(object):
         #Init system variables
 #        if limit is None : limit=[-90.,0.,90.,360.]
         self.zero_2pi=zero_2pi
-        self.limit = np.array(atools.recale_limits(limit, zero_2pi=self.zero_2pi))
+        self.limit = np.array(recale_limits(limit, zero_2pi=self.zero_2pi))
         self.verbose = verbose
         self.fileid = np.array([])
 
@@ -85,16 +89,16 @@ class hydro_data(object):
 #        datalen = [np.size(dataStr[key]) for key in keys]
         datalen = [list(np.shape(dataStr[key])) for key in keys] #####!!!!!! WARNING!!!! NEW FEATURE TO TEST
         
-        ind = [atools.where_list(dlen,dimensions[1]) for dlen in datalen] #Dimensions indices ###!!!NEW!
+        ind = [where_list(dlen,dimensions[1]) for dlen in datalen] #Dimensions indices ###!!!NEW!
         if (np.array(ind).sum() == -1) != 0 : self.Error('At least one variable have not been properly defined')
         dimname = [np.array(dimensions[0])[i].tolist() for i in ind]  #Get correspondance between data structure dimensions and variables
                 
         curDim, nself=self.get_currentDim()
-        createDim=[[w == -1 for w in atools.where_list(j, curDim[0])] for i,j in enumerate(dimname) ]
+        createDim=np.array([[w == -1 for w in where_list(j, curDim[0])] for i,j in enumerate(dimname) ])
 #        curInd = atools.where_list(dimname_reduced,curDim[0]) #Get correspondance between data structure dimensions and object dimensions
         
 #        createDim = (np.array(curInd) == -1) #Get dimensions to be created   
-        toCreate = [not self.__dict__.has_key(key) for key in keys]
+        toCreate = np.array([not self.__dict__.has_key(key) for key in keys])
         
         updateDim=[]  
         
@@ -126,8 +130,8 @@ class hydro_data(object):
         
         
         #Final sequence
-        updateDim_List = np.unique(zip(*(np.array(dimname).compress(~createDim),np.array([str(i) for i in datalen]).compress(~createDim))))
-        createDim_list = np.unique(zip(*(np.array(dimname).compress(createDim),np.array([str(i) for i in datalen]).compress(createDim))))
+        updateDim_List = np.unique(zip(*(np.array(dimname)[~createDim],np.array(datalen)[~createDim]))) #[str(i) for i in datalen]
+        createDim_list = np.unique(zip(*(np.array(dimname)[createDim],np.array(datalen)[createDim]))) #[str(i) for i in datalen]
         
         for dim in createDim_list :
             self.create_Dim(dim[0], np.int(dim[1]))
@@ -278,8 +282,8 @@ class hydro_data(object):
         curDim, nself=self.get_currentDim()
         
         
-        curInd=np.array(atools.where_list(dimName,curDim[0]))
-        curDimVal=np.array(atools.where_list(dimVal,curDim[1]))
+        curInd=np.array(where_list(dimName,curDim[0]))
+        curDimVal=np.array(where_list(dimVal,curDim[1]))
         
         existDims= (curInd != -1)
         createDim = (curInd == -1)
@@ -453,8 +457,8 @@ class hydro_data(object):
 #        return self.id == id
     
     def time_range(self,flag=None):
-        if flag is None : return atools.cnes_convert([self.date.min(),self.date.max()])
-        else : return atools.cnes_convert([self.date.compress(flag).min(),self.date.compress(flag).max()])
+        if flag is None : return cnes_convert([self.date.min(),self.date.max()])
+        else : return cnes_convert([self.date.compress(flag).min(),self.date.compress(flag).max()])
     
     def extension(self,flag=None):
         if flag is None : return [self.lat.min(),self.lon.min(),self.lat.max(),self.lon.max()]
@@ -499,7 +503,7 @@ class hydro_data(object):
         if zoom : limit = self.extension(flag)
         else : limit = self.limit
         
-        if pmap is None : pmap=atools.plot_map(0,0,0,limit=limit)
+        if pmap is None : pmap=plot_map(0,0,0,limit=limit)
         p,=self.plot_track(pmap, flag,**kwargs)
         
         if show : 
@@ -575,7 +579,7 @@ class hydro_data(object):
         
     def in_limits(self,limit=None):
         if limit is None : limit = self.limit
-        flag=atools.in_limits(self.lon, self.lat, limit)
+        flag=in_limits(self.lon, self.lat, limit)
         return flag
 
     def plot_track(self,pmap,flag=None,col='.k',endpoint='*r',endpoint_size=None,title=None,fontsize=8,textcolor='b',ms=5,linewidth=1,**kwargs):
@@ -751,11 +755,11 @@ class hydro_data(object):
 #        lat = self._ncfile.variables['LATITUDE'][:]
         
         #Extract within limits
-        ind, flag = atools.in_limits(lon['data'],lat['data'],limit=self.limit)
+        ind, flag = in_limits(lon['data'],lat['data'],limit=self.limit)
         dim_lon = lon['_dimensions']
         lat = lat['data'].compress(flag)
         lon = lon['data'].compress(flag)
-        dist=atools.cumulative_distance(lat, lon)
+        dist=cumulative_distance(lat, lon)
         
         sz=np.shape(lon)
         ndims=np.size(sz)
@@ -858,7 +862,7 @@ class buoy_data(hydro_data):
         for key in outStr.keys(): outStr.update({key:outStr[key].flatten()})
         
         #Additonnal variables
-        outStr.update({'dist':atools.calcul_distance(outStr['lat'],outStr['lon'])})
+        outStr.update({'dist':calcul_distance(outStr['lat'],outStr['lon'])})
                 
         #Update dimensions
         newDim = {'_dimensions' : {'_ndims':1,'nbpoints':nbprofiles}}
@@ -979,7 +983,7 @@ class argo_trajectory(hydro_data):
         for key in outStr.keys(): outStr.update({key:outStr[key].flatten()})
         
         #Additonnal variables
-        outStr.update({'dist':atools.calcul_distance(outStr['lat'],outStr['lon'])})
+        outStr.update({'dist':calcul_distance(outStr['lat'],outStr['lon'])})
                 
         #Update dimensions
         newDim = {'_dimensions' : {'_ndims':1,'nbpoints':nbprofiles}}
@@ -1036,7 +1040,7 @@ class glider_data(hydro_data):
         for key in outStr.keys(): outStr.update({key:outStr[key].flatten()})
         
         #Additonnal variables
-        outStr.update({'dist_surf':atools.calcul_distance(outStr['lat_surf'],outStr['lon_surf'])})
+        outStr.update({'dist_surf':calcul_distance(outStr['lat_surf'],outStr['lon_surf'])})
         outStr.update({'dist':np.repeat(outStr['dist_surf'],nblevels)})
 
         
@@ -1078,10 +1082,10 @@ class glider_data(hydro_data):
         lat = self._ncfile.variables['LATITUDE'][:]
         
         #Extract within limits
-        ind, flag = atools.in_limits(lon,lat,limit=self.limit)
+        ind, flag = in_limits(lon,lat,limit=self.limit)
         lat = lat.compress(flag)
         lon = lon.compress(flag)
-        dist=atools.cumulative_distance(lat, lon)  
+        dist=cumulative_distance(lat, lon)  
         
         date = self._ncfile.variables['JULD'][ind]
         temp = self._ncfile.variables['TEMP'][ind,:]
@@ -1365,7 +1369,7 @@ def load_ncVar(varName,nc=None,**kwargs):
         sz=[np.size(i) for i in ind_list]
         
         #find empty variables
-        if not (atools.where_list([0],sz)[0] == -1 ) : varOut=var[[0]][[]]
+        if not (where_list([0],sz)[0] == -1 ) : varOut=var[[0]][[]]
         else : varOut=var[ind_list]
         
         #Mask it!

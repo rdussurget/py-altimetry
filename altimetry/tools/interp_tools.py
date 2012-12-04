@@ -79,9 +79,9 @@ def interp1d(x,Z,xout,spline=False,kind='linear',**kwargs):
 
     return Zout
 
-def interp2d(x,y,Z,xout,yout,**kwargs):
+def interp2d1d(x,y,Z,xout,yout,**kwargs):
     """    
-    INTERP2D : Interpolate values from a 2D matrix along a 1D trajectory
+    INTERP2D1d : Interpolate values from a 2D matrix along a 1D trajectory
     
     @param x: 1st dimension vector of size NX
     @param y: 2nd dimension vector of size NY
@@ -97,9 +97,8 @@ def interp2d(x,y,Z,xout,yout,**kwargs):
     gx = np.reshape(np.repeat(x,y.size),(x.size,y.size))
     gy = np.reshape(np.repeat(y,x.size),(y.size,x.size)).transpose((1,0))
 
-    gxout = np.reshape(np.repeat(xout,yout.size),(xout.size,yout.size)).flatten()
-    gyout = np.reshape(np.repeat(yout,xout.size),(yout.size,xout.size)).transpose((1,0)).flatten()
-
+    gxout = xout
+    gyout = yout
     gz = Z.flatten()
      
     points = zip(*(gx.flatten(),gy.flatten())) 
@@ -108,7 +107,7 @@ def interp2d(x,y,Z,xout,yout,**kwargs):
     try : Zout = scipy.interpolate.griddata(points, gz, xi, **kwargs)
     except RuntimeError : Zout = np.NaN
 #    Zout = sc.interpolate.griddata(points, gz, xi, **kwargs)
-    return Zout.reshape((xout.size,yout.size))      
+    return Zout      
 
 def interp2d2d(x,y,Z,xout,yout,split_factor=2,**kwargs):
     """    

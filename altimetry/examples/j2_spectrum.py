@@ -1,11 +1,12 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-import alti_tools as atools
-
-from spectrum import get_kx, get_spec, grid_track, get_slope
+import altimetry.tools as atools
+from altimetry.tools.spectrum import get_spec, get_slope
+from altimetry.data import alti_data
 
 from scipy import stats
+
 
 if __name__ == "__main__" :
     
@@ -59,7 +60,7 @@ if __name__ == "__main__" :
 #    alti_pattern='C:\\VMShared\\data\\alti\\regional\\PISTACH\\PISTACH_rtkMLE4_NWMED\\PISTACH_L3_Product_NWMED_MLE4_tr146_5hz.nc'
 
 #    alti=atools.alti_data(alti_pattern,limit=limit,verbose=verbose,time_range=trange)
-    alti=atools.alti_data(alti_pattern,limit=limit,verbose=verbose)
+    alti=alti_data(alti_pattern,limit=limit,verbose=verbose)
     
     alti.create_Variable('sla', alti.sla_filtered_21pts, {'time':alti._dimensions['time']})
     
@@ -115,7 +116,7 @@ if __name__ == "__main__" :
             if len(sla) >= N_min :
                 
                 #Regrid SLA into the regular grid defined by hist
-                dumdst, dumlon, dumlat, dumsla, gaplen, ngaps, dx, interpolated = grid_track(dst,lat,lon,sla)
+                dumdst, dumlon, dumlat, dumsla, gaplen, ngaps, dx, interpolated = atools.grid_track(dst,lat,lon,sla)
                 dxout=np.append(dxout,dx)
                 
                 #Get some stats on raw tracks

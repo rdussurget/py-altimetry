@@ -1,7 +1,6 @@
 import numpy as np
-import altimetry.alti_tools as AT
-import altimetry.spectrum as sp
 import matplotlib.pyplot as plt
+from altimetry.tools import spectrum as sp, detrend as detrend_fun
 
 """
     SPECTRAL_TAPERING
@@ -26,8 +25,8 @@ add_trend = False #Adds a linear trend over the noise (overpasses the detrend op
 wn=np.random.randn(N)
 rn=np.cumsum(wn)
 if detrend :
-    rn=AT.detrend(np.arange(N), rn)
-    wn=AT.detrend(np.arange(N), wn) 
+    rn=detrend_fun(np.arange(N), rn)
+    wn=detrend_fun(np.arange(N), wn) 
 
 if add_trend :
     rn= rn + (2./N)*np.arange(N)

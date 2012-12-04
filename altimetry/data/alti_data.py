@@ -45,25 +45,17 @@
 '''
 
 #Loading libraries
-#import sys
-import datetime
+
 import numpy as np
-import scipy as sc
-import scipy.interpolate
-import scipy.io as io
 from netCDF4 import Dataset as ncfile
-import bisect
-
-
+import operator
 import glob
 import os
 
 
-import hydro_data as htools
+import hydro_data as htools #This object is based on the hydro_data object
 from altimetry.externals import esutils_stat as es
-from altimetry.data import nctools as nc
-
-from collections import OrderedDict
+from altimetry.tools import cnes_convert, histogram_indices, recale, in_limits, cumulative_distance 
 
 
 #Load alti data

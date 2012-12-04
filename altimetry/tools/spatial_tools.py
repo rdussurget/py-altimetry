@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import numpy as np
+from altimetry.tools.others import get_zero_element
 
 def in_limits(lon, lat, limit):
     

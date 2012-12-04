@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 import scipy.fftpack as ft
-#import alti_tools as AT
-
 from scipy import stats
+from altimetry_tools import detrend as detrend_fun
 
 def get_kx(N,dx):
     """
@@ -197,7 +196,7 @@ def spectral_analysis(dx,Ain,tapering=None,overlap=None,wsize=None,alpha=3.0,det
         ##############
         dum = np.zeros((wsize, nn),dtype=np.float64)
         for i in np.arange(nn): #looping through time to get splitted time series 
-            dum[:,i] = AT.detrend(np.arange(wsize),A[ix[i] : ix[i] + wsize,0]) if detrend else A[ix[i] : ix[i] + wsize,0]
+            dum[:,i] = detrend_fun(np.arange(wsize),A[ix[i] : ix[i] + wsize,0]) if detrend else A[ix[i] : ix[i] + wsize,0]
         
         #Set up tapering window
         #######################

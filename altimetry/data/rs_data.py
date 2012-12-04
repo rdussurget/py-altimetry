@@ -1,4 +1,3 @@
-import sys
 import os
 import glob
 
@@ -9,9 +8,9 @@ import numpy as np
 from pyhdf.SD import SD, SDC
 #from altimetry.tools.spatial_tools import in_limits
 #from altimetry.tools.interp_tools import interp1d,interp2d2d
-from altimetry.tools.dates import cnes_convert, modis2cnes
-from altimetry.tools.others import nearest
-from altimetry.tools import in_limits,interp1d,interp2d,cnes_convert, modis2cnes, nearest
+#from altimetry.tools.dates import cnes_convert, modis2cnes
+#from altimetry.tools.others import nearest
+from altimetry.tools import in_limits,interp1d,interp2d2d,cnes_convert, modis2cnes, nearest
 
 #import alti_tools as atools
 
