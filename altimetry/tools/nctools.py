@@ -1,12 +1,11 @@
 '''
-Created on 7 sept. 2012
-
+NCTOOLS
+@summary: Netcdf data object, to help loading and writing data
+@change Created on 7 sept. 2012
 @author: rdussurg
 '''
 
-import datetime
 import numpy as np
-import scipy.io as io
 import matplotlib.pyplot as plt
 import matplotlib.pylab as pylab
 
@@ -15,16 +14,14 @@ import matplotlib.pylab as pylab
 from netCDF4 import Dataset as ncfile
 import glob
 import os
-import altimetry
-from altimetry.tools import recale, in_limits, where_list, recale_limits
+from altimetry.tools import recale, in_limits, where_list, recale_limits, get_caller
 #import altimetry.data.alti_tools as atools
 from collections import OrderedDict
-
 from warnings import warn
 
 class nc :
     
-    def __init__(self, file_pattern, limit=[-90., 0., 90., 360.], verbose=0, zero_2pi=False, use_local_dims=False, **kwargs):
+    def __init__(self, limit=[-90., 0., 90., 360.], verbose=0, zero_2pi=False, use_local_dims=False, **kwargs):
         
         #Init system variables
 #        if limit is None : limit=[-90.,0.,90.,360.]
@@ -37,7 +34,87 @@ class nc :
         self.size = 0
 
         self.use_local_dims=use_local_dims
+    
+    def write(self, data, outfile, **kwargs):
+        
+        #Open file
+        if self.verbose == 1 : self.message(1, 'Writing data file {}'.format(os.path.basename(outfile)))
+        elif self.verbose > 1 : self.message(2, 'Writing data file {}'.format(outfile))
+        root_grp=ncfile(outfile, 'w', format='NETCDF4', clobber=True)
+#        root_grp.description = 'nctools.write() file'
+        
+        #Get attributes
+        if data.has_key('_attributes'):
+            self.message(2, 'Adding attributes data')
+            attrStr=data.pop('_attributes')
+            self.message(4, 'Attribute list (N={0}) :[{1}]'.format(len(attrStr.keys()), ','.join(attrStr.keys())) )
+            root_grp.setncatts(attrStr)
+        
+        #Get dimensions
+        dimStr=data.pop('_dimensions')
+        ndims=dimStr.pop('_ndims')
+        dimlist = dimStr.keys()
+        dimVal = dimStr.values()
+        
+        #Get variables
+        parlist = data.keys()
+        
+        
+        # Set up dimensions
+        
+        #Put dimensions
+        for d in dimlist :
+            self.message(2, 'Adding D {0}={1}'.format(d,dimStr[d]))
+            root_grp.createDimension(d, dimStr[d])
+        
+        #Loop over variables
+        for p in parlist :
+            
+            #Get dimensions for current variable
+            if not data[p].has_key('_dimensions') : self.Error('_dimension attribute is not set for variaple'+p)
+            pardim=data[p].pop('_dimensions')
+            if isinstance(pardim,dict) :pardim=tuple(pardim.keys()[1:]) if pardim.has_key("_ndims") else tuple(pardim.keys())
+            elif isinstance(pardim,list) : pardim = tuple(pardim)
+            elif isinstance(pardim,tuple) : pass
+            else : self.Error('_dimensions must be dict, list or tuple - not {0}'.type(pardim)) 
+            
+            #Convert to numpy array if scalar or non numpy
+            if not hasattr(data[p]['data'],'__iter__') or not hasattr(data[p]['data'], 'dtype'):  data[p]['data']=np.array(data[p]['data'])
 
+            if not (data[p]['data'].dtype == '|S6') and not (data[p]['data'].dtype == '|S2') :
+                self.message(2, 'Adding V {0} (dims={{{1}}},attr={{{2}}})'.
+                             format(p,
+                                    ', '.join(['\'{0}\':{1}'.format(d,dimStr[d]) for d in pardim]),
+                                    ', '.join(['\'{0}\':{1}'.format(d,data[p][d]) for d in data[p].keys() if (d != '_dimensions') and (d != 'data')]) )
+                             )
+                if hasattr(data[p]['data'],'fill_value') :
+                    locals()[p] = root_grp.createVariable(p,
+                                                   data[p]['data'].dtype,
+                                                   pardim,
+                                                   fill_value=data[p]['data'].fill_value)
+                else :
+                    locals()[p] = root_grp.createVariable(p,
+                                                   data[p]['data'].dtype,
+                                                   pardim)
+                locals()[p][:]=data[p].pop('data').transpose(tuple(range(len(pardim))[::-1])) #Transpose data before writing it into file
+
+                
+                #Update with attribute list
+                locals()[p].setncatts(data[p])
+#                for a in data[p].keys() :
+#                    if not hasattr(locals()[p],a) :
+#                        locals()[p].setncattr(a,data[p][a])
+
+        
+        self.message(2, 'Closing file')
+        root_grp.close()
+
+        return True
+        
+        
+    
+    def read(self,file_pattern,**kwargs): 
+        
         #Setup file list
         if isinstance(file_pattern, str) : ls = glob.glob(file_pattern)
         else :
@@ -57,9 +134,8 @@ class nc :
         
         self.par_list = np.array([])
         self.dim_list = np.array([])
-        self._dimensions = {'_ndims':0}
-    
-    def read(self,**kwargs):  
+        self._dimensions = OrderedDict({'_ndims':0})
+         
         #Loop over data files
         #####################
         for i in np.arange(len(self.fid_list)) :
@@ -152,7 +228,7 @@ class nc :
                 else :
                     self.message(1, '[WARING] Netcdf file not standard - creating data for {0} dimnsion'.format(d))
                     ndim=len(ncf.dimensions[d])
-                    var = {'_dimensions':{'_ndims':1,'record':ndim}, 'data':np.arange(ndim)}
+                    var = {'_dimensions':{'_ndims':1,d:ndim}, 'data':np.arange(ndim)}
                     cmd = d + '=var'
                     self.message(4, 'exec : ' + cmd)
                     exec(cmd)
@@ -216,17 +292,20 @@ class nc :
             depth = depth['data'].compress(depthflag)
             dimStr['depth']=len(depth)
         
+        #Create output data structure
         outStr = OrderedDict()
         outStr.update({'_dimensions':dimStr})
+        
         if (existDim[0] > -1) : outStr.update({'lon':lon})
         if (existDim[1] > -1) : outStr.update({'lat':lat})
         if (existDim[2] > -1) : outStr.update({'time':time})
         if (existDim[3] > -1) : outStr.update({'depth':depth})
         
         
-        #Update object with remaining dimensions
+        #Update object with remaining variables
         for d in dimlist.compress([not outStr.has_key(f) for f in dimlist]) :
-            cmd = 'outStr.update({\''+d+'\':'+d+'[\'data\']})'
+#            cmd = 'outStr.update({\''+d+'\':'+d+'[\'data\']})'
+            cmd = 'outStr.update({\''+d+'\':'+d+'})'
             self.message(4, 'exec : '+cmd)
             exec(cmd)
         
@@ -234,7 +313,7 @@ class nc :
         #Get dimension lengths
         shape=()
         for d in dimlist:
-            exec('shape+=(len('+d+'),)')
+            exec('shape+=(np.shape('+d+'[\'data\']),)')
         
         ndims = np.size(shape)
      
@@ -259,9 +338,9 @@ class nc :
                     kwargs.update({ncd:kwargs[d]})
                     del kwargs[d]
                 else :
-                    kwargs.update({ncd:(ncdimStr[d].min(),ncdimStr[d].max())})
-
-        
+                    kwargs.update({ncd:(ncdimStr[d]['data'].min(),ncdimStr[d]['data'].max())})
+#            else :
+#                outStr['NbLatitudes']['data']        
         for param in par_list :
 #            dumVar = load_ncVar(param,  nc=ncf, lon=llind[0], lat=llind[1], time=np.arange(len(time['data'])).compress(timeflag),**kwargs) #Load variables
 #            dumVar = load_ncVar(param,  nc=ncf, longitude=(self.limit[1],self.limit[3]), latitude=(self.limit[0],self.limit[2]), time=(self.time.min(),self.time.max()),**kwargs) #Load variables
@@ -285,17 +364,21 @@ class nc :
 #                outStr['_dimensions'].update({enum[1]:np.array(curDimval).compress(flag)[enum[0]]}) #Append new dimension
 #                outStr['_dimensions']['_ndims'] += 1 #update dimension counts
             
-            cmd = 'dumStr = {\'' + param + '\':dumVar[\'data\']}'
+#            cmd = 'dumStr = {\'' + param + '\':dumVar[\'data\']}'
+            cmd = 'dumStr = {\'' + param + '\':dumVar}'
             self.message(4, 'exec : ' + cmd)
             exec(cmd)
             outStr.update(dumStr)
+            
+            #Update output dimensions with extracted dimensions
+            for ddum in dumStr[param]['_dimensions'].keys()[1:] :
+                if outStr['_dimensions'].get(ddum) != dumStr[param]['_dimensions'][ddum] : outStr['_dimensions'][ddum]=dumStr[param]['_dimensions'][ddum]
             
             cmd = 'self.'+param+'='
         
         ncf.close()
         return outStr
-        
-        
+    
     def message(self, MSG_LEVEL, str):
         """
          MESSAGE : print function wrapper. Print a message depending on the verbose level
@@ -307,11 +390,31 @@ class nc :
          @change: Added a case for variables with missing dimensions
          
         """
-        
-        if MSG_LEVEL <= self.verbose : print(str)
+        caller=get_caller()
+        if MSG_LEVEL <= self.verbose : print('[{0}.{1}()] {2}'.format(__name__,caller.co_name,str))
         
     def Error(self, ErrorMsg):    
         raise Exception(ErrorMsg)
+    
+    def attributes(self, filename, **kwargs):
+        """
+        ATTRIBUTRES: Get attributes of a NetCDF file
+        
+        @return: outStr {type:dict} Attribute structure.
+        @author: Renaud Dussurget
+        """
+        
+        #Open file
+        self._filename = filename
+        ncf = ncfile(self._filename, "r")
+     
+        #Get list of recorded parameters:
+        keys = ncf.__dict__.keys()
+        outStr = OrderedDict()
+        for a in keys: outStr.update({a:ncf.__getattr__(a)})
+
+        return outStr
+        
 
 def load_ncVar(varName, nc=None, **kwargs):
         
@@ -322,13 +425,14 @@ def load_ncVar(varName, nc=None, **kwargs):
         var.set_auto_maskandscale(False)
         
         #Load dimensions
-        varDim = [str(dim) for dim in var.dimensions]
+        varDim = [str(dim) for dim in var.dimensions] #Revert the dimensions indices for numpy
+#        varDim = [str(dim) for dim in var.dimensions][::-1] #Revert the dimensions indices for numpy
         missDim=len(varDim) == 0
         if (missDim): warn('No dimension found')
         else : varDimval = [len(nc.dimensions[dimname]) for dimname in varDim]
         
         ind_list = [] #Init index list
-        dims = {'_ndims':0} #Init dimensions
+        dims = OrderedDict({'_ndims':0}) #Init dimensions
         
         dstr=[]
         shape=()
@@ -384,7 +488,8 @@ def load_ncVar(varName, nc=None, **kwargs):
 #        #check index list
 #        sz = [np.size(i) for i in ind_list]
         
-        dstr=','.join(dstr)
+        dstr=','.join(dstr) #invert dimension list for numpy
+#        dstr=','.join(dstr[::-1]) #invert dimension list for numpy
         if missDim : cmd = 'varOut = var[:]'
         else : cmd = 'varOut = var[{0}]'.format(dstr)
         exec(cmd)
@@ -408,11 +513,17 @@ def load_ncVar(varName, nc=None, **kwargs):
         if isinstance(varOut, np.ndarray) : varOut = np.ma.masked_array(varOut, mask=mask)
         elif isinstance(varOut, np.ma.masked_array) : var.mask = mask
         else : raise 'This data type {} has not been defined - code it!'.format(type(varOut))
-            
+        
+        #Switch dimensions
+        varOut=np.transpose(varOut,tuple(range(len(dims.keys()[1:]))[::-1]))
+        
         #Build up output structure
         dims.update({'_ndims':len(dims.keys()[1:])})
         outStr = {'_dimensions':dims, 'data':varOut}
         
+        #Add variable attributes
+        for A in var.__dict__.keys():
+            outStr[A]=var.getncattr(A)
         
         return outStr
 #            ind_list=[[]] 

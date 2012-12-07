@@ -94,8 +94,8 @@ def interp2d1d(x,y,Z,xout,yout,**kwargs):
     @author: Renaud DUSSURGET, LER/PAC, Ifremer La Seyne
     """
 
-    gx = np.reshape(np.repeat(x,y.size),(x.size,y.size))
-    gy = np.reshape(np.repeat(y,x.size),(y.size,x.size)).transpose((1,0))
+    gx = np.reshape(np.repeat(x,y.size),(x.size,y.size)).transpose((1,0))
+    gy = np.reshape(np.repeat(y,x.size),(y.size,x.size))
 
     gxout = xout
     gyout = yout

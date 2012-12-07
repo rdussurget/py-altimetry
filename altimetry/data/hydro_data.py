@@ -16,19 +16,27 @@ from warnings import warn
 from altimetry.tools import recale_limits, in_limits, cumulative_distance, calcul_distance, \
     where_list, \
     cnes_convert, \
-    plot_map
+    plot_map, \
+    get_caller
 
 
 
 
 class hydro_data(object):
     
-    def __init__(self,file_pattern,limit=[-90.,0.,90.,360.],verbose=1,zero_2pi=False,**kwargs):
+    def __init__(self,file_pattern,limit=None,verbose=1,round=True,zero_2pi=False,**kwargs):
         
         #Init system variables
 #        if limit is None : limit=[-90.,0.,90.,360.]
         self.zero_2pi=zero_2pi
-        self.limit = np.array(recale_limits(limit, zero_2pi=self.zero_2pi))
+        
+        self.limit_set=False
+        if limit is None :
+            limit=[-90.,0.,90.,360.]
+        else : self.limit_set = True
+        
+        self.limit = np.array(recale_limits(limit, zero_2pi=self.zero_2pi)) 
+            
         self.verbose = verbose
         self.fileid = np.array([])
 
@@ -73,6 +81,7 @@ class hydro_data(object):
             
             self.check_variables()
         
+        if not self.limit_set : self.limit=self.extension(round=round)
 #        self.update()
 
     def update_dataset(self,dataStr,flatten=False):
@@ -81,20 +90,23 @@ class hydro_data(object):
         #########################
         dataDim = dataStr.pop('_dimensions')
         ndims = dataDim.pop('_ndims')
-        dimensions = [[key for key in dataDim.keys()],[dataDim[key] for key in dataDim.keys()]]
+        dimensions = [dataDim.keys(),dataDim.values()]
         
         keys = dataStr.keys()
         self.message(2, 'Loaded variables : '+str(keys))
         
+        #Check what is the current variable type
+        isStructure = True if isinstance(dataStr[keys[0]],dict) else False
+        
 #        datalen = [np.size(dataStr[key]) for key in keys]
-        datalen = [list(np.shape(dataStr[key])) for key in keys] #####!!!!!! WARNING!!!! NEW FEATURE TO TEST
+        datalen = [list(np.shape(dataStr[key]['data'])) for key in keys] if isStructure else [list(np.shape(dataStr[key])) for key in keys] #####!!!!!! WARNING!!!! NEW FEATURE TO TEST
         
         ind = [where_list(dlen,dimensions[1]) for dlen in datalen] #Dimensions indices ###!!!NEW!
         if (np.array(ind).sum() == -1) != 0 : self.Error('At least one variable have not been properly defined')
         dimname = [np.array(dimensions[0])[i].tolist() for i in ind]  #Get correspondance between data structure dimensions and variables
                 
         curDim, nself=self.get_currentDim()
-        createDim=np.array([[w == -1 for w in where_list(j, curDim[0])] for i,j in enumerate(dimname) ])
+        createDim=np.array([np.array([w == -1 for w in where_list(j, curDim[0])]) for i,j in enumerate(dimname) ])
 #        curInd = atools.where_list(dimname_reduced,curDim[0]) #Get correspondance between data structure dimensions and object dimensions
         
 #        createDim = (np.array(curInd) == -1) #Get dimensions to be created   
@@ -111,8 +123,12 @@ class hydro_data(object):
             
             #Load variable
             ##############
-            dum=dataStr.get(key).flatten() if flatten else dataStr.get(key)
-            
+#            var=dataStr.get(key)
+            dum=dataStr.get(key)
+            if flatten :
+                if isStructure :
+                    dum['data']=dum['data'].flatten()
+                else : dum=dum.flatten
 #            if isinstance(dum,np.ma.masked_array) : 
             
 #            #Get associated dimensions
@@ -130,8 +146,10 @@ class hydro_data(object):
         
         
         #Final sequence
-        updateDim_List = np.unique(zip(*(np.array(dimname)[~createDim],np.array(datalen)[~createDim]))) #[str(i) for i in datalen]
-        createDim_list = np.unique(zip(*(np.array(dimname)[createDim],np.array(datalen)[createDim]))) #[str(i) for i in datalen]
+        updateDim_List = np.unique(zip(*(np.hstack(dimname)[~np.hstack(createDim)],np.hstack(datalen)[~np.hstack(createDim)]))) #[str(i) for i in datalen]
+#        updateDim_List = np.unique(zip(*(np.array(dimname)[~createDim],np.array(datalen)[~createDim]))) #[str(i) for i in datalen]
+        createDim_list = np.unique(zip(*(np.hstack(dimname)[np.hstack(createDim)],np.hstack(datalen)[np.hstack(createDim)]))) #[str(i) for i in datalen]
+#        createDim_list = np.unique(zip(*(np.array(dimname)[createDim],np.array(datalen)[createDim]))) #[str(i) for i in datalen]
         
         for dim in createDim_list :
             self.create_Dim(dim[0], np.int(dim[1]))
@@ -217,7 +235,8 @@ class hydro_data(object):
         
         for enum in enumerate(infos):
             varSize = np.size(self.__dict__.get(enum[1][0]))
-            dimSize = (self._dimensions).get(enum[1][1])
+            varShape = np.shape(self.__dict__.get(enum[1][0]))[::-1] #Data and Netcdf dimensions are inverted
+            dimSize = tuple([(self._dimensions).get(d) for d in enum[1][1]])
             masked = isinstance(self.__dict__.get(enum[1][0]), np.ma.masked_array)
             
             #Check mask consistency (mask length should be the same as data)
@@ -226,12 +245,13 @@ class hydro_data(object):
             
             #Check dimensions
             self.message(4, 'checking variables -> {0}(N={1}) - {2}:{3}'.format(enum[1][0],varSize,enum[1][1],dimSize))
-            if (varSize > dimSize) :
-                self.Error('Object variable {0} greater than corresponding dimension ({1})'.format(enum[1][0],enum[1][1]))
-            elif (varSize < dimSize):
-                self.message(3, 'Variable {0}(N={1}) being extended to match dimension {2}:{3}'.format(enum[1][0],varSize,enum[1][1],dimSize))  
-#                self.__dict__[enum[1][0]] = np.ma.concatenate((self.__dict__[enum[1][0]], np.ma.masked_array(np.repeat(np.nan,dimSize - varSize),mask=np.zeros(dimSize - varSize,dtype='bool'))))
-                self.__dict__[enum[1][0]] = np.ma.masked_array( np.append(self.__dict__[enum[1][0]].data,np.repeat(np.nan,dimSize - varSize)), mask=np.append(self.__dict__[enum[1][0]].mask,np.ones(dimSize - varSize,dtype='bool')) )
+            for n,sh in enumerate(varShape) :
+                if (sh > dimSize[n]) :
+                    self.Error('Object variable {0} greater than corresponding dimension ({1})'.format(enum[1][0],enum[1][1]))
+                elif (sh < dimSize[n]):
+                    self.message(3, 'Variable {0}(N={1}) being extended to match dimension {2}:{3}'.format(enum[1][0],varSize,enum[1][1],dimSize))  
+    #                self.__dict__[enum[1][0]] = np.ma.concatenate((self.__dict__[enum[1][0]], np.ma.masked_array(np.repeat(np.nan,dimSize - varSize),mask=np.zeros(dimSize - varSize,dtype='bool'))))
+                    self.__dict__[enum[1][0]] = np.ma.masked_array( np.append(self.__dict__[enum[1][0]].data,np.repeat(np.nan,dimSize - varSize)), mask=np.append(self.__dict__[enum[1][0]].mask,np.ones(dimSize - varSize,dtype='bool')) )
     
     def create_Dim(self, name,value):
         if not self._dimensions.has_key(name) :
@@ -262,22 +282,33 @@ class hydro_data(object):
         #!!!! This is not a good solution
         name=name.replace('.','_')
         
+        #Check if data is structured or not
+        isStructure = True if isinstance(value,dict) else False
+        
         dimName = np.array(dimensions.keys())
-        dimVal = np.array(list(dimensions.itervalues()))
+        dimVal = np.array(dimensions.values())
         
         keys=np.array(self._dimensions.keys())
         
 #        if createDim is None : createDim = self._dimensions.has_key(dimName[0])
         createDim = np.array([not self._dimensions.has_key(dim) for dim in dimName]) if createDim is None else np.array(createDim)
-        if toCreate is None : toCreate = (self.par_list == name).sum() == 0
+        if toCreate is None : toCreate = np.sum(self.par_list == name) == 0
         
         self.message(3,'Loading {0} ({1}:{2}) from {3}'.format(name,dimName,dimVal,os.path.basename(self._filename)))
 
         #Cast variable into masked array first
         ######################################
-        if not isinstance(value,np.ma.core.MaskedArray) :
-            value = np.ma.masked_array(value,mask=np.zeros(dimVal[0],dtype='bool'))
+        if (not isinstance(value['data'],np.ma.core.MaskedArray) if isStructure else not isinstance(value,np.ma.core.MaskedArray)) :
+            value = np.ma.masked_array(value['data'],mask=np.zeros(tuple(dimVal),dtype='bool')) if isStructure else np.ma.masked_array(value,mask=np.zeros(tuple(dimVal),dtype='bool'))
             self.message(4,'Casting variable to np.ma.MaskedArray')
+        
+        #Restructure dataset if structure
+        if isStructure :
+            dumvalue=value.pop('data')
+            for a in value.keys() :
+                dumvalue.__setattr__(a,value[a])
+            value=dumvalue
+        
         
         curDim, nself=self.get_currentDim()
         
@@ -306,40 +337,44 @@ class hydro_data(object):
         # 2: extend -> create a new variable using existing dimensions
         # 3: append exisiting variable with data
         # 4: impossible case ?
-        if createDim.any() & toCreate :
-            
+        if createDim.any() & toCreate :           
             #Create Variable
             self.message(4,'Create variable '+name)
-            cmd='self.'+name+'=value'
+#            self.__setattr__(name,value)
+#            cmd='self.'+name+'=value'
 
             #Append variable infos to object
             self.par_list=np.append(self.par_list,name)
-            self.dim_list=np.append(self.dim_list,dimName.tolist())
+            dimlist_cp=self.dim_list.tolist()
+            dimlist_cp.append(dimName.tolist())
+            self.dim_list=np.array(dimlist_cp) #np.append(self.dim_list,dimName.tolist())
         
             updateDim=False
         
         elif (not createDim.any()) & toCreate :
             #extend variable
-#            dumVar = np.ma.masked_array(np.zeros(curDim[1][curInd]),mask=np.zeros(curDim[1][curInd],dtype='bool'))
             value = np.ma.masked_array(np.append(np.zeros(curDim[1][curInd]),value.data),mask=np.append(np.ones(curDim[1][curInd],dtype='bool'),value.mask))
-#            np.ma.masked_array(np.zeros(curDim[1][curInd]),mask=np.zeros(curDim[1][curInd],dtype='bool'))
-#            value = np.ma.concatenate((dumVar,value))
             
             self.message(4,'Extend variable '+name)
-            cmd='self.'+name+'=value'
-            self.message(4,'exec : '+cmd)
+#            self.__setattr__(name,value)
+#            cmd='self.'+name+'=value'
+#            self.message(4,'exec : '+cmd)
 
             #Append variable infos to object
             self.par_list=np.append(self.par_list,name)
-            self.dim_list=np.append(self.dim_list,dimName)
+            dimlist_cp=self.dim_list.tolist()
+            dimlist_cp.append(dimName.tolist())
+            self.dim_list=np.array(dimlist_cp)
+#            self.dim_list=np.append(self.dim_list,dimName)
             
             updateDim=True
         
         elif (not createDim.any()) & (not toCreate) :
             #append variable
             self.message(4,'Append data to variable '+name)
-#            cmd = 'self.'+name+'=np.ma.concatenate((self.'+name+',value),mask=np.append(self.dac))' #buggy command : concatenate do not always work..
-            cmd = 'self.{0}=np.ma.masked_array(np.append(self.{0}.data,value.data),mask=np.append(self.{0}.mask,value.mask))'.format(name)
+            value = np.ma.masked_array(np.append(self.__getattribute__(name).data,value.data),mask=np.append(self.__getattribute__(name).mask,value.mask))
+#             cmd = 'self.'+name+'=np.ma.concatenate((self.'+name+',value),mask=np.append(self.dac))' #buggy command : concatenate do not always work..
+#            cmd = 'self.{0}=np.ma.masked_array(np.append(self.{0}.data,value.data),mask=np.append(self.{0}.mask,value.mask))'.format(name)
         
 #            exec('res = [self.{0}.mask.size,value.mask.size]'.format(name))
 #                raise 'error!'
@@ -348,16 +383,19 @@ class hydro_data(object):
         
         elif createDim.any() & (not toCreate) :
             #Impossible case ?
-            self.Error('Impossible case : create Dimensions and variable already existing in dataset')
+            self.Error('Impossible case : create dimensions and variable {0} already existing'.format(name))
         
-        self.message(4,'exec : '+cmd)
+#        self.message(4,'exec : '+cmd)
         
         if name == 'nsct' :
             pass
         
-        try : exec(cmd)
-        except np.ma.core.MaskError :
-            raise 'mask error' 
+        try : self.__setattr__(name,value)
+        except np.ma.core.MaskError : raise 'mask error' 
+#           
+#        try : exec(cmd)
+#        except np.ma.core.MaskError :
+#            raise 'mask error' 
 #        exec(cmd)
          
         return updateDim
@@ -416,7 +454,8 @@ class hydro_data(object):
          @example self.message(0,'This message will be shown for any verbose level') 
         """
         
-        if MSG_LEVEL <= self.verbose : print(str)
+        caller=get_caller()
+        if MSG_LEVEL <= self.verbose :  print('[{0}.{1}()] {2}'.format(__name__,caller.co_name,str))
     
     def warning(self,MSG_LEVEL,str):
         """
@@ -460,9 +499,15 @@ class hydro_data(object):
         if flag is None : return cnes_convert([self.date.min(),self.date.max()])
         else : return cnes_convert([self.date.compress(flag).min(),self.date.compress(flag).max()])
     
-    def extension(self,flag=None):
-        if flag is None : return [self.lat.min(),self.lon.min(),self.lat.max(),self.lon.max()]
-        else : return [self.lat.compress(flag).min(),self.lon.compress(flag).min(),self.lat.compress(flag).max(),self.lon.compress(flag).max()]
+    def extension(self,flag=None,round=True):
+        if flag is None : limit = [self.lat.min(),self.lon.min(),self.lat.max(),self.lon.max()]
+        else : limit = [self.lat.compress(flag).min(),self.lon.compress(flag).min(),self.lat.compress(flag).max(),self.lon.compress(flag).max()]
+        if round :
+            limit[0]=np.floor(limit[0])
+            limit[2]=np.floor(limit[2])
+            limit[1]=np.ceil(limit[1])
+            limit[3]=np.ceil(limit[3])
+        return limit
     
     def get_id_list(self,flag=None):
         if flag is None : return np.unique(self.id)

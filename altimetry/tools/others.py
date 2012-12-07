@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 from Tkinter import Tk
+import inspect
 
 def get_zero_element(array):
     try : array = array.flat.next()
@@ -240,3 +241,8 @@ def rms(array):
 #    RETURN, SQRT((TOTAL((array - REBIN(mn,sz))^2D,ndims,/DOUBLE,/NAN) / nval))
 #;  RETURN, SQRT((TOTAL((array - REBIN(mn,sz))^2D,ndims,/DOUBLE,/NAN) / sz[ndims -1]))
 
+def get_caller(level=2):
+        frame=inspect.currentframe()
+        for l in np.arange(level) : frame=frame.f_back
+        code=frame.f_code
+        return code

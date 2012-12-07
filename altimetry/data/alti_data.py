@@ -55,7 +55,8 @@ import os
 
 import hydro_data as htools #This object is based on the hydro_data object
 from altimetry.externals import esutils_stat as es
-from altimetry.tools import cnes_convert, histogram_indices, recale, in_limits, cumulative_distance 
+from altimetry.tools import cnes_convert, histogram_indices, recale, in_limits, cumulative_distance , nctools
+from collections import OrderedDict
 
 
 #Load alti data
@@ -69,8 +70,8 @@ class alti_data(htools.hydro_data) :
             st=[f.split('_')[-3] for f in filelist]
             en=[f.split('_')[-2] for f in filelist]
 #            print st
-            jst = [cnes_convert('{0}/{1}/{2}'.format(s[-2:],s[-4:-2],s[0:4]))[0] for s in st]
-            jen = [cnes_convert('{0}/{1}/{2}'.format(s[-2:],s[-4:-2],s[0:4]))[0] for s in en]
+            jst = [cnes_convert('{0}/{1}/{2}'.format(s[-2:],s[-4:-2],s[0:4]))[0][0] for s in st]
+            jen = [cnes_convert('{0}/{1}/{2}'.format(s[-2:],s[-4:-2],s[0:4]))[0][0] for s in en]
             dt=np.fix(np.median(np.array(jst[1:]) - np.array(jst[:-1])))
 
             hist,R= es.histogram(np.array(jst),binsize=dt,use_weave=False,rev=True,min=time_range[0] - dt/2.,max=time_range[1] + dt/2.)
@@ -101,8 +102,8 @@ class alti_data(htools.hydro_data) :
             if os.path.basename(filename).split(delim)[0] == 'PISTACH' : datatype='PISTACH'
             if os.path.basename(filename).split(delim)[0] == 'nrt' : datatype='NRT'
             if os.path.basename(filename).split(delim)[0] == 'dt' : datatype='DT'
-        else :
-            datatype='dt' #Setup default as AVISO dt
+#        else :
+#            datatype='RAW' #Setup default as raw NetCDF file
         
         if (datatype == 'DT') | (datatype == 'NRT') | (datatype == 'PISTACH') :
             outStr=self.read_sla(filename,datatype=datatype,**kwargs)
@@ -110,8 +111,10 @@ class alti_data(htools.hydro_data) :
         elif (datatype == 'CTOH') :
             outStr=self.read_CTOH(filename,**kwargs)
             self.update_fid_list(os.path.basename(filename),outStr['_dimensions']['time'])
+        else: #Setup default as raw NetCDF file
+            outStr=self.read_nc(filename,**kwargs)
+            self.update_fid_list(os.path.basename(filename),outStr['_dimensions'][outStr['_dimensions'].keys()[1]])
         
-       
         
         return outStr
     
@@ -123,6 +126,8 @@ class alti_data(htools.hydro_data) :
         @return: outStr {type:dict} Output data structure containing all recorded parameters as specificied by NetCDF file PARAMETER list.
         @author: Renaud Dussurget
         """
+        
+        self.message(2,'Reading SLAext data ({0})'.format(datatype))
         
         #Open file
         self._filename = filename
@@ -298,6 +303,22 @@ class alti_data(htools.hydro_data) :
         self._ncfile.close()
         
         return outStr
+    
+    def read_nc(self,filename,**kwargs):
+        #Set filename
+        self._filename = filename
+        
+        #Read data from NetCDF
+        obj=nctools.nc(verbose=self.verbose,limit=self.limit,use_local_dims=True)
+        outStr=obj.read(filename,**kwargs)
+        
+        #Remove attributes already existing in data object
+        for a in self.__dict__.keys():
+            if outStr.has_key(a) and a is not '_dimensions' :
+                outStr.pop(a)
+                self.message(4, 'Attribute {0} already exists'.format(a))
+        
+        return outStr
 
 
     def track_list(self,*args):
@@ -318,11 +339,12 @@ class alti_data(htools.hydro_data) :
         triplets = np.unique(zip(*(self.lon, self.lat, self.track)))
         
         #Sort by track (we do not sort using other columns to preserve descending/ascending order)
-        triplets=np.array(sorted(triplets, key=operator.itemgetter(2)))
+        triplets=np.ma.array(sorted(triplets, key=operator.itemgetter(2)))
         
         lon = triplets[:,0]
         lat = triplets[:,1]
-        track = triplets[:,2]
+        tracknb = triplets[:,2]
+        track=track_list
         cycle=cycle_list
         
         N=len(lon)
@@ -345,22 +367,64 @@ class alti_data(htools.hydro_data) :
         #Refine param list
         for par in ['lon','lat','track','cycle'] :
             par_list.pop(par_list.index(par))
-            exec('self.{0}={0}'.format(par))
+            self.__setattr__(par,locals()[par])
             
         #Set new dimensions array
-        self._dimensions={'_ndims':2,'npoints':N,'ncycles':ncycles}
+        self._dimensions=OrderedDict({'_ndims':2,'cycle':ncycles,'record':N,'track':ntracks})
+        record=np.ma.array(ind,mask=np.zeros(N,dtype=bool))
+        
+        #Update lon, lat, track and cycle arrays
+        lon.mask=np.zeros(N,dtype=bool)
+        lat.mask=np.zeros(N,dtype=bool)
+        tracknb.mask=np.zeros(N,dtype=bool)
+        track.mask=np.zeros(ntracks,dtype=bool)
+        cycle.mask=np.zeros(ncycles,dtype=bool)
+        
+        lon.__setattr__('_dimensions',{'_ndims':1,'record':N}); lon.__setattr__('long_name','longitude')
+        lat.__setattr__('_dimensions',{'_ndims':1,'record':N}); lat.__setattr__('long_name','latitude')
+        tracknb.__setattr__('_dimensions',{'_ndims':1,'record':ntracks}); track.__setattr__('long_name','track_number')
+        track.__setattr__('_dimensions',{'_ndims':1,'track':ntracks}); track.__setattr__('long_name','track_list')
+        cycle.__setattr__('_dimensions',{'_ndims':1,'cycle':ncycles}); cycle.__setattr__('long_name','cycle_number')
+        record.__setattr__('_dimensions',{'_ndims':1,'record':N}); record.__setattr__('long_name','record_index')
+        
+        self.lon=lon
+        self.lat=lat
+        self.tracknb=tracknb
+        self.track=track
+        self.cycle=cycle
+        self.record=record
         
         #Init output matrices using object fields
         for par in par_list :
-            cmd = '{0} = np.ma.array(np.zeros((ncycles,N)),mask=np.ones((ncycles,N),dtype=bool),dtype=self.{0}.dtype)'.format(par)
-            exec(cmd)
-            cmd = '{0}[tid,xid]=self.{0}'.format(par)
-            exec(cmd)
-            exec('self.{0}={0}'.format(par))
-  
+            locals()[par]=np.ma.array(np.zeros((ncycles,N)),mask=np.ones((ncycles,N),dtype=bool),dtype=self.__getattribute__(par).dtype)
+            locals()[par][tid,xid]=self.__getattribute__(par)
+            locals()[par].__setattr__('_dimensions',{'_ndims':2,'cycle':ncycles,'record':N})
+            self.__setattr__(par,locals()[par])
+        
+        par_list=np.append(par_list,['lon','lat','tracknb','track','cycle','record'])
+        self.par_list=par_list #Add record dimension
 
-
-
+    def ncstruct(self):
+        par_list = self.par_list
+        dimStr=self._dimensions
+        dimlist = dimStr.keys()
+        outStr = OrderedDict({'_dimensions':dimStr})
+        
+        varlist=np.append(np.array(dimlist[1:]),par_list)
+        for d in varlist :
+            curDim=self.__getattribute__(d)._dimensions
+            attributes = [a for a in self.__getattribute__(d).__dict__.keys() if not a.startswith('_')]
+#            attributes = np.append(attributes,'_dimensions')
+            outStr[d]={'_dimensions':self.__getattribute__(d)._dimensions}
+            outStr[d].update({'data':self.__getattribute__(d)})
+            for a in attributes : outStr[d].update({a:self.__getattribute__(d).__getattribute__(a)})
+        
+        return outStr
+    
+    def write_nc(self,filename):
+        obj=nctools.nc(verbose=self.verbose,limit=self.limit,use_local_dims=True)
+        ncalti=self.ncstruct() #Get an netcdf structure from data
+        res=obj.write(ncalti,filename) #Save processed datase
 
 
 

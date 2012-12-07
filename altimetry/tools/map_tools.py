@@ -3,8 +3,8 @@ import matplotlib.pyplot as plt
 import matplotlib.pylab as pylab
 from mpl_toolkits.basemap import Basemap
 import numpy as np
+from altimetry import defaults
 from altimetry.tools import track_orient, in_limits, calcul_distance, recale, nctools as nc
-#from altimetry.data import nctools as nc
 from collections import OrderedDict
 from scipy import io
 
@@ -91,9 +91,10 @@ class plot_map(Basemap):
         if np.size(z) > 1 : self.scatter(lon,lat,z,s=s,edgecolor=edgecolor,**kwargs)
         elif np.size(z) == 1 :
             if z != 0 : self.plot(lon,lat,z,s=s,edgecolor=edgecolor,**kwargs)
-            else : self.plot(lon,lat,c,s=s,**kwargs)
+            else :
+                if lon != 0 : self.plot(lon,lat,c,s=s,**kwargs)
         elif np.size(z) == 0 :
-            self.plot(lon,lat,c,s=s,**kwargs)
+            if lon != 0 : self.plot(lon,lat,c,s=s,**kwargs)
     
         self.setup_map(**kwargs)
 #        if np.size(z) > 1 : return self.setup_map(lon, lat, z, s=s, edgecolor=edgecolor)
@@ -362,17 +363,17 @@ class plot_map(Basemap):
     
     def drawbathy(self,fname=None,V=[-250,-2000],Nlevels=None,step=None,colors='k',linestyles='dotted', linewidths=2,**kwargs):
 
-        #If 1 point within, go for menor        
-        if np.sum(in_limits(self.limit[[1,3]],self.limit[[0,2]],[35,0,45,25])[1]) == 1 :
-            bathy='MENOR'
-        else : bathy = 'ETOPO'
+        #If 2 points within, go for menor        
+        if np.sum(in_limits(self.limit[[1,3]],self.limit[[0,2]],[35,0,45,25])[1]) ==2 :
+            bathy=defaults.menor
+        else : bathy = defaults.etopo
         
         if fname is None :
             bat=load_bathy(bathy=bathy,limit=self.limit)
         else :
             bat=load_bathy(fname=fname,limit=self.limit)
         
-        glon,glat=np.meshgrid(np.squeeze(bat['lon']), np.squeeze(bat['lat']))
+        glat,glon=np.meshgrid(np.squeeze(bat['lat']), np.squeeze(bat['lon']))
         
         mn=0.01
         mx=np.nanmin(bat['Z'].data)
@@ -395,34 +396,42 @@ class plot_map(Basemap):
 
 def load_bathy(bathy='MENOR',**kwargs):
     
-    if bathy == 'ETOPO' :
-        fname='C:\\VMShared\\data\\spare_products\\bathy\\ETOPO2v2g_f4.nc'
-        ncf=nc.nc(fname)
-        if kwargs.has_key('lon') : kwargs['x']=recale(kwargs.pop('lon'),degrees=True)
-        if kwargs.has_key('lat') : kwargs['y']=kwargs.pop('lat')
-        if kwargs.has_key('limit') :
-            limit=kwargs.pop('limit')
-            kwargs['x']=tuple(recale(limit[[1,3]],degrees=True))
-            kwargs['y']=tuple(recale(limit[[0,2]],degrees=True))
-        str=ncf.read(**kwargs)
-        str['lon']=np.ma.array(recale(str.pop('x'),degrees=True))
-        str['lat']=np.ma.array(str.pop('y'))
-        str['Z']=np.ma.array(str.pop('z'))
+    if not bathy.set : raise Exception('Bathymetry not set : check your altimetry.config module')
+    
+    if bathy.ext == '.nc' :
+        ncf=nc.nc()
+        attr=ncf.attributes(bathy.path)
+        convetion=attr[[k for k in attr if k.upper().startswith('CONVENTION')][0]].upper()
         
-        return str
+        if len(convetion) == 0 : raise Exception('Unknown NetCDF format') 
+    
+        if convetion == 'COARDS' :       
+            if kwargs.has_key('lon') : kwargs['x']=recale(kwargs.pop('lon'),degrees=True)
+            if kwargs.has_key('lat') : kwargs['y']=kwargs.pop('lat')
+            if kwargs.has_key('limit') :
+                limit=kwargs.pop('limit')
+                kwargs['x']=tuple(recale(limit[[1,3]],degrees=True))
+                kwargs['y']=tuple(limit[[0,2]])
+            str=ncf.read(bathy.path,**kwargs)
+            str['lon']=np.ma.array(recale(str.pop('x')['data'],degrees=True))
+            str['lat']=np.ma.array(str.pop('y')['data'])
+            str['Z']=np.ma.array(str.pop('z')['data'])
+            return str
+            
+        else : raise Exception('Unknown NetCDF convetion {0}'.format(convetion)) 
+    
+    elif bathy.ext == '.mat' :
         
-    elif bathy == 'MENOR' :
-        fname='C:\\VMShared\\data\\spare_products\\bathy\\bathy_menor.mat'
         m_dict=OrderedDict( (('lon_menor',[]), ('lat_menor',[]), ('H0',[])) )
-        str=io.loadmat(fname,m_dict)
+        str=io.loadmat(bathy.path,m_dict)
         
         str['lon']=np.ma.array(np.squeeze(str['lon_menor']))
         str['lat']=np.ma.array(np.squeeze(str['lat_menor']))
-        str['Z']=np.ma.array(str['H0'])
+        str['Z']=np.ma.array(str['H0']).transpose()
         
         del str['lon_menor']
         del str['lat_menor']
         del str['H0']
     
         return str
-    else : raise Exception('Unknown bathymetry') 
+    else : raise Exception('Unknown bathymetry file extension ({0})'.bathy.ext) 

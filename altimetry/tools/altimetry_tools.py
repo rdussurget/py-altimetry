@@ -713,7 +713,7 @@ def detrend(X,Z,deg=1):
         Z=np.reshape(Z,(1,Z.size))
         isVector=True
     notMa=False
-    if ~isinstance(Z,np.ma.masked_array):
+    if not isinstance(Z,np.ma.masked_array):
         notMa=True
         Z=np.ma.array(Z,mask=np.zeros(Z.shape))
     nt=Z.shape[0]

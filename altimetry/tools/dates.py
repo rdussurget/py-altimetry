@@ -42,7 +42,7 @@ def cnes_convert(argin,
 #        datelist = [datetime.datetime.strptime(x,"")""]
 #        strlist = np.array([x.split("/", 2) for x in argin], dtype=int)
 #        datelist = [datetime.datetime(strlist[x, 2], strlist[x, 1], strlist[x, 0]) for x in np.arange(narg)]
-        return np.array([(datelist[x] - epoch).days for x in np.arange(narg)], dtype=float)
+        return np.array([(datelist[x] - epoch).days for x in np.arange(narg)], dtype=float),datelist
         
     if calendar is True :
         if verbose is True : print("caldendar is true")
