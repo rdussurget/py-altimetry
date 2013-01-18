@@ -53,7 +53,7 @@ import glob
 import os
 
 
-import hydro_data as htools #This object is based on the hydro_data object
+import hydro as htools #This object is based on the hydro_data object
 from altimetry.externals import esutils_stat as es
 from altimetry.tools import cnes_convert, histogram_indices, recale, in_limits, cumulative_distance , nctools
 from collections import OrderedDict

@@ -40,19 +40,20 @@ def modis_sst(file_name,
     pCtl=fattr['Number of Pixel Control Points']
     nPix=fattr['Pixels per Scan Line']
 
-    #Load coordinates
+    #Load coordinates 
+    #UPDATE THIS SECTION TO ALLOW CLEAN LOAD OF THE IMAGE...
     lonsel=f.select('longitude')
     latsel=f.select('latitude')
+#    
+#    pCtl_ind=np.arange(pCtl,dtype=np.float32)
+#    p_ind=(pCtl-1)*np.arange(nPix,dtype=np.float32)/(nPix-1)
+#    
+#    sCtl_ind=np.arange(sCtl,dtype=np.float32)
+#    s_ind=(sCtl-1)*np.arange(nScans,dtype=np.float32)/(nScans-1)
     
-    pCtl_ind=np.arange(pCtl,dtype=np.float32)
-    p_ind=(pCtl-1)*np.arange(nPix,dtype=np.float32)/(nPix-1)
-    
-    sCtl_ind=np.arange(sCtl,dtype=np.float32)
-    s_ind=(sCtl-1)*np.arange(nScans,dtype=np.float32)/(nScans-1)
-    
-    dum=interp2d2d(sCtl_ind, pCtl_ind, lonsel.get(), s_ind, p_ind)
-    dumlon=interp1d(p_ind, lonsel.get(), pCtl_ind, spline=True)
-    dumlat=interp1d(p_ind, lonsel.get(), pCtl_ind, spline=True)
+#    dum=interp2d2d(sCtl_ind, pCtl_ind, lonsel.get(), s_ind, p_ind)
+#    dumlon=interp1d(p_ind, lonsel.get(), pCtl_ind, spline=True)
+#    dumlat=interp1d(p_ind, lonsel.get(), pCtl_ind, spline=True)
 
 #    shlon=shlat=lon.dimensions().values()
 
@@ -66,8 +67,8 @@ def modis_sst(file_name,
     dnames=info_sst[0]
     d=info_sst[1]
     
-    lonvec=lon.get().reshape(d[0]*d[1])
-    latvec=lat.get().reshape(d[0]*d[1])
+    lonvec=lonsel.get().reshape(d[0]*d[1])
+    latvec=latsel.get().reshape(d[0]*d[1])
     
     
     #Get points within domain
@@ -97,8 +98,8 @@ def modis_sst(file_name,
     
 
     #Shrink lon & lat
-    lon_var=lon.get(start=[xst,yst], count=[xcnt,ycnt])
-    lat_var=lat.get(start=[xst,yst], count=[xcnt,ycnt])
+    lon_var=lonsel.get(start=[xst,yst], count=[xcnt,ycnt])
+    lat_var=latsel.get(start=[xst,yst], count=[xcnt,ycnt])
     
     #Load SST image
     ###############
@@ -389,6 +390,10 @@ class image_data:
         pmap.title(title)
 
     def set_current(self,date,**kwargs):
+        try :
+            if len(date) > 0: date = date[0]
+        except TypeError : date = date
+        
         self.current=nearest(self.datelist, date) #return nearest value index
         self.offset=-datetime.timedelta(days=self.datelist[self.current] - date)
         self.filename=self.filelist[self.current]

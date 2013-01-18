@@ -5,6 +5,7 @@ import threading
 import Queue
 import bisect
 import operator
+if __debug__ : import matplotlib.pyplot as plt
 
 def lagrange(x, x_values, y_values):
     def _basis(j):
@@ -51,7 +52,36 @@ def bilinear_interpolation(x, y, points):
            ) / ((x2 - x1) * (y2 - y1) + 0.0)
     except ValueError : return np.nan
 
-def interp1d(x,Z,xout,spline=False,kind='linear',**kwargs):
+def extrap1d(Z,mask):
+    """    
+    EXTRAP1D : Extrapolate values from a 1D vector at its beginning and end using reversal of this array
+    
+    @note : gaps in vector Z should be filled first as values from the vector are replicated out of edges
+    @note : if isinstance(Z,np.ma.masked_array) : mask = Z.mask
+    
+    @param Z: 1D vector to extrapolate
+    @param mask: mask flag of the vector 
+    
+    @author: Renaud DUSSURGET, LER/PAC, Ifremer La Seyne
+    """
+    Zout=Z.copy()
+    N=len(Zout)
+    ind=np.arange(N)
+    xout=ind[mask]
+    hist=(~mask).astype(int)
+    dhist=hist[1:]-hist[:-1]
+    st=ind[dhist==1]+1
+    if len(st) > 0 :
+        st=st[0]
+        Zout[:st]=Z[st] - (np.roll(Z,-st-1)[:st][::-1] - Z[st])
+    en=ind[dhist==-1]
+    if len(en) > 0 :
+        en=en[-1]
+        Zout[en+1:]=Z[en] - (np.roll(Z,-en)[::-1][:N-en-1] - Z[en])
+    return Zout
+    
+
+def interp1d(x,Z,xout,spline=False,kind='linear',fill_value=np.NaN,**kwargs):
     """    
     INTERP1D : Interpolate values from a 1D vector at given positions
     
@@ -68,13 +98,13 @@ def interp1d(x,Z,xout,spline=False,kind='linear',**kwargs):
     if linear :
         
         try :
-            f = scipy.interpolate.interp1d(x, Z, kind=kind,bounds_error=False)
+            f = scipy.interpolate.interp1d(x, Z, kind=kind,bounds_error=False,fill_value=fill_value,**kwargs)
             Zout = f(xout)
         except RuntimeError : Zout = np.repeat(np.NaN,nx)
 
     else :
         tck = scipy.interpolate.splrep(x,Z,s=0)
-        try : Zout = scipy.interpolate.splev(xout,tck,der=0)
+        try : Zout = scipy.interpolate.splev(xout,tck,der=0,**kwargs)
         except RuntimeError : Zout = np.repeat(np.NaN,nx)
 
     return Zout
@@ -213,9 +243,9 @@ def interp2d2d(x,y,Z,xout,yout,split_factor=2,**kwargs):
     for i in np.arange(split_factor) : 
         for j in np.arange(split_factor) :
             xsplit.append(i*(nxout/float(split_factor)))
-            xsplit.append((i+1)*(nxout/float(split_factor)))
+            xsplit.append((i+1)*(nxout/float(split_factor))-1)
             ysplit.append(j*(nyout/float(split_factor)))
-            ysplit.append((j+1)*(nyout/float(split_factor)))
+            ysplit.append((j+1)*(nyout/float(split_factor))-1)
     
     #Round
     xsplit=np.round(xsplit).astype(int)

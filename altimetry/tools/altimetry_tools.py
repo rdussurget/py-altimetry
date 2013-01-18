@@ -1,10 +1,8 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 import seawater.gibbs
-from altimetry.tools import deriv, mask2NaN, calcul_distance, interp1d
-#from altimetry.tools.others import mask2NaN
-#from altimetry.tools.spatial_tools import calcul_distance
-#from altimetry.tools.interp_tools import interp1d
+from altimetry.tools import deriv, calcul_distance, interp1d, loess
+if __debug__ : import matplotlib.pyplot as plt
 
 def track_orient(x,y,orient=False):
 #    ;Calculate track orientation (on 3 points lagrangian interpolation - see DERIV help page)
@@ -142,7 +140,7 @@ def powell_leben_filter_km(*args,**kwargs):
     ; @param q {in}{optional}{type:NUMERIC}{default:12} Filter half-width AFTER <br />
     ;          center of filtering window in KILOMETERS.
     ;          
-    ; @returns Geostrophic velocity component, positive to the right of the track
+    ; @returns Geostrophic velocity component, positive eastward
     ;
     ;
     ;
@@ -178,16 +176,15 @@ def powell_leben_filter_km(*args,**kwargs):
 
     #We use a p+q filter (default 2 1Hz points on each side ~ 12km)
     #-> Set p & q distances to defaults if they don't exist    
-    p = kwargs.pop('p') if kwargs.has_key('p') else 12.
-    q = kwargs.pop('q') if kwargs.has_key('q') else 12.
-    
-    verbose = kwargs.pop('verbose') if kwargs.has_key('verbose') else False
+    p = kwargs.pop('p',12.)
+    q = kwargs.pop('q',18.)
+    verbose = kwargs.pop('verbose',False)
         
     dt = np.median(dst[1:] - dst[:-1])   #Median point-to-point distance in meters
       
     #Get the corresponding number of points rounded to the nearest integer
-    pn=np.fix(p*1e3/dt).astype(int)
-    qn=np.fix(q*1e3/dt).astype(int)
+    pn=np.round((p*1e3)/dt).astype(int)
+    qn=np.round((q*1e3)/dt).astype(int)
     
     if pn + qn > n : raise 'Filtering window is too large wrt array length'
      
@@ -316,7 +313,8 @@ def powell_leben_filter_km(*args,**kwargs):
   
     #Inverse sign of ug for descending tracks as Coriolis is oriented to the right
     #northward
-    if (not track_orient(lon,lat)) : ug*=-1
+    if (not track_orient(lon,lat)) : #descending tracks
+        ug *=-1
     
     return ug
 
@@ -350,7 +348,7 @@ def geost_1d(*args,**kwargs) : #(lon,lat,nu): OR (dst,nu)
     ; @keyword strict {in}{optional}{type:BOOLEAN} If True, compute gradient at mid-distance.
     ; @keyword pl04 {in}{optional}{type:BOOLEAN} If True, use the Powell & Leben 2004 method.
     ;          
-    ; @returns Geostrophic velocity component, positive to the right of the track
+    ; @returns Geostrophic velocity component, positive eastward
     ;
     ;
     ;
@@ -380,10 +378,15 @@ def geost_1d(*args,**kwargs) : #(lon,lat,nu): OR (dst,nu)
     dst = args[2] if len(args) == 4 else calcul_distance(lat,lon) * 1e3 #distance in meters
     nu = args [3] if len(args) == 4 else args[2]
     
-    pl04 = kwargs.pop('pl04') if kwargs.has_key('pl04') else False
-    strict = kwargs.pop('strict') if kwargs.has_key('strict') else False
+    pl04 = kwargs.pop('pl04',False)
+    filter = kwargs.pop('filter', None)
+    strict = kwargs.pop('strict',False)
+    verbose = kwargs.pop('verbose',False)
     
-    if pl04 : return powell_leben_filter_km(lon,lat,nu,verbose=True,**kwargs)
+    if filter is not None :
+        dst= calcul_distance(lat,lon)
+        nu =loess(nu,dst,filter)
+    if pl04 : return powell_leben_filter_km(lon,lat,nu,verbose=verbose,**kwargs)
     
     #If strict option is set to True, compute gradients at mid-distance between points
     if strict :
@@ -412,10 +415,10 @@ def geost_1d(*args,**kwargs) : #(lon,lat,nu): OR (dst,nu)
 
 
     
-def grid_track(lat,lon,sla,remove_edges=True,backbone=None):
+def grid_track(lat,lon,sla,remove_edges=None,backbone=None,interp_over_continents=True):
     """
     # GRID_TRACK
-    # @summary: This function allow detecting gaps in a set of altimetry data and rebin this data regularlyy, with informations on gaps.
+    # @summary: This function allow detecting gaps in a set of altimetry data and rebin this data regularly, with informations on gaps.
     # @param lat {type:numeric} : latitude
     # @param lon {type:numeric} : longitude
     # @param sla {type:numeric} : data
@@ -425,7 +428,6 @@ def grid_track(lat,lon,sla,remove_edges=True,backbone=None):
     #    outlat : resampled latitude
     #    outsla : resampled data
     #    gaplen : length of the longest gap in data
-    #    ngaps : number of detected gaps in data
     #    dx : average spatial sampling
     #    interpolated : True when data was interpolated (empty bin)
     #
@@ -433,15 +435,39 @@ def grid_track(lat,lon,sla,remove_edges=True,backbone=None):
     # @change: Created by RD, July 2012
     #    29/08/2012 : Major change -> number of output variables changes (added INTERPOLATED), and rebinning modified
     #    06/11/2012 : Included in alti_tools lib
+    #    19/12/2012 : Added backbone option (reproject along the backbone grid)
     """
     
-    dst=calcul_distance(lat,lon)
+    
     
     #Find gaps in data
-    dx = dst[1:] - dst[:-1]
-    mn_dx = np.median(dx)
-    bins = np.ceil(dst.max() / mn_dx) + 1
-    range=(0/2.,mn_dx * bins) - mn_dx/2
+    if backbone is not None :
+        backlon=backbone[0]
+        backlat=backbone[1]
+        ascending=track_orient(lon,lat)
+        dst=calcul_distance(backlat[0],backlon[0],lat,lon)
+        if ascending : dst[lat < backlat[0]]*=-1
+        if not ascending : dst[lat > backlat[0]]*=-1
+        dstback=calcul_distance(backlat,backlon)
+        dx = dstback[1:] - dstback[:-1]
+        mn_dx = np.median(dx)
+        bins = np.round(dstback.max() / mn_dx)+1
+        range=(0/2.,mn_dx * bins) - mn_dx/2
+#        dfback=list(set(dstback).difference(set(dst)))
+        bhist,bbin_edges=np.histogram(dstback, bins=bins, range=range)
+        continent=np.where(bhist==0)[0]
+        if remove_edges is None : remove_edges=False
+    else :
+        dst=calcul_distance(lat,lon)
+        #Find gaps in data
+        dx = dst[1:] - dst[:-1]
+        mn_dx = np.median(dx)
+        bins = np.ceil(dst.max() / mn_dx) + 1
+        range=(0/2.,mn_dx * bins) - mn_dx/2
+        
+        if remove_edges is None : remove_edges=True
+    
+    
     hist,bin_edges=np.histogram(dst, bins=bins, range=range) #We have binned the data along a regular grid of size (bins) in the range (range)
                                                              #Missing data is thus represented by no data in a given bin
     
@@ -454,33 +480,52 @@ def grid_track(lat,lon,sla,remove_edges=True,backbone=None):
             hist=np.delete(hist,[len(hist)-1])
             bin_edges=np.delete(bin_edges,[len(bin_edges)-1])
     
+    nH =len(hist)
+    
     #Get filled bins indices
-
     ok = np.arange(len(hist)).compress(np.logical_and(hist,True or False))
     empty = np.arange(len(hist)).compress(~np.logical_and(hist,True or False)) 
     
-    outsla = np.repeat(np.NaN,len(hist))
-    outlon = np.repeat(np.NaN,len(hist))
-    outlat = np.repeat(np.NaN,len(hist))
+    if isinstance(sla,np.ma.masked_array) : outsla = np.ma.masked_array(np.repeat(sla.fill_value,nH),mask=np.ones(nH,dtype=bool),dtype=sla.dtype)
+    else : outsla = np.ma.masked_array(np.repeat(np.ma.default_fill_value(1.0),nH),mask=np.ones(nH,dtype=bool),dtype=np.float32)
+    if isinstance(sla,np.ma.masked_array) : outlon = np.ma.masked_array(np.repeat(lon.fill_value,nH),mask=np.ones(nH,dtype=bool),dtype=lon.dtype)
+    else : outlon = np.ma.masked_array(np.repeat(np.ma.default_fill_value(1.0),nH),mask=np.ones(nH,dtype=bool),dtype=np.float32)
+    if isinstance(sla,np.ma.masked_array) : outlat = np.ma.masked_array(np.repeat(lat.fill_value,nH),mask=np.ones(nH,dtype=bool),dtype=lat.dtype)
+    else : outlat = np.ma.masked_array(np.repeat(np.ma.default_fill_value(1.0),nH),mask=np.ones(nH,dtype=bool),dtype=np.float32)
+    
     outdst = bin_edges [:-1]+ mn_dx/2 #distances is taken at bins centers
     outsla[ok] = sla
     outlon[ok] = lon
     outlat[ok] = lat
     
+    #Remove land mass point if asked
+    if not interp_over_continents :
+        sempty=np.sort(np.array(list(set(empty).difference(set(continent)))))
+    else : sempty=empty.copy()
+    
     #Fill the gaps if there are some
     if len(empty) > 0 : 
         #Interpolate lon,lat @ empty positions
-        outlon[empty] = interp1d(ok, outlon[ok], empty, kind='cubic')
-        outlat[empty] = interp1d(ok, outlat[ok], empty, kind='cubic')
-        outsla[empty] = interp1d(ok, outsla[ok], empty, spline=True)
-        
+        outlon[empty] = interp1d(ok, outlon[ok], empty, kind='cubic', fill_value=lon.fill_value)
+        outlat[empty] = interp1d(ok, outlat[ok], empty, kind='cubic', fill_value=lat.fill_value)
+    if len(sempty) > 0 :outsla[sempty] = interp1d(ok, outsla[ok], empty, kind=0, fill_value=sla.fill_value) #0-th order Spline interpolation
+    
+    outlon.mask[outlon.data == outlon.fill_value] = outlon.fill_value
+    outlat.mask[outlat.data == outlat.fill_value] = outlat.fill_value
+    outsla.mask[outsla.data == outsla.fill_value] = outsla.fill_value
     
     
     #Get gap properties
     ind=np.arange(len(hist))
     dhist=(hist[1:] - hist[:-1])
-    st=ind.compress(dhist==-1)+1
-    en=ind.compress(dhist==1)
+    
+    #Remove edge gaps
+    if (dhist!=0).sum()> 0 :
+        if (dhist[dhist!=0])[0] == 1 : dhist[(np.arange(nH)[dhist!=0])[0]]=0 #This do not count start and end of track as gaps
+    if (dhist!=0).sum()> 0 :
+        if (dhist[dhist!=0])[-1] == -1 : dhist[(np.arange(nH)[dhist!=0])[-1]]=0
+    st=ind[dhist==-1]+1
+    en=ind[dhist==1]
     gaplen=(en-st) + 1
     ngaps=len(st)
     gapedges=np.array([st,en])

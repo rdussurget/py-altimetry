@@ -6,6 +6,6 @@ altimetry.data module
 @change: Create in December 2012 by RD.
 '''
 import altimetry.tools
-from hydro_data import *
+from hydro import *
 from alti_data import *
 from rs_data import *

@@ -16,7 +16,16 @@ def cnes_convert(argin,
     
     #Scalar to vector conversion
     if np.size(argin) == 1 :
-        if type(argin) is not list : argin = [argin]
+        if type(argin) is not list :
+            if isinstance(argin, np.ndarray) : argin = argin.tolist()
+            elif isinstance(argin, np.ma.masked_array) : argin = argin.tolist()
+            elif isinstance(argin, list) : pass
+            else : argin = [argin]
+    else :
+        if isinstance(argin, np.ndarray) : argin = argin.tolist()
+        elif isinstance(argin, np.ma.masked_array) : argin = argin.tolist()
+        elif isinstance(argin, list) : pass
+        else : argin = [argin]
     
     if type(argin[0]) == str : julian = True
     else : calendar = True
@@ -53,7 +62,7 @@ def cnes_convert(argin,
 #        return [datetime.date.fromordinal(y) for y in datelist]
         a=datetime.datetime.fromordinal(int(datelist[0]))
         dateObjList=[datetime.datetime.fromordinal(int(y)) + datetime.timedelta(seconds=(y - np.floor(y))*86400.0) for y in datelist]
-        dateStr=[Obj.strftime('%Y/%m/%d') for Obj in dateObjList]
+        dateStr=[Obj.strftime('%d/%m/%Y') for Obj in dateObjList]
         return dateStr,dateObjList
 #        dd,mm,yyyy=np.array(argin.split("/",2),dtype=int)
 #        varout = np.array((datetime.datetime(yyyy,mm,dd) - epoch).days,dtype=float)

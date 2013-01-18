@@ -2,7 +2,8 @@
 import numpy as np
 import scipy.fftpack as ft
 from scipy import stats
-from altimetry_tools import detrend as detrend_fun
+from altimetry_tools import detrend as detrend_fun, grid_track
+if __debug__ : import matplotlib.pyplot as plt
 
 def get_kx(N,dx):
     """
@@ -41,7 +42,7 @@ def get_kx(N,dx):
     return k, L, imx
 
 
-def get_spec(dx,Vin,verbose=False,gain=1.0):
+def get_spec(dx,Vin,verbose=False,gain=1.0,integration=True):
     """
     #+
     # GET_SPEC
@@ -94,10 +95,10 @@ def get_spec(dx,Vin,verbose=False,gain=1.0):
     
     if verbose : print 'Check parseval theorem 3: SUM|Y(f)|²={0}, SUM|y(t)|²={1}'.format(((c**2)*N).sum(),(V**2).sum()) 
     
-    mean=fft.real[0]/N #Get average
+#    mean=fft.real[0]/N #Get average
     
     #Remove negative frequencies
-    phase=np.angle(2*fft[1:imx]) #Get phase (not used yet)
+#    phase=np.angle(2*fft[1:imx]) #Get phase (not used yet)
     c = 2*c[1:imx-1] #Multiply by 2 (because of negative frequencies removal) - loses a bit of energy
     
     if verbose : print 'Check parseval theorem 4: SUM|Y(f)|²={0}, SUM|y(t)|²={1}'.format(((c**2)*(N/2.0)).sum(),((V-V.mean())**2).sum()) 
@@ -112,29 +113,35 @@ def get_spec(dx,Vin,verbose=False,gain=1.0):
     dk_half = dk/2  # half of the interval
         
     k = k[1:imx-1]  
-    k_= k + dk_half  #Shift wavelengths by half the unit
+    k_= k[:-1] + dk_half  #Shift wavelengths by half the unit
     
     cesd = c**2 *(N/2) #Energy (ESD)
-    csquared = c ** 2
+    csquared = c ** 2 
     
     if verbose : print 'Check parseval theorem 5: SUM|Y(f)|²={0}, SUM|y(t)|²={1}'.format((csquared*(N/2)).sum(),((V-V.mean())**2).sum())
     
     #Spectral integration
-    esd = k_*0.0
-    psd = k_*0.0
-    for i in np.arange(len(k_)):
-        esd[i] = np.sum((csquared * (N/2.0))[(k > (k_[i]-dk)) & (k < (k_[i]+dk))])/2
-        psd[i] = np.sum(csquared[(k > (k_[i]-dk)) & (k < (k_[i]+dk))]) #This is variance units integration
+    if integration :
+        esd = k_*0.0
+        psd = k_*0.0
+        for i in np.arange(len(k_)):
+            esd[i] = np.sum((csquared * (N/2.0))[(k > (k_[i]-dk)) & (k < (k_[i]+dk))]) / 2.0
+            psd[i] = np.sum(csquared[(k > (k_[i]-dk)) & (k < (k_[i]+dk))]) / (2.0**2) #This is variance units integration
+        fq=k_
+    else :
+        esd = csquared
+        psd = esd.copy()  /2.
+        fq=k.copy()
         
-    psd = psd /dk 
+    psd = psd / dk
+#    psd = psd/ (N**2.0) / dk    # Normalisation (Danioux 2011) 
 
     if verbose : print 'Check parseval theorem 6: SUM|Y(f)|²={0}, SUM|y(t)|²={1}'.format(esd.sum(),((V-V.mean())**2).sum())
 
     #Get frequencies and period  
-    fq=k_
     p=1/fq
     
-    return {'psd':psd,'esd':esd,'fq':fq,'p':p}
+    return {'psd':psd,'esd':esd,'fq':fq,'p':p,'gain':gain}
     
     # Normalisation (Danioux 2011)
 #    specvar = specvar / (var.size)**2 / dk #No normalization!!
@@ -146,14 +153,34 @@ def get_spec(dx,Vin,verbose=False,gain=1.0):
 #    dk=dk*1000.0/2.0 #/np.pi
 #    if fft: specvar=specvar*2.0*np.pi/1000.0
 
-def spectral_analysis(dx,Ain,tapering=None,overlap=None,wsize=None,alpha=3.0,detrend=False,normalise=False):
-
+def spectral_analysis(dx,Ain,tapering=None,overlap=None,wsize=None,alpha=3.0,detrend=False,normalise=False,integration=True):
+    """
+     Spectral_Analysis
+     @summary: This function performs a spatial spectral analysis with different options on a time series of SLA profiles.
+     @param dx {type:numeric} : sampling distance
+     @param Ain {type:numeric} : 2D table of sla data with time along 2nd axis (NXxNT with NX the spatial length and NT the time length)
+     @keyword tapering {type:string|bool|nd.array} : apply tapering to the data. <br \>
+                    If this keyword is of type bool : apply hamming window. <br \>
+                    If this keyword is a string : apply a hamming ('hamm'), hann ('hann'), kaiser-bessel ('kaiser'), kaiser-bessel ('blackman') or no ('none') tapering function. <br \>
+                    If this keyword is an nd.array aobject : apply this array as taper.
+     @keyword overlap {type:float} : overlap coefficient of the windows (0.75 means 75% overlap).
+     @keyword wsize {type:numeric} : size of the sub-segments.
+     @keyword normalise {type:bool,default:False} : If True, normalise the spectrum by its overall energy content.
+     @keyword detrend {type:bool,default:False} : If True, removes a linear trend to the segmented signal (if tapered) or to the whole signal (if not tapered).
+     @keyword integration {type:bool,default:False} : If True, integrate the spectrum between 2 frequencies. 
+     @param sla {type:numeric} : data
+     @return: a spectrum structrue with Energy Spectral Density ('esd'), Power Spectral Density ('PSD'), frequency ('fq'), wavelength ('p') and tapering parameters.
+    
+     @author: Renaud DUSSURGET (RD) - LER/PAC, Ifremer
+     @change: Created by RD, December 2012
+    """
+    
     A=Ain.copy()
 
     #Check dimensions
     sh = A.shape
     ndims = len(sh)
-    N = sh[ndims-1] #Time series are found along the last dimension
+    N = sh[0] #Time series are found along the last dimension
     
     #If vector, add one dimension
     if ndims == 1 :
@@ -162,6 +189,7 @@ def spectral_analysis(dx,Ain,tapering=None,overlap=None,wsize=None,alpha=3.0,det
         ndims = len(sh)
     
     nr = sh[1] #Number of repeats  
+    nt = nr
     
 #    gain=1.0 #Scaling gain... (used for tapering issues)
     
@@ -174,7 +202,6 @@ def spectral_analysis(dx,Ain,tapering=None,overlap=None,wsize=None,alpha=3.0,det
 #    ESDref*=SFactor
 #    PSDref=spec['psd']*SFactor
 #    print 'Check parseval theorem : SUM|Y(f)|²={0}, SUM|y(t)|²={1}'.format(spec['esd'].sum(),((A[:,0]-A[:,0].mean())**2).sum())
-    
     
     #Apply tapering if asked
     ########################
@@ -189,14 +216,17 @@ def spectral_analysis(dx,Ain,tapering=None,overlap=None,wsize=None,alpha=3.0,det
         a = np.float32(wsize)
         b = np.float32(overlap) 
         c = np.float32(N) 
-        nn=(c - (a * b))/(a - (a * b)) #This is the number of segments
+        nn=np.floor((c - (a * b))/(a - (a * b))) #This is the number of segments
+        print 'Number of windows :{0}\nTotal windowed points : {1} ({2} missing)\nTotal points : {3}'.format(nn,nn*wsize,N - nn*wsize,N)
+        
         ix = np.arange(nn) * ((1.0 - b) * a) #These are the starting points of each segments
 
         #Moving window
         ##############
-        dum = np.zeros((wsize, nn),dtype=np.float64)
-        for i in np.arange(nn): #looping through time to get splitted time series 
-            dum[:,i] = detrend_fun(np.arange(wsize),A[ix[i] : ix[i] + wsize,0]) if detrend else A[ix[i] : ix[i] + wsize,0]
+        dum = np.zeros((wsize, nn, nr),dtype=np.float64)
+        for j in np.arange(nr):
+            for i in np.arange(nn): #looping through time to get splitted time series 
+                dum[:,i,j] = detrend_fun(np.arange(wsize),A[ix[i] : ix[i] + wsize,j]) if detrend else A[ix[i] : ix[i] + wsize,j]
         
         #Set up tapering window
         #######################
@@ -204,6 +234,7 @@ def spectral_analysis(dx,Ain,tapering=None,overlap=None,wsize=None,alpha=3.0,det
         hamm = np.hamming(wsize)
         hann = np.hanning(wsize)
         kbess = np.kaiser(wsize,beta)
+        blackman = np.blackman(wsize)
         notaper = np.ones(wsize) #overpass tapering option
         gain=1.0
         
@@ -211,31 +242,40 @@ def spectral_analysis(dx,Ain,tapering=None,overlap=None,wsize=None,alpha=3.0,det
         elif isinstance(tapering,str) :
             if tapering.upper() == 'HAMMING' :
                 which='hamm'
-                gain=0.54
+                gain=np.sum(hamm)/wsize #0.530416666667
             elif tapering.upper() == 'HANNING' :
                 which='hann'
-                gain=0.50
-            if tapering.upper() == 'KAISER' :
+                gain=np.sum(hann)/wsize #0.489583333333
+            elif tapering.upper() == 'KAISER' :
                 which='kbess'
-                gain=0.40
-            if tapering.upper() == 'NONE' :
+                gain=np.sum(kbess)/wsize #0.394170357504
+            elif tapering.upper() == 'NONE' :
                 which='notaper'
                 gain=1.0
+            elif tapering.upper() == 'BLACKMAN' :
+                which='blackman'
+                gain=np.sum(blackman)/wsize
+            else : raise Exception('Unknown taper {0}'.format(tapering))
         elif isinstance(tapering,np.ndarray) : pass
         else :
             raise Exception('Bad value for tapering keyword')
         if not isinstance(tapering,np.ndarray) : exec('window='+which)
         else : window=tapering
-        window = np.repeat(window,nn).reshape((wsize,nn))
+        window = np.repeat(window,nn*nr).reshape((wsize,nn,nr))
     
         #Apply tapering on segmented data
         A=dum.copy()*window
-        nr=nn
+        A=A.reshape(wsize,nr*nn) #Reshapa matrix
+        nr=nn*nr
+    else :
+        if detrend :
+            for i in np.arange(nr): A[:,i] = detrend_fun(np.arange(N),A[:,i]) if detrend else A[:,i]
+        gain=1.0
     
     #Run transform
     ###############
     for i in np.arange(nr):
-        spec=get_spec(dx, A[:,i])
+        spec=get_spec(dx, A[:,i],integration=integration,gain=gain)
         if i == 0:
             esd = spec['esd']
             psd = spec['psd']
@@ -254,13 +294,20 @@ def spectral_analysis(dx,Ain,tapering=None,overlap=None,wsize=None,alpha=3.0,det
     psd=psd.reshape(nr,nf)
     esd=(np.sum(esd,axis=0)/nr)#/gain
     psd=(np.sum(psd,axis=0)/nr)#/gain
+    
+    psd = psd * (gain**0.5)
+#    print gain, np.sqrt(gain), gain **2, gain*0.5, gain/2.
+#    esd=(np.sum(esd,axis=0))#/gain
+#    psd=(np.sum(psd,axis=0))#/gain
+
 
     #Normalise by energy content    
     Scaling_Factor=len(fq)/esd.sum()
-    esd*=Scaling_Factor
-    psd*=Scaling_Factor
+    if normalise :
+        esd*=Scaling_Factor
+        psd*=Scaling_Factor
     
-    if tapering is not None : return {'params':{'tapering':tapering is not None,'which':which,'wsize':int(wsize),'nwind':int(nn),'overlap':int(100.*overlap)},'psd':psd,'esd':esd,'fq':fq,'p':p}
+    if tapering is not None : return {'params':{'tapering':tapering is not None,'which':which,'wsize':int(wsize),'nwind':int(nn),'overlap':int(100.*overlap),'gain':gain},'psd':psd,'esd':esd,'fq':fq,'p':p}
     else : return {'params':{'tapering':tapering is not None},'psd':psd,'esd':esd,'fq':fq,'p':p}
 
 #def get_cospec(dx,dy,var1,var2):
@@ -433,7 +480,136 @@ def spectral_analysis(dx,Ain,tapering=None,overlap=None,wsize=None,alpha=3.0,det
 #    
 #    return outdst, outlon, outlat, outsla, dx, interpolated
 
-def get_slope(fq,spec,degree=1):
+
+def preprocess(lat,lon,sla,N_min=None,per_min=15.0,max_gap=None,remove_edges=True,interp_over_continents=False,truncate_if_continents=True):
+    sh=sla.shape
+    nt=sh[0]
+    nx=sh[1]
+    dumsla=sla.copy()
+    
+    continent=False #This is a keyword to know if the pass went over a land mass
+    
+    #Remove profiles with less than 3 points
+    ok=np.where(sla.mask.sum(axis=1) < (nx -3))[0]
+    dumsla=dumsla[ok,:]
+    nt=len(ok)
+    
+    for i in np.arange(nt):
+        fg=~dumsla.mask[i,:]
+        dst, dumlon, dumlat, dsla, lgaps, n, edges, int = grid_track(lat[fg], lon[fg], dumsla[i,:][fg],remove_edges=False,backbone=[lon,lat],interp_over_continents=interp_over_continents)
+        if dsla.mask.sum() > 0:
+            pass
+        if (len(dumlon) > len(lon)) & (i == 0) :
+            continent=True
+            lendiff = len(dumlon) - len(lon)
+            print '[WARNING] : Pass goes over a land mass, changing the track size from {0} to {1}'.format(nx,nx+lendiff)
+            nx+=lendiff
+#        dumsla[i,:]=dsla
+        dumslaout=dsla.reshape((1,len(dsla))) if i == 0 else np.ma.concatenate([dumslaout,dsla.reshape((1,len(dsla)))],axis=0)
+        if i == 0 : gaplen = [lgaps]
+        else : gaplen.append(lgaps)
+        ngaps = n if i == 0 else np.append(ngaps,n) 
+    dumsla=dumslaout.copy()
+        
+    if max_gap is not None:
+        
+        #Remove profiles with long gaps
+        gapmax=np.array([np.max(g) if len(g) > 0 else 0 for g in gaplen])
+        id1 = np.where(gapmax <= max_gap)[0]
+        dumsla=dumsla[id1,:]
+        
+        #Remove profiles with not enough coverage
+#        per=100 * dumsla.mask.sum(axis=0) / np.float(nt)
+        per = 100. * dumsla.mask.sum(axis=1)/np.float(nx)
+        if N_min is None :
+            N_min = np.round((0.01* (100- per_min)) * nx)
+#        if per_min is None : per_min = 100* (1 - N_min/np.float(nx))
+        
+        id2 = np.where( per <= per_min)[0]
+        dumsla=dumsla[id2,:]
+        
+        #At this point track edges are removed
+        dumsla,id3=get_segment(dumsla,N_min,remove_edges=remove_edges,truncate_if_continents=truncate_if_continents)
+        
+        return dumsla, id1[id2[id3]]
+        
+    else :
+        return dumsla, ngaps, gaplen
+
+def get_segment(sla,N,last=True,mid=None,first=None,remove_edges=True,truncate_if_continents=True):
+    
+    #Set defaults
+    if first is not None :
+        last=None
+        mid=None
+    elif mid is not None :
+        last=None
+        first=None
+    
+    dumsla=sla.copy()
+    nx=sla.shape[1]
+    nt=sla.shape[0]
+    
+    #Save input mask
+    dumsla.data[dumsla.mask]=dumsla.fill_value
+    mask = np.ma.array(dumsla.mask.copy(),mask=np.zeros(sla.shape,dtype=bool))
+    dumsla.mask[:]=False
+    
+    #Get edges
+    if remove_edges : xid=np.ma.array(np.repeat(np.arange(nx),nt).reshape(nx,nt).transpose(),mask=mask.data)
+    else : xid=np.ma.array(np.repeat(np.arange(nx),nt).reshape(nx,nt).transpose(),mask=np.zeros(sla.shape,dtype=bool))
+    left=xid.min(axis=1)
+    right=xid.max(axis=1)
+    
+    #Shift towards end
+    if last :
+        st=(right-N).astype(int) +1
+        en=(right).astype(int) + 1
+    elif mid :
+        midpt=nx/2
+        rlag=right-midpt
+        llag=midpt-left
+        odd = np.int(N)&1 and True or False
+        if odd : nr=nl=np.int(N)/2
+        else :
+            nr=np.int(N)/2  + 1
+            nl=np.int(N)/2
+        for i,jk in enumerate(zip(*(llag,rlag))):
+            j,k=jk  
+        print 'THIS MUST BE COMPLETED!!!'
+    elif first :
+        st=(left).astype(int)
+        en=(left+N).astype(int)
+    
+    if not remove_edges :
+        st[st < 0] = 0
+        en[en > nx] = nx
+    
+    for i in np.arange(nt) :
+        dumsla.mask[i,:st[i]]=True
+        dumsla.mask[i,en[i]:]=True
+        mask.mask[i,:st[i]]=True
+        mask.mask[i,en[i]:]=True
+    
+    #Update nt
+    cycempty=dumsla.mask.sum(axis=1) == N
+    ind=np.arange(nt)[~cycempty]
+    nt=(~cycempty).sum()
+    
+    #Reform stuff
+    dumsla=dumsla.compressed().reshape(nt,N)
+    mask=mask.compressed().reshape(nt,N)
+    
+    if truncate_if_continents :
+        empty=mask.sum(axis=0) == nt
+        if empty.sum() > 0 :
+            dumsla=dumsla[:,~empty]
+            mask=mask[:,~empty]
+            print '[WARNING] Points over land mass - removed {} pts'.format(empty.sum())
+    
+    return np.ma.array(dumsla,mask=mask), ind
+
+def get_slope(fq,spec,degree=1,frange=None,threshold=0.):
     """
     #+
     # GET_SLOPE
@@ -453,23 +629,44 @@ def get_slope(fq,spec,degree=1):
     #-
     """
     
-    x = np.log10(fq).flatten()
-    y = np.log10(spec).flatten()
+    sh=spec.shape
+    ndims=len(sh)
     
+    if ndims == 1 :
+        
+        x = np.log10(fq).flatten()
+        y = np.log10(spec).flatten()
+        
+        
+        #1) Linear least-square regression
+        if degree == 1 :
+            (slope, intercept, rval, pval, err) = stats.linregress(x,y)
     
-    #1) Linear least-square regression
-    if degree == 1 :
-        (slope, intercept, rval, pval, err) = stats.linregress(x,y)
-
-    #2) Least-square regression using a higher-order spectral model
-    # -> Gives the same results as 
-    #cf. http://pingswept.org/2009/01/24/least-squares-polynomial-fitting-in-python/                                                    
+        #2) Least-square regression using a higher-order spectral model
+        # -> Gives the same results as 
+        #cf. http://pingswept.org/2009/01/24/least-squares-polynomial-fitting-in-python/                                                    
+        else :
+            A = np.vander(x, degree+1) # form the Vandermonde matrix 
+            (coeffs, residuals, rank, sing_vals) = np.linalg.lstsq(A,y) # find the x that minimizes the norm of Ax-y
+            (slope[:-1], intercept) = coeffs
+        
+        return slope,intercept
     else :
-        A = np.vander(x, degree+1) # form the Vandermonde matrix 
-        (coeffs, residuals, rank, sing_vals) = np.linalg.lstsq(A,y) # find the x that minimizes the norm of Ax-y
-        (slope[:-1], intercept) = coeffs
+        
+        x = np.log10(fq[(fq > np.min(frange)) & (fq <= np.max(frange))]).flatten()
+        y = np.log10(spec[(fq > np.min(frange)) & (fq <= np.max(frange)),:])
+        nx = len(x)
+        nt = sh[1]
+        degree = 1
+        
+        out = []
+        for i in np.arange(nt):
+            (slope, intercept, rval, pval, err) = stats.linregress(x,y[:,i])
+            flag = (y.mask[:,i].sum(dtype=float)/nx) <= threshold
+            if i == 0 : out.append((slope,intercept,flag))
+            else : out.append((slope,intercept,flag))
 
-    return slope,intercept
+        return out
 
 #+
 # YULE_WALKER_REGRESSION : Estimation of an AR (autoregression) spectral model from data

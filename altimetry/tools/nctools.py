@@ -67,6 +67,8 @@ class nc :
             self.message(2, 'Adding D {0}={1}'.format(d,dimStr[d]))
             root_grp.createDimension(d, dimStr[d])
         
+#        if data.has_key('p')  : self.Error('Variable name \'p\' is not available for use as NetCDF variable name')
+        
         #Loop over variables
         for p in parlist :
             
@@ -81,26 +83,29 @@ class nc :
             #Convert to numpy array if scalar or non numpy
             if not hasattr(data[p]['data'],'__iter__') or not hasattr(data[p]['data'], 'dtype'):  data[p]['data']=np.array(data[p]['data'])
 
-            if not (data[p]['data'].dtype == '|S6') and not (data[p]['data'].dtype == '|S2') :
-                self.message(2, 'Adding V {0} (dims={{{1}}},attr={{{2}}})'.
-                             format(p,
-                                    ', '.join(['\'{0}\':{1}'.format(d,dimStr[d]) for d in pardim]),
-                                    ', '.join(['\'{0}\':{1}'.format(d,data[p][d]) for d in data[p].keys() if (d != '_dimensions') and (d != 'data')]) )
-                             )
-                if hasattr(data[p]['data'],'fill_value') :
-                    locals()[p] = root_grp.createVariable(p,
-                                                   data[p]['data'].dtype,
-                                                   pardim,
-                                                   fill_value=data[p]['data'].fill_value)
-                else :
-                    locals()[p] = root_grp.createVariable(p,
-                                                   data[p]['data'].dtype,
-                                                   pardim)
-                locals()[p][:]=data[p].pop('data').transpose(tuple(range(len(pardim))[::-1])) #Transpose data before writing it into file
+#            if not (data[p]['data'].dtype == '|S6') and not (data[p]['data'].dtype == '|S2') :
+            self.message(2, 'Adding V {0} (dims={{{1}}},attr={{{2}}})'.
+                         format(p,
+                                ', '.join(['\'{0}\':{1}'.format(d,dimStr[d]) for d in pardim]),
+                                ', '.join(['\'{0}\':{1}'.format(d,data[p][d]) for d in data[p].keys() if (d != '_dimensions') and (d != 'data')]) )
+                         )
+            
+            if locals().has_key(p) : self.Error('Variable name \'{0}\' is already declared - change variable name'.format(p))
+            
+            if hasattr(data[p]['data'],'fill_value') :
+                locals()[p] = root_grp.createVariable(p,
+                                               data[p]['data'].dtype if not str(data[p]['data'].dtype).startswith('|S') else 'S1',
+                                               pardim,
+                                               fill_value=data[p]['data'].fill_value)
+            else :
+                locals()[p] = root_grp.createVariable(p,
+                                               data[p]['data'].dtype if not str(data[p]['data'].dtype).startswith('|S') else 'S1',
+                                               pardim)
+            locals()[p][:]=data[p].pop('data').transpose(tuple(range(len(pardim))[::-1])) #Transpose data before writing it into file
 
                 
-                #Update with attribute list
-                locals()[p].setncatts(data[p])
+            #Update with attribute list
+            locals()[p].setncatts(data[p])
 #                for a in data[p].keys() :
 #                    if not hasattr(locals()[p],a) :
 #                        locals()[p].setncattr(a,data[p][a])
@@ -167,6 +172,11 @@ class nc :
         #Open file
         self._filename = filename
         ncf = ncfile(self._filename, "r")
+        
+        #Load global attributes
+        akeys = ncf.ncattrs()
+        attrStr=OrderedDict()
+        for A in akeys : attrStr.update({A:ncf.getncattr(A)})
      
         #Get list of recorded parameters:
         dum = ncf.variables.keys()
@@ -226,7 +236,7 @@ class nc :
                     exec(cmd)
                 #If the variable associated to the dimension do not exist, generate it
                 else :
-                    self.message(1, '[WARING] Netcdf file not standard - creating data for {0} dimnsion'.format(d))
+                    self.message(1, '[WARNING] Netcdf file not standard - creating data for {0} dimnsion'.format(d))
                     ndim=len(ncf.dimensions[d])
                     var = {'_dimensions':{'_ndims':1,d:ndim}, 'data':np.arange(ndim)}
                     cmd = d + '=var'
@@ -264,14 +274,16 @@ class nc :
             else :par_list = list(set(params).intersection(par_list))
         else : par_list = par_list.tolist()
         
-        self.message(1, 'Recorded parameters : ' + str(nparam) + ' -> ' + str(par_list))
+        self.message(2, 'Recorded parameters : ' + str(nparam) + ' -> ' + str(par_list))
      
         
         #Extract within limits
         if (existDim[0] > -1) & (existDim[1] > -1):
             llind, flag = in_limits(lon['data'],lat['data'], limit=self.limit)
-            lon = recale(lon['data'].compress(flag),degrees=True)
-            lat = lat['data'].compress(flag)
+            lon['data'] = recale(lon['data'].compress(flag),degrees=True)
+            lon['_dimensions'][lon['_dimensions'].keys()[1]] = flag.sum()
+            lat['data'] = lat['data'].compress(flag)
+            lat['_dimensions'][lat['_dimensions'].keys()[1]] = flag.sum()
             dimStr['lon']=len(lon)
             dimStr['lat']=len(lat)
 #            self.message(4, 'self.lon & self.lat updated')
@@ -280,7 +292,8 @@ class nc :
             if (timerange is not None) : timeflag = (time['data'] >= np.min(timerange)) & (time['data'] <= np.max(timerange))
             else : timeflag = np.ones(len(time['data']), dtype=bool)
             if timeflag.sum() == 0 : self.Error('No data within specified depth range (min/max = {0}/{1})'.format(np.min(time), np.max(time)))
-            time = time['data'].compress(timeflag)
+            time['data'] = time['data'].compress(timeflag)
+            time['_dimensions'][time['_dimensions'].keys()[1]] = timeflag.sum()
             dimStr['time']=len(time)
 #            self.message(4, 'self.lon & self.lat updated')
         
@@ -289,12 +302,14 @@ class nc :
             if (depthrange is not None) : depthflag = (depth['data'] >= np.min(depthrange)) & (depth['data'] <= np.max(depthrange))
             else : depthflag = np.ones(len(depth['data']), dtype=bool)
             if depthflag.sum() == 0 : self.Error('No data within specified depth range (min/max = {0}/{1})'.format(np.min(depth), np.max(depth)))
-            depth = depth['data'].compress(depthflag)
+            depth['data'] = depth['data'].compress(depthflag)
+            depth['_dimensions'][depth['_dimensions'].keys()[1]] = depthflag.sum()
             dimStr['depth']=len(depth)
         
         #Create output data structure
         outStr = OrderedDict()
         outStr.update({'_dimensions':dimStr})
+        outStr.update({'_attributes':attrStr})
         
         if (existDim[0] > -1) : outStr.update({'lon':lon})
         if (existDim[1] > -1) : outStr.update({'lat':lat})
@@ -312,8 +327,7 @@ class nc :
         ncdimStr=outStr.copy()
         #Get dimension lengths
         shape=()
-        for d in dimlist:
-            exec('shape+=(np.shape('+d+'[\'data\']),)')
+        for d in dimlist: shape += np.shape(locals()[d]['data'])
         
         ndims = np.size(shape)
      
@@ -338,7 +352,9 @@ class nc :
                     kwargs.update({ncd:kwargs[d]})
                     del kwargs[d]
                 else :
-                    kwargs.update({ncd:(ncdimStr[d]['data'].min(),ncdimStr[d]['data'].max())})
+                    dvar=ncdimStr[d]['data']
+                    if isinstance(dvar,np.ma.masked_array) : kwargs.update({ncd:(np.nanmin(dvar.data),np.nanmax(dvar.data))})
+                    else : kwargs.update({ncd:(np.nanmin(dvar),np.nanmax(dvar.data))})
 #            else :
 #                outStr['NbLatitudes']['data']        
         for param in par_list :
@@ -374,7 +390,7 @@ class nc :
             for ddum in dumStr[param]['_dimensions'].keys()[1:] :
                 if outStr['_dimensions'].get(ddum) != dumStr[param]['_dimensions'][ddum] : outStr['_dimensions'][ddum]=dumStr[param]['_dimensions'][ddum]
             
-            cmd = 'self.'+param+'='
+#            cmd = 'self.'+param+'='
         
         ncf.close()
         return outStr
@@ -464,7 +480,8 @@ def load_ncVar(varName, nc=None, **kwargs):
                     dumvar=recale(dumvar,degrees=True)
                     drange=tuple(recale(drange,degrees=True).astype(np.long))
                     fg=(dumvar >= drange[0]) & (dumvar <= drange[1])
-                if fg.sum() == 0 : raise IndexError('{0} {1} is not matching given dimensions {2}'.format(vn,(np.nanmin(nc.variables[vn][:]),np.nanmax(nc.variables[vn][:])),drange))
+                if fg.sum() == 0 :
+                    raise IndexError('{0} {1} is not matching given dimensions {2}'.format(vn,(np.nanmin(nc.variables[vn][:]),np.nanmax(nc.variables[vn][:])),drange))
                 if len(fg) == 1 :
                     dstr=np.append(dstr,':')
                     sz=1L
@@ -514,8 +531,11 @@ def load_ncVar(varName, nc=None, **kwargs):
         elif isinstance(varOut, np.ma.masked_array) : var.mask = mask
         else : raise 'This data type {} has not been defined - code it!'.format(type(varOut))
         
+        #Update masked data properly
+        varOut.data[varOut.mask]=varOut.fill_value
+        
         #Switch dimensions
-        varOut=np.transpose(varOut,tuple(range(len(dims.keys()[1:]))[::-1]))
+        if not missDim : varOut=np.transpose(varOut,tuple(range(len(dims.keys()[1:]))[::-1]))
         
         #Build up output structure
         dims.update({'_ndims':len(dims.keys()[1:])})

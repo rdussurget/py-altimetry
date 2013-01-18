@@ -130,7 +130,7 @@ def deriv(*args):
     """
     x = args[0]
     n = x.size
-    if n < 3 : raise 'Parameters must have at least 3 points'
+    if n < 3 : raise Exception('Parameters must have at least 3 points')
 
 
     if (len(args) == 2) :

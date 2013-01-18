@@ -18,6 +18,7 @@ from altimetry.tools import recale_limits, in_limits, cumulative_distance, calcu
     cnes_convert, \
     plot_map, \
     get_caller
+from twisted.python.reflect import isinst
 
 
 
@@ -89,6 +90,7 @@ class hydro_data(object):
         #Load keys and dimensions
         #########################
         dataDim = dataStr.pop('_dimensions')
+        attrStr = dataStr.pop('_attributes',{})
         ndims = dataDim.pop('_ndims')
         dimensions = [dataDim.keys(),dataDim.values()]
         
@@ -100,13 +102,23 @@ class hydro_data(object):
         
 #        datalen = [np.size(dataStr[key]) for key in keys]
         datalen = [list(np.shape(dataStr[key]['data'])) for key in keys] if isStructure else [list(np.shape(dataStr[key])) for key in keys] #####!!!!!! WARNING!!!! NEW FEATURE TO TEST
-        
-        ind = [where_list(dlen,dimensions[1]) for dlen in datalen] #Dimensions indices ###!!!NEW!
-        if (np.array(ind).sum() == -1) != 0 : self.Error('At least one variable have not been properly defined')
+        if isStructure :
+            varDim = [list(dataStr[key]['_dimensions'])[1:] for key in keys]
+            ind = [where_list(vDim,dimensions[0]) for vDim in varDim] #Dimensions indices from actual variables' dimensions
+            #Check dimension lengths
+            dimOk = np.array([enum[1][0] == dimensions[1][ind[enum[0]][0]] for enum in enumerate(datalen)])
+            if (~dimOk).sum() > 0 : 
+                notOk = np.where(~dimOk)
+                self.Error('Problem with {0} variables : {1}'.format(len(notOk),','.join(np.array(dataStr.keys())[notOk])))
+        else :
+            ind = [where_list(dlen,dimensions[1]) for dlen in datalen] #Dimensions indices from variable length
+            if (np.array(ind).sum() == -1)!= 0 : self.Error('At least one variable have not been properly defined')
+            
         dimname = [np.array(dimensions[0])[i].tolist() for i in ind]  #Get correspondance between data structure dimensions and variables
                 
         curDim, nself=self.get_currentDim()
         createDim=np.array([np.array([w == -1 for w in where_list(j, curDim[0])]) for i,j in enumerate(dimname) ])
+        createDim=np.squeeze(createDim)
 #        curInd = atools.where_list(dimname_reduced,curDim[0]) #Get correspondance between data structure dimensions and object dimensions
         
 #        createDim = (np.array(curInd) == -1) #Get dimensions to be created   
@@ -124,7 +136,7 @@ class hydro_data(object):
             #Load variable
             ##############
 #            var=dataStr.get(key)
-            dum=dataStr.get(key)
+            dum=dataStr.get(key).get('data') if isStructure else dataStr.get(key) 
             if flatten :
                 if isStructure :
                     dum['data']=dum['data'].flatten()
@@ -146,16 +158,25 @@ class hydro_data(object):
         
         
         #Final sequence
-        updateDim_List = np.unique(zip(*(np.hstack(dimname)[~np.hstack(createDim)],np.hstack(datalen)[~np.hstack(createDim)]))) #[str(i) for i in datalen]
+        
+        zipped_upd=zip(*(np.hstack(dimname)[~np.hstack(createDim)],np.hstack(datalen)[~np.hstack(createDim)]))
+        updateDim_List = np.array(list(set(tuple(i) for i in np.array(zipped_upd,dtype='|S16').tolist()))) #2D unique
+#        updateDim_List = np.unique(np.array(zipped_upd,dtype='|S16')) #[str(i) for i in datalen]
+#        if updateDim_List.size > 0 : updateDim_List.resize((2,updateDim_List.size/2))
 #        updateDim_List = np.unique(zip(*(np.array(dimname)[~createDim],np.array(datalen)[~createDim]))) #[str(i) for i in datalen]
-        createDim_list = np.unique(zip(*(np.hstack(dimname)[np.hstack(createDim)],np.hstack(datalen)[np.hstack(createDim)]))) #[str(i) for i in datalen]
+
+        zipped_dims=zip(*(np.hstack(dimname)[np.hstack(createDim)],np.hstack(datalen)[np.hstack(createDim)]))
+        createDim_list = np.array(list(set(tuple(i) for i in np.array(zipped_dims,dtype='|S16').tolist()))) #2D unique
+#        clist, inv = np.unique(np.array(zipped_dims,dtype='|S16'),return_inverse=True) #RQ : THIS WILL FAIL IF NUMBERS HAVE MORE THAN 16 DIGITS #[str(i) for i in datalen]
+#        if createDim_list.size > 0 : createDim_list.resize((2,createDim_list.size/2))
+        
 #        createDim_list = np.unique(zip(*(np.array(dimname)[createDim],np.array(datalen)[createDim]))) #[str(i) for i in datalen]
         
-        for dim in createDim_list :
-            self.create_Dim(dim[0], np.int(dim[1]))
+        for dname,dim in createDim_list :
+            self.create_Dim(dname, np.int(dim))
         
-        for dim in updateDim_List:
-            self.update_Dim(dim[0], np.int(dim[1]))
+        for dname,dim in updateDim_List:
+            self.update_Dim(dname, np.int(dim))
         
             
     #                curInd = atools.where_list([l_datalen],curDim[1])[0]
@@ -251,7 +272,8 @@ class hydro_data(object):
                 elif (sh < dimSize[n]):
                     self.message(3, 'Variable {0}(N={1}) being extended to match dimension {2}:{3}'.format(enum[1][0],varSize,enum[1][1],dimSize))  
     #                self.__dict__[enum[1][0]] = np.ma.concatenate((self.__dict__[enum[1][0]], np.ma.masked_array(np.repeat(np.nan,dimSize - varSize),mask=np.zeros(dimSize - varSize,dtype='bool'))))
-                    self.__dict__[enum[1][0]] = np.ma.masked_array( np.append(self.__dict__[enum[1][0]].data,np.repeat(np.nan,dimSize - varSize)), mask=np.append(self.__dict__[enum[1][0]].mask,np.ones(dimSize - varSize,dtype='bool')) )
+                    self.__dict__[enum[1][0]] = np.ma.masked_array( np.append(self.__dict__[enum[1][0]].data,np.repeat(self.__dict__[enum[1][0]].fill_value if hasattr(self.__dict__[enum[1][0]],'fill_value') else np.NaN,dimSize[n] - varSize)),
+                                                                    mask=np.append(self.__dict__[enum[1][0]].mask,np.ones(dimSize[n] - varSize,dtype='bool')) )
     
     def create_Dim(self, name,value):
         if not self._dimensions.has_key(name) :
@@ -271,7 +293,7 @@ class hydro_data(object):
         fid=self.fid_list.compress([enum[1][0] == os.path.basename(filename) for enum in enumerate(zip(*(self.filelist,self.fid_list)))])
         self.__dict__.update({'fileid' :np.append(self.fileid,np.repeat(fid,N))})
     
-    def create_Variable(self,name,value,dimensions,toCreate=None,createDim=None):
+    def create_Variable(self,name,value,dimensions,toCreate=None,createDim=None,extend=True):
         """
         create_Variable : This function adds a variable to the current data object
         """
@@ -352,8 +374,9 @@ class hydro_data(object):
             updateDim=False
         
         elif (not createDim.any()) & toCreate :
+            
             #extend variable
-            value = np.ma.masked_array(np.append(np.zeros(curDim[1][curInd]),value.data),mask=np.append(np.ones(curDim[1][curInd],dtype='bool'),value.mask))
+            if extend : value = np.ma.masked_array(np.append(np.zeros(curDim[1][curInd]),value.data),mask=np.append(np.ones(curDim[1][curInd],dtype='bool'),value.mask))
             
             self.message(4,'Extend variable '+name)
 #            self.__setattr__(name,value)
@@ -591,7 +614,7 @@ class hydro_data(object):
             p,pmap=self.map(col=col,show=show,**kwargs)
             pmap.setup_map()
             if legend is not None : plt.legend([p],[legend])
-            if show is not True :
+            if not show :
                 pmap.savefig(ffig)
                 plt.clf()
 
@@ -802,9 +825,13 @@ class hydro_data(object):
         #Extract within limits
         ind, flag = in_limits(lon['data'],lat['data'],limit=self.limit)
         dim_lon = lon['_dimensions']
-        lat = lat['data'].compress(flag)
-        lon = lon['data'].compress(flag)
-        dist=cumulative_distance(lat, lon)
+        lat['data'] = lat['data'].compress(flag)
+        lon['data'] = lon['data'].compress(flag)
+        
+        #Update dimensions
+        lat['_dimensions']['N_PROF']=flag.sum()
+        lon['_dimensions']['N_PROF']=flag.sum()
+#        dist=cumulative_distance(lat['data'], lon['data'])
         
         sz=np.shape(lon)
         ndims=np.size(sz)
@@ -817,7 +844,7 @@ class hydro_data(object):
             
         date = self.load_ncVar('JULD',N_PROF=ind,**kwargs)
         dimStr = date['_dimensions']
-        date=date['data']
+#        date=date['data']
         
 #        #Create dimension structure
 #        curDim = [str(dimname) for dimname in dimStr.keys()[1:]] #[str(dimname) for dimname in self._ncfile.variables['LONGITUDE'].dimensions]
@@ -828,9 +855,11 @@ class hydro_data(object):
         
         for param in par_list :
             dumVar = self.load_ncVar(param,N_PROF=ind,**kwargs) #Load variables
-            dimStr=dumVar['_dimensions']
+            dimStr=dumVar.get('_dimensions')
+#            dimStr=dumVar.pop('_dimensions')
+#            dumVar['data'].__setattr__('_dimensions',dimStr)
             
-            #update dimensions
+            #update current object dimensions with missing variable dimensions
             curDim = [str(dimname) for dimname in dimStr.keys()[1:]] #[str(dimname) for dimname in self._ncfile.variables['LONGITUDE'].dimensions]
             curDimval = [dimStr[dim] for dim in curDim] #[len(self._ncfile.dimensions[dimname]) for dimname in curDim]
 #            curDim = [str(dimname) for dimname in self._ncfile.variables[param].dimensions]
@@ -842,16 +871,25 @@ class hydro_data(object):
                 outStr['_dimensions'].update({enum[1]:np.array(curDimval).compress(flag)[enum[0]]}) #Append new dimension
                 outStr['_dimensions']['_ndims']+=1 #update dimension counts
             
-            cmd = 'dumStr = {\''+param.lower()+'\':dumVar[\'data\']}'
-            self.message(4, 'exec : '+cmd)
-            exec(cmd)
-            outStr.update(dumStr)
+            self.message(4, 'Loading {0} ({1})'.format(param.lower(),','.join(str(dimStr[key]) for key in dimStr.keys()[1:])))
+            dumStr=dumVar.copy()
+#            locals()[param.lower()] = {param.lower():dumVar['data']}
+#            cmd = 'dumStr = {\''+param.lower()+'\':dumVar[\'data\']}'
+#            self.message(4, 'exec : '+cmd)
+#            exec(cmd)
+            outStr.update({param.lower():dumStr})
         
 #        id=np.array([''.join([num for num in j.compressed()]) for j in self._ncfile.variables['PLATFORM_NUMBER'][ind]]) #get platform id into array
-        id=np.array([''.join([num for num in j.compressed()]) for j in self.load_ncVar('PLATFORM_NUMBER',N_PROF=ind,**kwargs)['data']])
+        pid=self.load_ncVar('PLATFORM_NUMBER',N_PROF=ind,**kwargs)
+        pid_var=np.ma.MaskedArray([''.join([num for num in j.compressed()]) for j in pid['data']],mask=lon['data'].mask)
+        pid['data']=pid_var.copy()
+        for key in pid['_dimensions'].keys() :
+            if key.startswith('STRING') :
+                pid['_dimensions'].pop(key)
+                pid['_dimensions']['_ndims']-=1
         
         
-        outStr.update({'id':id})
+        outStr.update({'id':pid})
      
         self._ncfile.close()
         return outStr
@@ -893,27 +931,45 @@ class buoy_data(hydro_data):
         nbprofiles = dimStr['N_PROF']
         nbpoints = nblevels*nbprofiles
         
+        #Change dimension names towards new ones
+        for key in outStr.keys() :
+            if outStr[key].has_key('_dimensions'):
+                outStr[key]['_dimensions'].pop('N_LEVELS',None)
+                outStr[key]['_dimensions'].pop('N_PROF',None)
+#                if outStr[key]['_dimensions'].has_key('N_PROF') : outStr[key]['_dimensions'].update({'nbprofiles':outStr[key]['_dimensions'].pop('N_PROF')})
+                outStr[key]['_dimensions'].update({'nbpoints':nbpoints})  
+        
         #Reform 2D variables from 1D
         ############################
-        twoD_flag = np.array([len(np.shape(outStr[key])) for key in outStr.keys()]) == 2 
+        twoD_flag = []
+        for key in outStr.keys() : twoD_flag.append(len(np.shape(outStr[key]['data'])) == 2) if isinstance(outStr[key],dict) else twoD_flag.append(len(np.shape(outStr[key])) == 2)
+        twoD_flag = np.array(twoD_flag)
         oneD_vars = np.array(outStr.keys()).compress(~twoD_flag)
         twoD_vars = np.array(outStr.keys()).compress(twoD_flag)
         
         #Transform 2D variables into 1D
         # -> For each record (N_PROF), we only keep the valid depth bin (N_PROF)
-        for key in twoD_vars: outStr.update({key:outStr[key][:,outStr[key].mask.argmin(1)].diagonal()})
-        
+        for key in twoD_vars:
+            if isinstance(outStr[key],dict) : outStr[key]['data']=outStr[key]['data'][:,outStr[key]['data'].mask.argmin(1)].diagonal()
+            else : outStr[key]=outStr[key][:,outStr[key].mask.argmin(1)].diagonal()
+ 
         #Flatten variables (force flattening in case...)
-        for key in outStr.keys(): outStr.update({key:outStr[key].flatten()})
+        for key in outStr.keys():
+            if isinstance(outStr[key],dict) : outStr[key]['data']=outStr[key]['data'].flatten()
+            else : outStr[key]=outStr[key].flatten()
         
         #Additonnal variables
-        outStr.update({'dist':calcul_distance(outStr['lat'],outStr['lon'])})
-                
+        dst=outStr['lat'].copy()
+        if isinstance(dst,dict) :
+            dst['data']=calcul_distance(outStr['lat']['data'],outStr['lon']['data'])
+            outStr.update({'dist':dst})
+        else : outStr.update({'dist':calcul_distance(outStr['lat'],outStr['lon'])})
+                        
         #Update dimensions
-        newDim = {'_dimensions' : {'_ndims':1,'nbpoints':nbprofiles}}
+        newDim = {'_dimensions' : {'_ndims':1,'nbprofiles':nbprofiles}}
         outStr.update(newDim)
         
-        self.update_fid_list(os.path.basename(filename),outStr['_dimensions']['nbpoints'])
+        self.update_fid_list(os.path.basename(filename),outStr['_dimensions']['nbprofiles'])
         
         
         return outStr
@@ -1059,48 +1115,85 @@ class glider_data(hydro_data):
         if not dimStr.has_key('N_LEVELS') or not dimStr.has_key('N_PROF') :
             self.Error('Data structure must contain dimensions N_LEVELS and N_PROF (only contains {0})'.format(dimStr.keys()[1:]))
         
-        datalen = [np.size(outStr[key]) for key in outStr.keys()] #[np.shape(outStr[key]) for key in outStr.keys()] 
+#        datalen = [np.size(outStr[key]) for key in outStr.keys()] #[np.shape(outStr[key]) for key in outStr.keys()] 
                 
         nblevels = dimStr['N_LEVELS']
+#        nblevels = nblevels.astype(nblevels.dtype)
         nbprofiles = dimStr['N_PROF']
         nbpoints = nblevels*nbprofiles
         
+        #Change dimension names towards new ones
+        for key in outStr.keys() :
+            if outStr[key].has_key('_dimensions'):
+                outStr[key]['_dimensions'].pop('N_LEVELS',None)
+                outStr[key]['_dimensions'].pop('N_PROF',None)
+#                if outStr[key]['_dimensions'].has_key('N_PROF') : outStr[key]['_dimensions'].update({'nbprofiles':outStr[key]['_dimensions'].pop('N_PROF')})
+                outStr[key]['_dimensions'].update({'nbpoints':nbpoints})  
+        
         #Reform 2D variables from 1D
         ############################
-        twoD_flag = np.array([len(np.shape(outStr[key])) for key in outStr.keys()]) == 2    
+        twoD_flag = []
+        for key in outStr.keys() : twoD_flag.append(len(np.shape(outStr[key]['data'])) == 2) if isinstance(outStr[key],dict) else twoD_flag.append(len(np.shape(outStr[key])) == 2)
+        twoD_flag = np.array(twoD_flag)
         oneD_vars = np.array(outStr.keys()).compress(~twoD_flag)
         twoD_vars = np.array(outStr.keys()).compress(twoD_flag)
         
         #Transform 1D variables into 2D
-        for key in oneD_vars: outStr.update({key:np.reshape(np.repeat(outStr[key],nblevels),[nbprofiles,nblevels])})
+        for key in oneD_vars:
+            if isinstance(outStr[key],dict) : outStr[key]['data'] = np.reshape(np.repeat(outStr[key]['data'],nblevels),[nbprofiles,nblevels])
+            else :  outStr[key]=np.reshape(np.repeat(outStr[key],nblevels),[nbprofiles,nblevels])
         
 #        [{key:np.shape(outStr[key])} for key in outStr.keys()] #Check variables
         
         #Load surface data
         surfStr=self.read_ArgoNC(filename,N_LEVELS=0) #read surface data
         surfStr.pop('_dimensions')
-        for key in surfStr.keys(): outStr.update({key+'_surf':surfStr[key]})
         
-        #Flatten variables
-        for key in outStr.keys(): outStr.update({key:outStr[key].flatten()})
+        #Change dimension names towards new ones
+        for key in surfStr.keys() :
+            if surfStr[key].has_key('_dimensions'):
+                surfStr[key]['_dimensions'].pop('N_LEVELS',None)
+                if surfStr[key]['_dimensions'].has_key('N_PROF') : surfStr[key]['_dimensions'].update({'nbprofiles':surfStr[key]['_dimensions'].pop('N_PROF')})
+                        
+        #Flatten surface variables
+        for key in surfStr.keys():
+            if isinstance(surfStr[key],dict) : surfStr[key]['data'] = surfStr[key]['data'].flatten()
+            else : surfStr[key] = surfStr[key].flatten()
+            outStr.update({key+'_surf':surfStr[key]})
+        
+        #Flatten 2D variables (
+        for key in outStr.keys():
+            if isinstance(outStr[key],dict) : outStr[key]['data']=outStr[key]['data'].flatten()
+            else : outStr[key]=outStr[key].flatten()
         
         #Additonnal variables
-        outStr.update({'dist_surf':calcul_distance(outStr['lat_surf'],outStr['lon_surf'])})
-        outStr.update({'dist':np.repeat(outStr['dist_surf'],nblevels)})
+        dst_surf=outStr['lat_surf'].copy()
+        dst=outStr['lat'].copy()
+        if isinstance(dst_surf,dict) :
+            dst_surf['data']=calcul_distance(outStr['lat_surf']['data'],outStr['lon_surf']['data'])
+            dst['data']=np.repeat(dst_surf['data'],nblevels)
+            outStr.update({'dist_surf':dst_surf})
+            outStr.update({'dist':dst})
+        else :
+            outStr.update({'dist_surf':calcul_distance(outStr['lat_surf'],outStr['lon_surf'])})
+            outStr.update({'dist':np.repeat(outStr['dist_surf'],nblevels)})
 
         
         ###TODO : Could be simplified? (if has_key(var) --> must have key var_surf
-        if outStr.has_key('pres') : outStr.update({'deph' : gsw.z_from_p(outStr['pres'],outStr['lat'])})
-        if outStr.has_key('pres_surf') : outStr.update({'deph_surf' : gsw.z_from_p(outStr['pres_surf'],outStr['lat_surf'])})
-        
-        if outStr.has_key('psal_surf') and outStr.has_key('temp_surf') and outStr.has_key('pres_surf') :
-            outStr.update({'rho_surf' : gsw.rho(outStr['psal_surf'],outStr['temp_surf'],outStr['pres_surf'])})
+        if outStr.has_key('pres') : 
+            deph = outStr['pres'].copy()
+            deph_surf = outStr['pres_surf'].copy()
+            deph['data']=gsw.z_from_p(outStr['pres']['data'],outStr['lat']['data'])
+            deph_surf['data']=gsw.z_from_p(outStr['pres_surf']['data'],outStr['lat_surf']['data'])
+            outStr.update({'deph' : deph})
+            outStr.update({'deph_surf' : deph_surf})
         if outStr.has_key('psal') and outStr.has_key('temp') and outStr.has_key('pres') :
-            outStr.update({'rho' : gsw.rho(outStr['psal'],outStr['temp'],outStr['pres'])})
-        
-#        fid=self.fid_list.compress([enum[1][0] == os.path.basename(filename) for enum in enumerate(zip(*(self.filelist,self.fid_list)))])
-#        self.__dict__.update({'fileid' :np.append(self.fileid,np.repeat(fid,nbpoints))})
-##        outStr.update(self.fileidsurf,{'fidsurf' :np.repeat(fid,nbprofiles)})
+            rho=outStr['psal'].copy()
+            rho_surf=outStr['psal_surf'].copy()
+            rho['data']=gsw.rho(outStr['psal']['data'],outStr['temp']['data'],outStr['pres']['data'])
+            rho_surf['data']=gsw.rho(outStr['psal_surf']['data'],outStr['temp_surf']['data'],outStr['pres_surf']['data'])
+            outStr.update({'rho' : rho})
+            outStr.update({'rho_surf' : rho_surf})
         
         #Update dimensions
         newDim = {'_dimensions' : {'_ndims':2,'nbpoints':nbpoints,'nbprofiles':nbprofiles}}
@@ -1110,69 +1203,7 @@ class glider_data(hydro_data):
         self.update_fid_list(os.path.basename(filename),outStr['_dimensions']['nbpoints'])
         
         return outStr
-        
-        
-    def read_old(self,filename):
-        """
-        READ : This function is called by the class constructor and load the data from a data file into the class.
-        
-        @note: This function is dedicated to reading ARGO NetCDF data. 
-        """
-        
-        #Open file
-        self._filename = filename
-        self._ncfile = ncfile(self._filename, "r")
-
-        lon = self._ncfile.variables['LONGITUDE'][:]
-        lat = self._ncfile.variables['LATITUDE'][:]
-        
-        #Extract within limits
-        ind, flag = in_limits(lon,lat,limit=self.limit)
-        lat = lat.compress(flag)
-        lon = lon.compress(flag)
-        dist=cumulative_distance(lat, lon)  
-        
-        date = self._ncfile.variables['JULD'][ind]
-        temp = self._ncfile.variables['TEMP'][ind,:]
-        sst = temp[:,0]
-        psal = self._ncfile.variables['PSAL'][ind]
-        sss = psal[:,0]
-        pres=self._ncfile.variables['PRES'][ind]
-        depth = gsw.z_from_p(pres,lat.mean())
-        
-        id=np.array([''.join([num for num in j.compressed()]) for j in self._ncfile.variables['PLATFORM_NUMBER'][:]]) #get platform id into array
-        
-        
-        #extrapolate positions at depth
-        sz=np.shape(pres)
-        ndims=np.size(sz)
-        lon2d=np.repeat(lon,sz[1])
-        lat2d=np.repeat(lat,sz[1])
-        dist2d=np.repeat(dist,sz[1])
-        date2d=np.repeat(date,sz[1])
-        id2d = np.repeat(id,sz[1])
-                    
-        nbpoints = len(lon2d)
-        nbprofiles = sz[0]
-        ndims = 2
-        self._ncfile.close()
-        
-#        transect,gx,gz=self.contour_transect(dist2d,depth, temp, xstep=0.1,vmin=13.1,vmax=13.6)
-#        cs=plt.contour(gx,gz,transect,levels=np.arange(29,35,1),colors='k')
-#        plt.clabel(cs, inline=1, fontsize=10)
-#        
-#        transect,gx,gz=self.contour_transect(dist2d,depth, psal, xstep=0.1,vmin=38.9,vmax=39.6)
-#        cs=plt.contour(gx,gz,transect,levels=np.arange(29,35,1),colors='k')
-#        plt.clabel(cs, inline=1, fontsize=10)
-#        
-#        transect,gx,gz=self.contour_transect(dist2d,depth, rho - 1000., xstep=0.1,vmin=29,vmax=35)
-#        cs=plt.contour(gx,gz,transect,levels=np.arange(29,35,1),colors='k')
-#        plt.clabel(cs, inline=1, fontsize=10)
-        
-#        plt.tricontourf(dist2d,depth,rho)
-        
-        return {'_dimensions':{'_ndims':ndims,'nbpoints':nbpoints,'nbprofiles':nbprofiles},'id':id,'lonsurf':lon,'latsurf':lat,'distsurf':dist,'datesurf':date,'lon':lon2d,'lat':lat2d,'dist':dist2d,'date':date2d,'depth':depth,'pres':pres,'temp':temp,'psal':psal}
-    
+       
     
 class TSG_data(hydro_data) :
     def __init__(self,file_pattern,**kwargs):
@@ -1413,8 +1444,8 @@ def load_ncVar(varName,nc=None,**kwargs):
         #check index list
         sz=[np.size(i) for i in ind_list]
         
-        #find empty variables
-        if not (where_list([0],sz)[0] == -1 ) : varOut=var[[0]][[]]
+        #find empty dimensions
+        if not (where_list([0],sz)[0] == -1 ) : varOut=var[[0]][[]] #np.array(where_list(sz,[0])) == -1
         else : varOut=var[ind_list]
         
         #Mask it!
