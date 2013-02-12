@@ -12,5 +12,6 @@ from interp_tools import *
 from distance_matrix import *
 from loess import *
 from altimetry_tools import *
+from twoD_tools import *
 from nctools import *
 from map_tools import *

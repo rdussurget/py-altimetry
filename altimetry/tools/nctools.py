@@ -73,7 +73,7 @@ class nc :
         for p in parlist :
             
             #Get dimensions for current variable
-            if not data[p].has_key('_dimensions') : self.Error('_dimension attribute is not set for variaple'+p)
+            if not data[p].has_key('_dimensions') : self.Error('_dimension attribute is not set for variable'+p)
             pardim=data[p].pop('_dimensions')
             if isinstance(pardim,dict) :pardim=tuple(pardim.keys()[1:]) if pardim.has_key("_ndims") else tuple(pardim.keys())
             elif isinstance(pardim,list) : pardim = tuple(pardim)
@@ -82,6 +82,9 @@ class nc :
             
             #Convert to numpy array if scalar or non numpy
             if not hasattr(data[p]['data'],'__iter__') or not hasattr(data[p]['data'], 'dtype'):  data[p]['data']=np.array(data[p]['data'])
+
+            #Get _FillValue if possible
+#            if hasattr(data[p]['data'],'fill_value') : data[p]['_FillValue']=data[p]['data'].fill_value 
 
 #            if not (data[p]['data'].dtype == '|S6') and not (data[p]['data'].dtype == '|S2') :
             self.message(2, 'Adding V {0} (dims={{{1}}},attr={{{2}}})'.
@@ -92,6 +95,32 @@ class nc :
             
             if locals().has_key(p) : self.Error('Variable name \'{0}\' is already declared - change variable name'.format(p))
             
+            #Scale it back
+            ##############
+            
+            #look at scaler factors and offsets in both attributes and data structure keys
+            scale_factor=data[p]['data'].__dict__.get('scale_factor',None) 
+            if scale_factor is None : scale_factor=data[p].get('scale_factor',None)
+            if scale_factor is None : scale_factor=data[p]['data'].__dict__.get('scale',None) 
+            if scale_factor is None : scale_factor=data[p].get('scale',None)
+            
+            offset=data[p]['data'].__dict__.get('add_ofset',None) 
+            if offset is None : offset=data[p].get('add_ofset',None)
+            
+            #Apply scaling and prepare message
+            scale_msg='Apply scaling : {}'.format(p)
+            if scale_factor is not None :
+                data[p]['data'] = data[p]['data'] / scale_factor
+                scale_msg+=' / {0}'.format(scale_factor)
+            if offset is not None :
+                data[p]['data'] = data[p]['data'] - offset
+                scale_msg+=' - {0}'.format(offset)
+            
+            #show message
+            if scale_factor is not None or offset is not None :
+                self.message(2,scale_msg)
+            
+            #Apply fill_value as argument to createVariable function
             if hasattr(data[p]['data'],'fill_value') :
                 locals()[p] = root_grp.createVariable(p,
                                                data[p]['data'].dtype if not str(data[p]['data'].dtype).startswith('|S') else 'S1',
@@ -101,15 +130,15 @@ class nc :
                 locals()[p] = root_grp.createVariable(p,
                                                data[p]['data'].dtype if not str(data[p]['data'].dtype).startswith('|S') else 'S1',
                                                pardim)
-            locals()[p][:]=data[p].pop('data').transpose(tuple(range(len(pardim))[::-1])) #Transpose data before writing it into file
-
+            
+            #Transpose data before writing it into file
+            locals()[p][:]=data[p].pop('data').transpose(tuple(range(len(pardim))[::-1]))
                 
             #Update with attribute list
             locals()[p].setncatts(data[p])
 #                for a in data[p].keys() :
 #                    if not hasattr(locals()[p],a) :
 #                        locals()[p].setncattr(a,data[p][a])
-
         
         self.message(2, 'Closing file')
         root_grp.close()
@@ -159,7 +188,7 @@ class nc :
 
         return(res)
 
-    def load(self, filename, params=None, force=False, depthrange=None, timerange=None, **kwargs):
+    def load(self, filename, params=None, force=False, depthrange=None, timerange=None, output_is_dict=True, **kwargs):
         """
         READ_ARGONC : Argo NetCDF reader
         
@@ -280,10 +309,16 @@ class nc :
         #Extract within limits
         if (existDim[0] > -1) & (existDim[1] > -1):
             llind, flag = in_limits(lon['data'],lat['data'], limit=self.limit)
-            lon['data'] = recale(lon['data'].compress(flag),degrees=True)
-            lon['_dimensions'][lon['_dimensions'].keys()[1]] = flag.sum()
-            lat['data'] = lat['data'].compress(flag)
-            lat['_dimensions'][lat['_dimensions'].keys()[1]] = flag.sum()
+            if isinstance(flag,tuple) :
+                lon['data'] = recale(lon['data'].compress(flag[0]),degrees=True)
+                lon['_dimensions'][lon['_dimensions'].keys()[1]] = flag[0].sum()
+                lat['data'] = lat['data'].compress(flag[1])
+                lat['_dimensions'][lat['_dimensions'].keys()[1]] = flag[1].sum()
+            else :
+                lon['data'] = recale(lon['data'].compress(flag),degrees=True)
+                lon['_dimensions'][lon['_dimensions'].keys()[1]] = flag.sum()
+                lat['data'] = lat['data'].compress(flag)
+                lat['_dimensions'][lat['_dimensions'].keys()[1]] = flag.sum()
             dimStr['lon']=len(lon)
             dimStr['lat']=len(lat)
 #            self.message(4, 'self.lon & self.lat updated')
@@ -381,6 +416,15 @@ class nc :
 #                outStr['_dimensions']['_ndims'] += 1 #update dimension counts
             
 #            cmd = 'dumStr = {\'' + param + '\':dumVar[\'data\']}'
+
+
+            #Set list as variable with attributes
+#            if (not output_is_dict):
+#                var=dumVar.pop('data')
+#                for k in dumVar.keys():
+#                    setattr(var, k, dumVar.pop(k))
+#                dumVar=var.copy()
+            
             cmd = 'dumStr = {\'' + param + '\':dumVar}'
             self.message(4, 'exec : ' + cmd)
             exec(cmd)

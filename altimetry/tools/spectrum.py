@@ -153,7 +153,7 @@ def get_spec(dx,Vin,verbose=False,gain=1.0,integration=True):
 #    dk=dk*1000.0/2.0 #/np.pi
 #    if fft: specvar=specvar*2.0*np.pi/1000.0
 
-def spectral_analysis(dx,Ain,tapering=None,overlap=None,wsize=None,alpha=3.0,detrend=False,normalise=False,integration=True):
+def spectral_analysis(dx,Ain,tapering=None,overlap=None,wsize=None,alpha=3.0,detrend=False,normalise=False,integration=True,average=True,ARspec=None):
     """
      Spectral_Analysis
      @summary: This function performs a spatial spectral analysis with different options on a time series of SLA profiles.
@@ -275,7 +275,8 @@ def spectral_analysis(dx,Ain,tapering=None,overlap=None,wsize=None,alpha=3.0,det
     #Run transform
     ###############
     for i in np.arange(nr):
-        spec=get_spec(dx, A[:,i],integration=integration,gain=gain)
+        if ARspec is not None : spec=yule_walker_regression(dx, A[:,i], ARspec)
+        else : spec=get_spec(dx, A[:,i],integration=integration,gain=gain)
         if i == 0:
             esd = spec['esd']
             psd = spec['psd']
@@ -292,8 +293,10 @@ def spectral_analysis(dx,Ain,tapering=None,overlap=None,wsize=None,alpha=3.0,det
     p=1./fq
     esd=esd.reshape(nr,nf)
     psd=psd.reshape(nr,nf)
-    esd=(np.sum(esd,axis=0)/nr)#/gain
-    psd=(np.sum(psd,axis=0)/nr)#/gain
+    
+    if average :
+        esd=(np.sum(esd,axis=0)/nr)#/gain
+        psd=(np.sum(psd,axis=0)/nr)#/gain
     
     psd = psd * (gain**0.5)
 #    print gain, np.sqrt(gain), gain **2, gain*0.5, gain/2.
@@ -668,9 +671,237 @@ def get_slope(fq,spec,degree=1,frange=None,threshold=0.):
 
         return out
 
+def yule_walker(acf, orden):
+    """
+# *********************************************************************
+# DESCRIPTION:    Program to solve Yule-Walker equations for AutoRegressive Models
+# *********************************************************************
+# AUTHOR:       XAVI LLORT
+# E-MAIL:     llort(at)grahi.upc.edu
+# DATE:       MAY 2007
+# *********************************************************************
+
+# *********************************************************************
+# COMENTARI:  
+
+# *********************************************************************
+# VARIABLES
+#   acf   (Input) AutoCorrelation Function
+# orden   (Input) Order of the AutoRegressive Model
+# parameters  (Output) Parameters
+# sigma_e   (Output) Standard deviation of the noise term
+
+# *********************************************************************
+# KEYWORDS: IDL Yule Walker Yule-Walker YuleWalker AR 
+# *********************************************************************
+# COMMONS
+# *********************************************************************
+# CONSTANS
+# *********************************************************************
+# CALCUL
+    """
+    
+    if len(acf) + 1 <= orden : raise Exception('ACF too short for the solicited order!')
+    
+    bb = acf[1:orden+1]
+    aa = np.zeros((orden, orden))
+    
+    for ii in np.arange(0, orden):
+        for jj in np.arange(0, orden):
+            aa[ii, jj] = acf[ np.int(np.abs(ii - jj)) ]
+    
+    aa_1 = np.linalg.inv(aa)
+    
+    parameters = np.dot(bb,aa_1) #Compliant with IDL aa_1#bb
+    
+    
+    sigma_e = np.sqrt(acf[0] - np.sum(parameters * bb))
+    
+    return parameters, sigma_e
+
+    
+
 #+
 # YULE_WALKER_REGRESSION : Estimation of an AR (autoregression) spectral model from data
 #@todo: To be written
 #-
-def yule_walker_regression():
-    pass
+def yule_walker_regression(dx, Y, deg, res=None):
+    """
+  #####X -> (input) time vector (disabled)
+  #Y -> (input) stationary time series
+  #deg -> (input) AR model degree
+  #a -> (output) Yule Walker parameters
+  #sig -> (output)  Standard deviation of the noise term
+  #aicc -> (output) corrected Akaike Information Criterion
+  #gamma -> (output) Autocorrelation function
+  #ar -> (output) Fitted function
+  #argamma -> (output) Fitted autocorrelation function
+  #arspec -> (output) Fitted spectral model
+  #F -> (output) Relative frequency
+
+
+#  #Example of AR(p) model auto-regression using yule-walker equations
+#  #http://www-ssc.igpp.ucla.edu/personnel/russell/ESS265/Ch9/autoreg/node7.html
+#  #Other notes on the autoregressuve method:
+#  #http://www.ee.lamar.edu/gleb/adsp/Lecture%2009%20-%20Parametric%20SE.pdf
+
+#  # Define an n-element vector of time-series samples:  
+#  X = [6.63, 6.59, 6.46, 6.49, 6.45, 6.41, 6.38, 6.26, 6.09, 5.99, $  
+#       5.92, 5.93, 5.83, 5.82, 5.95, 5.91, 5.81, 5.64, 5.51, 5.31, $  
+#       5.36, 5.17, 5.07, 4.97, 5.00, 5.01, 4.85, 4.79, 4.73, 4.76]  
+#  
+#  #Compute auto_correlation function
+#  acorr=A_CORRELATE(X,INDGEN(30))
+#  
+#  #Solve YW equation to get auto-regression coefficients for AR(2) model
+#  YULE_WALKER, acorr, 2, a, sig
+#  
+#  #Process auto-regression model
+#  ar=DBLARR(28)
+#  FOR i = 2, 29 DO ar[i-2] = SQRT(a[0]*X[i-1]*X[i] + a[1]*x[i-2]*x[i]+sig*x[i])
+#
+#  #Compute spectrum
+#  spec=spectrogram(TRANSPOSE(X), INDGEN(N), WSIZE=N, OVERLAY=1.0, DISPLAY_IMAGE=0)
+#  
+#  #Compute AR(2) model spectrum
+#  ar2=spectrogram(TRANSPOSE(ar), INDGEN(28), WSIZE=28, OVERLAY=1.0, DISPLAY_IMAGE=0)
+    """
+    
+    #Defaults
+    a=0
+    sig=0
+    
+    #If DPRES (frequency resolution) is set,
+    #then process spectrum on a regular WAVENUMBER array
+    if res is None : res=1.0
+    
+    #Demean first
+    Y-=np.mean(Y)
+    
+    N=len(Y)
+    
+    #Get autocorr
+    gamma = np.zeros(N)
+    lag = np.arange(N)
+    for i,l in enumerate(lag) : gamma[i] = np.corrcoef(Y, np.roll(Y,l))[0][1]
+    
+    #Odd or even
+    odd = N&1 and True or False
+    
+    #Get frequency & wavenumber
+#    fout=ft.fftfreq(N,d=dx)
+#    NF = N/2.0 -0.5 + 1 if odd else N/2. + 1
+#    F = np.arange(NF,dtype=float) / (N)*
+    [F,L,imx] = get_kx(N,1)
+    [Fout,L,imx] = get_kx(N,dx)
+    F=F[1:imx-1]
+    Fout=Fout[1:imx-1]
+    NF=len(F)
+    
+    df=F[1]-F[0]
+    
+    #Solve Yule Walker Equation
+    a, sig = yule_walker(gamma, deg)
+    
+#    std=np.std(Y)
+    
+    #Generate a normally distributed random noise
+#    Z=np.random.normal(size=N,scale=std)
+    
+    #Process auto-regression model
+    
+    ar=np.ma.masked_array(np.zeros(N),mask=np.zeros(N,dtype=bool))
+    argamma=np.ma.masked_array(np.zeros(N),mask=np.zeros(N,dtype=bool))
+    arspec=np.ma.masked_array(np.ones(NF),mask=np.zeros(NF,dtype=bool))
+    
+    ar[0:deg].mask=True
+    argamma[0:deg].mask=True
+    
+    p=np.arange(1,deg+1)
+    #Compute modeled time series
+    for t in np.arange(deg,N,dtype=int):
+        ar[t]=np.sum(a*Y[t-p]) #cf. http://www-ssc.igpp.ucla.edu/personnel/russell/ESS265/Ch9/autoreg/node9.html
+        argamma[t]=np.sum(a*gamma[t-p])
+#        for p in np.arange(1, deg+1):
+#            ar[t]+=a[p-1]*Y[t-p] #cf. http://www-ssc.igpp.ucla.edu/personnel/russell/ESS265/Ch9/autoreg/node9.html
+#            argamma[t]+=a[p-1]*gamma[t-p]
+#    #ar+=Z #Add random noise
+    
+    #Compute spectrum
+    for t in np.arange(NF,dtype=int) : arspec[t] = sig**2 / (np.abs(1.-np.sum(a[p-1]*np.exp(-2.0 * np.pi * 1j *p*F[t])))**2)
+    
+    #positive frequencies : multiply by 2
+    arspec=arspec #Why 10?
+#    arspec/=10
+#    arspec/=N    
+    
+    
+    
+       
+#    for t in np.arange(NF) :
+#        for p in np.arange(1,deg+1):
+#            arspec[t]-= a[p-1]*np.exp(-2.0 * np.pi * 1j *p*F[t])
+
+# I am not sur of this section... Is removal of data necessary? Current testing with all data
+# ###########################################################################################
+#  ar[0:deg-1]=ar[deg]#!VALUES.D_NAN
+#  argamma[0:deg-1]=argamma[deg]#!VALUES.D_NAN
+#  arspec[0:deg-1]=!VALUES.D_NAN
+
+#  dumspec=spectrogram(TRANSPOSE(ar), INDGEN(N), WSIZE=N, OVERLAY=1.0, DISPLAY_IMAGE=0)
+
+#  sTOP
+    
+    #arspec=sig^2d / arspec^2d
+    #arspec=sig^2d / (arspec^2d * N)
+    #arspec = N * sig / ABS(arspec)^2 
+#    arspec=sig**2 / (np.abs(arspec)**2)
+
+    #Normalize to conserve apropriate levels of energy
+#    fac=F*np.sum(np.abs(arspec))/(np.sum(np.abs(Y)**2)*res)
+    fac=len(F)/arspec.sum()
+    arspec/=fac
+
+    esd=arspec
+    psd=arspec/df
+
+
+    #We define the AIC (http://pages.stern.nyu.edu/~churvich/TimeSeries/Handouts/AICC.pdf) to define the optimal model
+    aicc=N*(np.log(sig**2)+1)+2*(deg+1)*(N/(N-deg-2))
+    aic=N*(np.log(2*sig**2)+1) + 2 * deg #from http://www-ssc.igpp.ucla.edu/personnel/russell/ESS265/Ch9/autoreg/node15.html
+    bic=N*np.log(sig**2)+deg*np.log(N)
+    
+    setattr(arspec, 'model',{'description':'AR model parameters','parameters':a,'sig':sig,'deg':deg,'n':N,'aicc':aicc,'aic':aic,'bic':bic})
+
+    outStr={'_dimensions':{'_ndims':3,'N':N,'NF':NF,'P':deg},
+#        'X':{'name':'x','long_name':'time series','data':X},
+#        'gamma':{'name':'gamma','long_name':'autocorrelation function','data':gamma},
+#        'model':{'name':'model','long_name':'AR model parameters','data':a,'sig':sig,'deg':deg,'n':N,'aicc':aicc,'aic':aic},
+        'fq':F,
+        'ar':ar,#{'name':'ar','long_name':'Fitted model','data':ar},
+#        'argamma':{'name':'argamma','long_name':'Fitted autocorrelation function','data':argamma},
+#        'arspec':{'name':'arspec','long_name':'Fitted spectral model','data':arspec},
+        'esd':esd,
+        'psd':psd}
+    
+    return outStr
+
+def optimal_AR_spectrum(dx, Y, ndegrees=None,return_min=True):
+    
+    if ndegrees is None : ndegrees=len(Y)-ndegrees
+    
+    aicc=np.arange(ndegrees)
+    aic=aicc.copy()
+    bic=aicc.copy()
+    tmpStr=[]
+    for i in np.arange(1, ndegrees):
+        dum=yule_walker_regression(dx,Y, i)
+        tmpStr.append(dum)
+        aicc[i-1]=(tmpStr[i-1])['esd'].model['aicc']
+        aic[i-1]=(tmpStr[i-1])['esd'].model['aic']
+        bic[i-1]=(tmpStr[i-1])['esd'].model['bic']
+    
+    if return_min : return np.argmin(bic)+1
+    else : return {'aicc':aicc,'aic':aic,'bic':bic}
+#    mn_aicc=np.argmin(bic)+1
+#    return mn_aic

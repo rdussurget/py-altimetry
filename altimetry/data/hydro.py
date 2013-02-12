@@ -19,13 +19,14 @@ from altimetry.tools import recale_limits, in_limits, cumulative_distance, calcu
     plot_map, \
     get_caller
 from twisted.python.reflect import isinst
+from collections import OrderedDict
 
 
 
 
 class hydro_data(object):
     
-    def __init__(self,file_pattern,limit=None,verbose=1,round=True,zero_2pi=False,**kwargs):
+    def __init__(self,file_pattern,limit=None,verbose=1,round=True,zero_2pi=False,output_is_dict=True,**kwargs):
         
         #Init system variables
 #        if limit is None : limit=[-90.,0.,90.,360.]
@@ -77,7 +78,7 @@ class hydro_data(object):
             
             self.current_file=enum[0][i]
             
-            res=self.read(filename,**kwargs) #read() function is specific of each class
+            res=self.read(filename,output_is_dict=output_is_dict,**kwargs) #read() function is specific of each class
             self.update_dataset(res) #update class with loaded data
             
             self.check_variables()
@@ -103,12 +104,12 @@ class hydro_data(object):
 #        datalen = [np.size(dataStr[key]) for key in keys]
         datalen = [list(np.shape(dataStr[key]['data'])) for key in keys] if isStructure else [list(np.shape(dataStr[key])) for key in keys] #####!!!!!! WARNING!!!! NEW FEATURE TO TEST
         if isStructure :
-            varDim = [list(dataStr[key]['_dimensions'])[1:] for key in keys]
+            varDim = [list(dataStr[key]['_dimensions'])[1:][::-1] for key in keys]
             ind = [where_list(vDim,dimensions[0]) for vDim in varDim] #Dimensions indices from actual variables' dimensions
             #Check dimension lengths
             dimOk = np.array([enum[1][0] == dimensions[1][ind[enum[0]][0]] for enum in enumerate(datalen)])
             if (~dimOk).sum() > 0 : 
-                notOk = np.where(~dimOk)
+                notOk = np.where(~dimOk)[0]
                 self.Error('Problem with {0} variables : {1}'.format(len(notOk),','.join(np.array(dataStr.keys())[notOk])))
         else :
             ind = [where_list(dlen,dimensions[1]) for dlen in datalen] #Dimensions indices from variable length
@@ -279,7 +280,7 @@ class hydro_data(object):
         if not self._dimensions.has_key(name) :
             self.message(3, 'Create dimension {0}:{1}'.format(name,value))
             self._dimensions[name]=value
-            self._dimensions['_ndims']=np.size(self._dimensions) - 1
+            self._dimensions['_ndims']=len(self._dimensions) - 1
         else :
             self.message(3, 'Dimension {0} already exists'.format(name))
         
@@ -292,6 +293,12 @@ class hydro_data(object):
         self.filelist_count[self.filelist.index(filename)] = N
         fid=self.fid_list.compress([enum[1][0] == os.path.basename(filename) for enum in enumerate(zip(*(self.filelist,self.fid_list)))])
         self.__dict__.update({'fileid' :np.append(self.fileid,np.repeat(fid,N))})
+    
+    def delete_Variable(self,name):
+        self.message(1,'Deleting variable {0}'.format(name))
+        self.__dict__.pop(name)
+        self.par_list=self.par_list[self.par_list != name]
+        
     
     def create_Variable(self,name,value,dimensions,toCreate=None,createDim=None,extend=True):
         """
@@ -307,9 +314,9 @@ class hydro_data(object):
         #Check if data is structured or not
         isStructure = True if isinstance(value,dict) else False
         
+        #Get dimensions
         dimName = np.array(dimensions.keys())
         dimVal = np.array(dimensions.values())
-        
         keys=np.array(self._dimensions.keys())
         
 #        if createDim is None : createDim = self._dimensions.has_key(dimName[0])
@@ -412,6 +419,13 @@ class hydro_data(object):
         
         if name == 'nsct' :
             pass
+        
+        #Append dimensions to variable
+        if not dimensions.has_key('_ndims') :
+            dumDim={'_ndims':len(dimensions.keys())}
+            dumDim.update(dimensions)
+            dimensions=dumDim.copy()
+        value.__setattr__('_dimensions',dimensions)
         
         try : self.__setattr__(name,value)
         except np.ma.core.MaskError : raise 'mask error' 
@@ -1421,6 +1435,9 @@ def load_ncVar(varName,nc=None,**kwargs):
         varDim = [str(dim) for dim in var.dimensions]
         varDimval = [len(nc.dimensions[dimname]) for dimname in varDim]
         
+        #Load Attributes
+        attrStr=var.__dict__
+        
         ind_list=[] #Init index list
         dims={'_ndims':0} #Init dimensions
 
@@ -1463,7 +1480,14 @@ def load_ncVar(varName,nc=None,**kwargs):
         if isinstance(varOut,np.ndarray) : varOut=np.ma.masked_array(varOut,mask=mask)
         elif isinstance(varOut,np.ma.masked_array) : var.mask=mask
         else : raise 'This data type {} has not been defined - code it!'.format(type(varOut))
-            
+        
+        #Get attributes
+        attrStr=var.__dict__
+        attrStr.pop('_FillValue') #Remove this attributed as it is overidden
+        
+        #Append attributes to varOut
+        varOut.__dict__.update(attrStr)
+        
         #Build up output structure
         outStr={'_dimensions':dims,'data':varOut}
         dims.update({'_ndims':len(dims.keys()[1:])})

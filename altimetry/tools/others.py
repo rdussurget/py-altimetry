@@ -2,6 +2,7 @@
 import numpy as np
 from Tkinter import Tk
 import inspect
+import getpass, socket #User and Host names
 
 def get_zero_element(array):
     try : array = array.flat.next()
@@ -246,3 +247,10 @@ def get_caller(level=2):
         for l in np.arange(level) : frame=frame.f_back
         code=frame.f_code
         return code
+
+def username():
+    return getpass.getuser()
+
+def hostname():
+    return socket.gethostbyaddr(socket.gethostname())[0]
+    

@@ -62,7 +62,7 @@ from collections import OrderedDict
 #Load alti data
 ###############
 class alti_data(htools.hydro_data) :
-    def __init__(self,file_pattern,time_range=None,**kwargs):
+    def __init__(self,file_pattern,time_range=None,output_is_dict=True,**kwargs):
         
         if time_range is not None :
             ls=glob.glob(file_pattern)
@@ -81,13 +81,14 @@ class alti_data(htools.hydro_data) :
             ind=ind.tolist()
             file_pattern=np.array(ls)[ind]
             
-        htools.hydro_data.__init__(self,file_pattern,**kwargs)
+        htools.hydro_data.__init__(self,file_pattern,output_is_dict=output_is_dict,**kwargs)
         self.set_sats()
     
     def set_sats(self):
         self.sat=[]
         for enum in enumerate(self.filelist):
             self.sat=np.append(self.sat,[enum[1].split('_')[2]]*self.filelist_count[enum[0]])
+        self.sat=np.ma.array(self.sat,mask=False) 
     
     def read(self,filename,datatype=None,**kwargs):
         
@@ -314,7 +315,7 @@ class alti_data(htools.hydro_data) :
         
         #Remove attributes already existing in data object
         for a in self.__dict__.keys():
-            if outStr.has_key(a) and a is not '_dimensions' :
+            if outStr.has_key(a) and not a.startswith('_') :
                 outStr.pop(a)
                 self.message(4, 'Attribute {0} already exists'.format(a))
         
@@ -336,11 +337,13 @@ class alti_data(htools.hydro_data) :
         track_list=self.track_list()
             
         #Detect recurrent  lon/lat/track triplets
+        self.message(2, 'Detect recurrent lon/lat/track triplets')
         triplets = np.unique(zip(*(self.lon, self.lat, self.track)))
         
         #Sort by track (we do not sort using other columns to preserve descending/ascending order)
         triplets=np.ma.array(sorted(triplets, key=operator.itemgetter(2)))
         
+        #Get main variables
         lon = triplets[:,0]
         lat = triplets[:,1]
         tracknb = triplets[:,2]
@@ -355,7 +358,8 @@ class alti_data(htools.hydro_data) :
         
     #    dst = atools.calcul_distance(lat, lon)
         
-        #Get local index on nominal tracks
+        #Get local index on nominal tracks (THIS IS long)
+        self.message(2, 'Computing space and time indices')
         xid = np.array([np.where((ln == lon) & (self.lat[i] == lat))[0][0] for i,ln in enumerate(self.lon) ])
         tid = np.array([np.where(c == cycle_list)[0][0] for c in self.cycle])
         
@@ -370,7 +374,7 @@ class alti_data(htools.hydro_data) :
             self.__setattr__(par,locals()[par])
             
         #Set new dimensions array
-        self._dimensions=OrderedDict({'_ndims':2,'cycle':ncycles,'record':N,'track':ntracks})
+        self._dimensions=OrderedDict({'_ndims':3,'cycle':ncycles,'record':N,'track':ntracks})
         record=np.ma.array(ind,mask=np.zeros(N,dtype=bool))
         
         #Update lon, lat, track and cycle arrays
@@ -396,23 +400,32 @@ class alti_data(htools.hydro_data) :
         
         #Init output matrices using object fields
         for par in par_list :
+            self.message(2, 'Reforming {0}'.format(par))
             locals()[par]=np.ma.array(np.zeros((ncycles,N)),mask=np.ones((ncycles,N),dtype=bool),dtype=self.__getattribute__(par).dtype)
             locals()[par][tid,xid]=self.__getattribute__(par)
             locals()[par].__setattr__('_dimensions',{'_ndims':2,'cycle':ncycles,'record':N})
+            if hasattr(self.__dict__[par],'__dict__') :
+                #Remove attributes already in output variable
+                attrStr=OrderedDict()
+                null=[attrStr.update({a:self.__dict__[par].__dict__[a]}) for a in self.__dict__[par].__dict__.keys() if not locals()[par].__dict__.has_key(a)]
+                locals()[par].__dict__.update(attrStr)
             self.__setattr__(par,locals()[par])
         
         par_list=np.append(par_list,['lon','lat','tracknb','track','cycle','record'])
         self.par_list=par_list #Add record dimension
 
     def ncstruct(self):
-        par_list = self.par_list
+        par_list = self.par_list.tolist()
         dimStr=self._dimensions
         dimlist = dimStr.keys()
         outStr = OrderedDict({'_dimensions':dimStr})
         
-        varlist=np.append(np.array(dimlist[1:]),par_list)
+        if (np.array(par_list) == 'sat').sum() : par_list.pop(par_list.index('sat')) #Remove satellite info
+        varlist=np.append(np.array(dimlist[1:]),np.array(par_list))
+        
         for d in varlist :
-            curDim=self.__getattribute__(d)._dimensions
+            self.message(2, 'Updating output structure with {0}'.format(d))
+            curDim=getattr(self.__getattribute__(d),'_dimensions',None)
             attributes = [a for a in self.__getattribute__(d).__dict__.keys() if not a.startswith('_')]
 #            attributes = np.append(attributes,'_dimensions')
             outStr[d]={'_dimensions':self.__getattribute__(d)._dimensions}

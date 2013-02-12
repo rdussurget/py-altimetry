@@ -324,7 +324,10 @@ class plot_map(Basemap):
         plt.title(s,**kwargs)
     
     def colorbar(self,*args,**kwargs):
-        return plt.colorbar(*args,**kwargs)
+        label = kwargs.pop('label',None)
+        cbar=plt.colorbar(*args,**kwargs)
+        if label is not None : cbar.set_label(label)
+        return cbar
         
     def setup_map(self,londel=1.,latdel=1.,*args,**kwargs):
         """

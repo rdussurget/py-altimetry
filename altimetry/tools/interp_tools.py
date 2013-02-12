@@ -5,6 +5,7 @@ import threading
 import Queue
 import bisect
 import operator
+import datetime
 if __debug__ : import matplotlib.pyplot as plt
 
 def lagrange(x, x_values, y_values):
@@ -138,6 +139,157 @@ def interp2d1d(x,y,Z,xout,yout,**kwargs):
     except RuntimeError : Zout = np.NaN
 #    Zout = sc.interpolate.griddata(points, gz, xi, **kwargs)
     return Zout      
+
+
+def interp2d1d_parallel(x,y,Z,xout,yout,split_factor=4,**kwargs):
+    #Queued thread
+    ##############
+    class ThreadClass(threading.Thread):
+        
+        #We override the __init__ method
+        def __init__(self, input_q,indices_q,result_q):#,points,gz,xout,yout):
+            threading.Thread.__init__(self)
+            
+            self.input = input_q
+            self.indices = indices_q
+            self.result = result_q
+            
+#            self.points=points
+#            self.gz=gz
+#            
+#            self.xout=xout
+#            self.yout=yout
+            
+            self.verbose=True
+            
+            
+        def task(self,NaN=True):
+            
+            
+            
+            #grabs host from queue
+            input = self.input.get()
+            id = input[0]
+            #index = input[1]
+            points=input[1]
+            gz=input[2]
+            xout=input[3]
+            yout=input[4]
+            
+            #Get dimensions to split matrix
+            
+            
+            xi = zip(*(xout,yout))
+#            xi = zip(*(xout[index],yout[index]))
+            
+            if self.verbose: print "%s started at time: %s" % (self.getName(), datetime.datetime.now())
+            try : Zout = scipy.interpolate.griddata(points, gz, xi, **kwargs) 
+#            try : Zout = scipy.interpolate.griddata(self.points, self.gz, xi, **kwargs)
+            except RuntimeError : Zout = np.NaN
+            #    Zout = sc.interpolate.griddata(points, gz, xi, **kwargs)
+            if self.verbose: print "%s ended at time: %s" % (self.getName(), datetime.datetime.now())
+            
+            self.indices.put(id)
+            self.result.put(Zout)
+            del Zout
+            
+#            return Zout.reshape((xout.size,yout.size))
+                        
+            
+        
+        def run(self):
+            
+                #Starts the queue
+                self.task()
+                #signals to queue job is done
+                self.input.task_done()
+
+    #Setup input and output queues
+    input_q = Queue.Queue()
+    indices_q = Queue.Queue()
+    result_q = Queue.Queue()
+    
+    #Map the data along X axis
+    N_threads=split_factor
+    
+#    over=np.ceil(cut/dx) #Overlay between each time series processed in parallel
+    
+    #Get dimensions to split matrix
+    nxin=x.size
+    nyin=y.size
+    N=xout.size
+    
+    nxin=x.size
+    nyin=y.size
+    gx = np.reshape(np.repeat(x,nyin),(nxin,nyin)).transpose((1,0)).flatten()
+    gy = np.repeat(y,nxin)
+    gz = Z.flatten()
+    
+    points=zip(*(gx,gy))
+
+    #Map output coordinates
+    ind=[]
+    
+    for i in np.arange(split_factor) :
+        ind.append(i*(N/float(split_factor)))
+        ind.append((i+1)*(N/float(split_factor))-1)
+    
+    ind=np.array(ind)
+    
+    #Round
+    ind[1::2]=np.ceil(ind[1::2]).astype(int)
+    ind[0::2]=np.floor(ind[0::2]).astype(int) 
+    
+    N_threads = len(ind)/2    
+    
+    
+#    th_xout=gxout[0:nxout/split_factor,0:2]
+#    th_yout=
+
+#    gz = Z.flatten()
+     
+#    points = zip(*(gx.flatten(),gy.flatten())) 
+    
+    #spawn a pool of threads, and pass them queue instance 
+    for i in np.arange(N_threads):
+        #t = ThreadClass(input_q,indices_q,result_q,points,gz,xout,yout)
+        t = ThreadClass(input_q,indices_q,result_q)
+        t.setDaemon(True)
+        t.start()
+    
+    iind=[]
+    outvar=np.ma.array(np.empty(N),mask=True,dtype=Z.dtype)
+    outvar.data[:]=outvar.fill_value
+    
+    #Feed threads with data
+    for i in range(N_threads):
+        oind=np.array(ind)[[i*2,(i*2)+1]].astype(int)
+        iind.append(np.arange(oind.min(),oind.max(),dtype=int))
+        print i,oind,iind[i].max()
+    
+    for i in range(N_threads):
+        print "%s launched time: %s" % (i, datetime.datetime.now())
+        input_q.put((i,np.copy(points),gz.copy(),xout[iind[i]].copy(),yout[iind[i]].copy()))
+
+    #wait on the queue until everything has been processed     
+    input_q.join()
+    
+    #Sort threads
+    tnb=[]
+    for i in range(N_threads) : tnb.append(indices_q.get(i))
+    tsort=np.argsort(tnb)
+
+    #Get back the results for each thread in a list of results
+    for i in np.arange(N_threads) :
+        r=result_q.get(i)
+        outvar[iind[tsort[i]]]=r.astype(outvar.dtype)
+
+    if len(outvar) != len(xout) :
+        raise Exception('[ERROR]Output matrix is not coherent with input data - check matrix reconstruction')
+
+    return(outvar)
+    
+
 
 def interp2d2d(x,y,Z,xout,yout,split_factor=2,**kwargs):
     """    

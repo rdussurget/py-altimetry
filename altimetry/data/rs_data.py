@@ -365,7 +365,7 @@ class image_data:
         self.cached_lat=[]
         self.cached_sst=[]
 
-    def show_image(self,pmap,logscale=False,vmin=None,vmax=None, colorbar=True,title=None):
+    def show_image(self,pmap,logscale=False,vmin=None,vmax=None, colorbar=True,title=None,cbar_label=None,cmap=None):
         
         mnsst=self.sst.mean()
         var_sst=np.std(self.sst)
@@ -384,8 +384,8 @@ class image_data:
         title+='\nSST chosen->{0:%Y/%m/%d}\nshown->{1:%Y/%m/%d - %H:%M} (offset : {2:d} days)\nfile->{3}'.format(self.chosen_date,self.datetime,-self.offset.days,os.path.basename(self.filename))
         
 #        if logscale: pmap.pcolormesh(self.lon,self.lat,np.log10(self.sst),vmin=vmin,vmax=vmax)
-        pmap.pcolormesh(self.lon,self.lat,self.sst,vmin=vmin,vmax=vmax)
-        if colorbar is True : pmap.colorbar()
+        pmap.pcolormesh(self.lon,self.lat,self.sst,vmin=vmin,vmax=vmax,cmap=cmap)
+        if colorbar is True : pmap.colorbar(label=cbar_label)
         
         pmap.title(title)
 
