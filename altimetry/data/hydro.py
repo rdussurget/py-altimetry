@@ -466,7 +466,10 @@ class hydro_data(object):
     
     def get_currentDim(self):
         selfDim = self._dimensions.copy()
-        nself = selfDim.pop('_ndims')
+        if selfDim.has_key('_ndims') : nself = selfDim.pop('_ndims')
+        else : 
+            self.warning(1, 'self._dimensions does not have the _ndims key')
+            nself = len(selfDim)
         curDim = [[key for key in selfDim.keys()],[selfDim[key] for key in selfDim.keys()]]
         return curDim, nself
     

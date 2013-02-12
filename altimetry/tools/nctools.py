@@ -35,12 +35,83 @@ class nc :
 
         self.use_local_dims=use_local_dims
     
-    def write(self, data, outfile, **kwargs):
+    def push(self,*args,**kwargs):#file,varName,value,**kwargs):
+        
+        reload = False
+        
+        #Get arguments
+        largs=list(args)
+        if os.path.exists(largs[0]) :
+            file = largs.pop(0)
+            self._filename = file
+            reload = True
+        name = largs.pop(0)
+        value = largs.pop(0)
+        
+        #Get keywords
+        start = kwargs.get('start',None)
+        counts = kwargs.get('counts',None)
+        stride = kwargs.get('stride',None)
+        
+        
+        file = self._filename
+        
+        if self.verbose == 1 : self.message(1, 'Writing data into file {0}'.format(os.path.basename(file)))
+        elif self.verbose > 1 : self.message(2, 'Writing data into file {0}'.format(file))
+        ncf=ncfile(file, 'a', format='NETCDF4', clobber=False)
+     
+        #Get list of recorded parameters:
+        par_list = ncf.variables.keys()
+        
+        #Check if variable exists
+        if 'sla' not in par_list : createVariable = True
+        else : createVariable = False
+        
+        
+        if not createVariable :
+            var=ncf.variables[name]
+            
+            #Get dimensions
+            fileDims=OrderedDict({'_ndims':len(var.dimensions)})
+            [fileDims.update({str(d):len(ncf.dimensions[d])}) for d in var.dimensions]
+            
+            if start is None : start = [0 for sh in var.shape]
+            else : start = start[::-1]
+            if counts is None : counts = [sh for sh in var.shape]
+            else : counts = counts[::-1]
+            if stride is None : stride = [1 for sh in var.shape]
+            else : stride = stride[::-1]
+            
+            #Transpose before write
+            value=np.transpose(value)
+            strides=var[:].strides
+            
+            #Construct indices (cf.http://docs.scipy.org/doc/numpy-1.5.x/reference/arrays.indexing.html)
+            ind=()
+            for i in np.arange(len(start)) : ind+=(slice(start[i],start[i]+counts[i],stride[i]),)
+            
+            #Push data into file
+            try : var[ind]=value[:]
+            except ValueError : self.Error('Input variable {0} {1} cannot be broadcasted into {2}'.format(name,value.shape,os.path.basename(file)))
+            
+            #Check if variable is in agreement with dimensions
+#            dimStr=self._dimensions #Get dimensions  
+            
+            ncf.close()
+            
+            
+        else :
+            self.Error('This option is not yet implemented')
+        
+        
+        
+    
+    def write(self, data, outfile, clobber=False,**kwargs):
         
         #Open file
         if self.verbose == 1 : self.message(1, 'Writing data file {}'.format(os.path.basename(outfile)))
         elif self.verbose > 1 : self.message(2, 'Writing data file {}'.format(outfile))
-        root_grp=ncfile(outfile, 'w', format='NETCDF4', clobber=True)
+        root_grp=ncfile(outfile, 'w', format='NETCDF4', clobber=clobber)
 #        root_grp.description = 'nctools.write() file'
         
         #Get attributes

@@ -434,10 +434,15 @@ class alti_data(htools.hydro_data) :
         
         return outStr
     
-    def write_nc(self,filename):
+    def write_nc(self,filename,clobber=False):
         obj=nctools.nc(verbose=self.verbose,limit=self.limit,use_local_dims=True)
         ncalti=self.ncstruct() #Get an netcdf structure from data
-        res=obj.write(ncalti,filename) #Save processed datase
+        res=obj.write(ncalti,filename,clobber=False) #Save processed datase
+    
+    def push_nc(self,*args,**kwargs):
+        obj=nctools.nc(verbose=self.verbose,limit=self.limit,use_local_dims=True)
+        res=obj.push(*args,**kwargs)
+        
 
 
 
