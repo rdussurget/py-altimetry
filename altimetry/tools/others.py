@@ -210,6 +210,16 @@ def polar2cart(r, theta):
     y = r * np.sin(theta)
     return x, y
 
+def rad2geo(alpha):
+    theta=(np.rad2deg(alpha)*-1)+360+90
+    theta=np.mod(theta,360)
+    return theta
+
+def cart2geo(u,v):
+    spd,dir=cart2polar(u, v)
+    dir=rad2geo(dir)
+    return spd,dir
+
 def rms(array):
     """
     ;+

@@ -2,6 +2,7 @@
 import numpy as np
 #import alti_tools as atools
 import datetime
+if __debug__ : import matplotlib.pyplot as plt
 
 def cnes_convert(argin,
                  julian=True,
@@ -14,18 +15,23 @@ def cnes_convert(argin,
                  fromReference=None,
                  verbose=False):
     
+    
+    try : isVector = len(argin) >= 1 #True if variable is a vector
+    except TypeError: isVector=False
+    if isVector and (type(argin[0]) == str) and (np.size(argin) != len(argin)): isVector = False #Distinguish between string scalar and arrays
+    
+    if not isVector : argin=[argin]
+
+    #Get mask if any
+    if isinstance(argin, np.ma.masked_array) : maskin=argin.mask
+    elif type(argin[0]) == str: maskin=np.zeros(np.shape(argin),dtype=bool)
+    else : maskin=~np.isfinite(argin)
+    
     #Scalar to vector conversion
-    if np.size(argin) == 1 :
-        if type(argin) is not list :
-            if isinstance(argin, np.ndarray) : argin = argin.tolist()
-            elif isinstance(argin, np.ma.masked_array) : argin = argin.tolist()
-            elif isinstance(argin, list) : pass
-            else : argin = [argin]
-    else :
-        if isinstance(argin, np.ndarray) : argin = argin.tolist()
-        elif isinstance(argin, np.ma.masked_array) : argin = argin.tolist()
-        elif isinstance(argin, list) : pass
-        else : argin = [argin]
+    if isinstance(argin, np.ma.masked_array) : argin = argin.tolist(0)
+    elif isinstance(argin, np.ndarray) : argin = argin.tolist()
+    elif isinstance(argin, list) : pass
+    else : raise Exception('Undefined type')
     
     if type(argin[0]) == str : julian = True
     else : calendar = True
@@ -51,7 +57,10 @@ def cnes_convert(argin,
 #        datelist = [datetime.datetime.strptime(x,"")""]
 #        strlist = np.array([x.split("/", 2) for x in argin], dtype=int)
 #        datelist = [datetime.datetime(strlist[x, 2], strlist[x, 1], strlist[x, 0]) for x in np.arange(narg)]
-        return np.array([(datelist[x] - epoch).days for x in np.arange(narg)], dtype=float),datelist
+        argout=np.array([(datelist[x] - epoch).days for x in np.arange(narg)], dtype=float)
+        argout[maskin]=np.NaN if not isinstance(argout,np.ma.masked_array) else np.ma.array(argout.fill_value,mask=True)
+        return argout,datelist
+    
         
     if calendar is True :
         if verbose is True : print("caldendar is true")
@@ -61,9 +70,11 @@ def cnes_convert(argin,
 #        decim = np.array(datelist) - np.array(days)
 #        return [datetime.date.fromordinal(y) for y in datelist]
         a=datetime.datetime.fromordinal(int(datelist[0]))
-        dateObjList=[datetime.datetime.fromordinal(int(y)) + datetime.timedelta(seconds=(y - np.floor(y))*86400.0) for y in datelist]
-        dateStr=[Obj.strftime('%d/%m/%Y') for Obj in dateObjList]
-        return dateStr,dateObjList
+        dateObjList=np.array([datetime.datetime.fromordinal(int(y)) + datetime.timedelta(seconds=(y - np.floor(y))*86400.0) for y in datelist])
+        dateStr=np.array([Obj.strftime('%d/%m/%Y') for Obj in dateObjList])
+        dateStr[maskin]=None if not isinstance(dateStr,np.ma.masked_array) else np.ma.array(dateStr.fill_value,mask=True)
+        dateObjList[maskin]=None if not isinstance(dateStr,np.ma.masked_array) else np.ma.array(dateStr.fill_value,mask=True)
+        return dateStr.tolist(),dateObjList.tolist()
 #        dd,mm,yyyy=np.array(argin.split("/",2),dtype=int)
 #        varout = np.array((datetime.datetime(yyyy,mm,dd) - epoch).days,dtype=float)
         

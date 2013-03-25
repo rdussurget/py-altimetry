@@ -85,7 +85,6 @@ def recale(angle, degrees=False, zero_2pi=True, minpi_pi=None) :
   
     return angle
 
-
 def rgb_int2tuple(rgbint):
     return (rgbint // 256 // 256 % 256, rgbint // 256 % 256, rgbint % 256)
 
@@ -160,7 +159,9 @@ def calcul_distance(*args):
     
     #Remove computation errors
     fgerr=(lon_b == lon_a) & (lat_b == lat_a)
-    if fgerr.sum() > 0 : dist[fgerr] = 0.
+    if fgerr.sum() > 0 :
+        if np.size(dist) == 1 : dist = 0. 
+        else : dist[fgerr] = 0.
     
     return dist
 

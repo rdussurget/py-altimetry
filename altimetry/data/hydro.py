@@ -18,7 +18,6 @@ from altimetry.tools import recale_limits, in_limits, cumulative_distance, calcu
     cnes_convert, \
     plot_map, \
     get_caller
-from twisted.python.reflect import isinst
 from collections import OrderedDict
 
 
@@ -257,7 +256,7 @@ class hydro_data(object):
         
         for enum in enumerate(infos):
             varSize = np.size(self.__dict__.get(enum[1][0]))
-            varShape = np.shape(self.__dict__.get(enum[1][0]))[::-1] #Data and Netcdf dimensions are inverted
+            varShape = np.shape(self.__dict__.get(enum[1][0]))[::-1] #Data and Netcdf dimensions are inverted (not allways?)
             dimSize = tuple([(self._dimensions).get(d) for d in enum[1][1]])
             masked = isinstance(self.__dict__.get(enum[1][0]), np.ma.masked_array)
             
@@ -836,18 +835,26 @@ class hydro_data(object):
      
         lon = self.load_ncVar('LONGITUDE',**kwargs)
         lat = self.load_ncVar('LATITUDE',**kwargs)
+        date = self.load_ncVar('JULD',**kwargs)
 #        lon = self._ncfile.variables['LONGITUDE'][:]
 #        lat = self._ncfile.variables['LATITUDE'][:]
         
         #Extract within limits
         ind, flag = in_limits(lon['data'],lat['data'],limit=self.limit)
+        if timerange is not None :
+            dflag = (date['data'] >= np.min(timerange)) & (date['data'] < np.max(timerange))
+            flag = flag & dflag
+            ind = np.where(flag)[0]
         dim_lon = lon['_dimensions']
+        dim_date = date['_dimensions']
         lat['data'] = lat['data'].compress(flag)
         lon['data'] = lon['data'].compress(flag)
+        date['data'] = date['data'].compress(flag)
         
         #Update dimensions
         lat['_dimensions']['N_PROF']=flag.sum()
         lon['_dimensions']['N_PROF']=flag.sum()
+        date['_dimensions']['N_PROF']=flag.sum()
 #        dist=cumulative_distance(lat['data'], lon['data'])
         
         sz=np.shape(lon)
@@ -1486,7 +1493,7 @@ def load_ncVar(varName,nc=None,**kwargs):
         
         #Get attributes
         attrStr=var.__dict__
-        attrStr.pop('_FillValue') #Remove this attributed as it is overidden
+        attrStr.pop('_FillValue',None) #Remove this attributed as it is overidden
         
         #Append attributes to varOut
         varOut.__dict__.update(attrStr)

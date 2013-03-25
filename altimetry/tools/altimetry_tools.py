@@ -171,7 +171,6 @@ def powell_leben_filter_km(*args,**kwargs):
     nu = args[2]
     dst = calcul_distance(lat,lon) * 1e3 #distance in meters
     
-    
     n=nu.size
 
     #We use a p+q filter (default 2 1Hz points on each side ~ 12km)
@@ -378,15 +377,31 @@ def geost_1d(*args,**kwargs) : #(lon,lat,nu): OR (dst,nu)
     dst = args[2] if len(args) == 4 else calcul_distance(lat,lon) * 1e3 #distance in meters
     nu = args [3] if len(args) == 4 else args[2]
     
+    isVector = len(np.shape(nu)) == 1 
+    
+    #Reshape nu if vector
+    if isVector : nu=np.reshape(nu,(len(nu),1))
+    
+    nt = np.shape(nu)[1] if not isVector else 1
+    sh = nu.shape
+    nufilt=np.ma.array(np.empty(sh),mask=True,dtype=nu.dtype)
+    
     pl04 = kwargs.pop('pl04',False)
     filter = kwargs.pop('filter', None)
     strict = kwargs.pop('strict',False)
     verbose = kwargs.pop('verbose',False)
     
     if filter is not None :
-        dst= calcul_distance(lat,lon)
-        nu =loess(nu,dst,filter)
-    if pl04 : return powell_leben_filter_km(lon,lat,nu,verbose=verbose,**kwargs)
+        for t in np.arange(nt) : 
+            nufilt[:,t] =loess(nu[:,t],dst,filter*1e3)
+        nu=nufilt
+    
+    if pl04 :
+        ug = np.ma.array(np.empty(sh),mask=True,dtype=nu.dtype)
+        for t in np.arange(nt) :
+            ug[:,t] = powell_leben_filter_km(lon,lat,nu[:,t],verbose=verbose,**kwargs)
+        if isVector : ug=ug.flatten()
+        return ug
     
     #If strict option is set to True, compute gradients at mid-distance between points
     if strict :
@@ -395,13 +410,17 @@ def geost_1d(*args,**kwargs) : #(lon,lat,nu): OR (dst,nu)
     
     
     #Compute gravitational & coriolis forces
-    g = gravity(lat)
-    f = coriolis(lat)
+    if strict : sh[1] -=1
+    g = np.repeat(gravity(lat),nt).reshape(sh)
+    f = np.repeat(coriolis(lat),nt).reshape(sh)
     
     #Compute SSH 1st derivative
 #    dh = deriv(dst,nu) #(deriv is very bad...)
     
-    dh = (nu[1:] - nu[:-1])/(dst[1:] - dst[:-1]) if strict else deriv(dst,nu)
+    
+    dh = np.ma.array(np.empty(sh),mask=True,dtype=nu.dtype)
+    for t in np.arange(nt) :
+        dh[:,t] = (nu[1:,t] - nu[:-1,t])/(dst[1:] - dst[:-1]) if strict else deriv(dst,nu[:,t])
       
     #Compute geostrophy
 #    print f
@@ -409,7 +428,12 @@ def geost_1d(*args,**kwargs) : #(lon,lat,nu): OR (dst,nu)
 #    print dh
     ug = - (g*dh) / (f)
   
-    if (not track_orient(lon,lat)) : ug*=-1
+    #Inverse sign of ug for descending tracks as Coriolis is oriented to the right
+    #northward
+    if (not track_orient(lon,lat)) : #descending tracks
+        ug *=-1
+    
+    if isVector : ug=ug.flatten()
     
     return (lon,lat,ug) if strict else ug
 

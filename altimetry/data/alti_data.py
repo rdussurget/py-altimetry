@@ -57,6 +57,7 @@ import hydro as htools #This object is based on the hydro_data object
 from altimetry.externals import esutils_stat as es
 from altimetry.tools import cnes_convert, histogram_indices, recale, in_limits, cumulative_distance , nctools
 from collections import OrderedDict
+if __debug__ : import matplotlib.pyplot as plt
 
 
 #Load alti data
@@ -413,7 +414,17 @@ class alti_data(htools.hydro_data) :
         
         par_list=np.append(par_list,['lon','lat','tracknb','track','cycle','record'])
         self.par_list=par_list #Add record dimension
-
+    
+    def pass_time(self):
+        date=self.date
+        nt=self._dimensions['cycle']
+        N=self._dimensions['record']
+        for t in np.arange(nt):
+            poly=np.polyfit(np.arange(N)[~date.mask[t,:]], date[t,:][~date.mask[t,:]], 1)
+            date[t,:][date.mask[t,:]]=poly[0]*np.arange(N)[date.mask[t,:]] + poly[1]
+        date.mask=False
+        return date[:,N/2]
+    
     def ncstruct(self):
         par_list = self.par_list.tolist()
         dimStr=self._dimensions
@@ -434,10 +445,10 @@ class alti_data(htools.hydro_data) :
         
         return outStr
     
-    def write_nc(self,filename,clobber=False):
+    def write_nc(self,filename,clobber=False,**kwargs):
         obj=nctools.nc(verbose=self.verbose,limit=self.limit,use_local_dims=True)
         ncalti=self.ncstruct() #Get an netcdf structure from data
-        res=obj.write(ncalti,filename,clobber=False) #Save processed datase
+        res=obj.write(ncalti,filename,clobber=clobber,**kwargs) #Save processed datase
     
     def push_nc(self,*args,**kwargs):
         obj=nctools.nc(verbose=self.verbose,limit=self.limit,use_local_dims=True)

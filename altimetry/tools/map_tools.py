@@ -204,7 +204,9 @@ class plot_map(Basemap):
         else :
             sense = True
             orient = (np.pi/2.)
-            
+        
+#        if (not track_orient(lon,lat)) : z*=-1    
+        
         across_track = orient + angle - (np.pi/2.) if sense else orient + angle + (np.pi/2.)
 
         if isinstance(z, np.ma.masked_array) : z = z.data
@@ -227,16 +229,58 @@ class plot_map(Basemap):
         lat=np.array(args[1])
         
         if lon.ndim != 2 :
-            lon,lat=np.meshgrid(lon,lat)
-            lon=lon.transpose()
-            lat=lat.transpose()
+            glon,glat=np.meshgrid(lon,lat)
+            glon=glon#.transpose()
+            glat=glat#.transpose()
+        else :
+            glon=lon.copy()
+            glat=lat.copy()
         
-        mlon, mlat = self(lon,lat)
+        reference=kwargs.pop('reference',None)
+        
+        mlon, mlat = self(glon,glat)
         
         u=np.ma.masked_array(args[2]) if not isinstance(args[2], np.ma.masked_array) else args[2]
         v=np.ma.masked_array(args[3]) if not isinstance(args[3], np.ma.masked_array) else args[3]
         
-        return Basemap.quiver(self,mlon,mlat,u,v,**kwargs)  
+        q=Basemap.quiver(self,mlon,mlat,u,v,**kwargs)
+        
+        #Refererence argument has shape [lon,lat,value,title] or [lon,lat] or True/False 
+        if reference is not None :
+            
+            #If
+            if len(reference) == 1 :
+                x=self.limit[1]+(self.limit[3]-self.limit[1])*0.2
+                y=self.limit[1]+(self.limit[3]-self.limit[1])*0.8
+                reference=[x,y]
+            
+            x=reference[0]
+            y=reference[1]
+                
+            if len(reference) == 2 :
+                value=np.mean(np.sqrt(u**2+v**2))
+                title="{0}".format(value)
+            else :
+                value=reference[2]
+                title=reference[3]
+            
+            self.quiverkey(q,x,y,value,title)
+            
+        return q  
+    
+    def quiverkey(self,*args,**kwargs):
+        
+        obj=args[0]
+        lon=args[1] 
+        lat=args[2]
+        val=args[3]
+        leg=args[4]
+        
+        coordinates=kwargs.pop('coordinates','data')
+        
+        mlon, mlat = self(lon,lat)
+        
+        return plt.quiverkey(obj,mlon,mlat,val,leg,coordinates=coordinates,**kwargs)  
     
     #Following is not working
     def plot(self,*args,**kwargs):

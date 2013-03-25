@@ -21,7 +21,7 @@ from warnings import warn
 
 class nc :
     
-    def __init__(self, limit=[-90., 0., 90., 360.], verbose=0, zero_2pi=False, use_local_dims=False, **kwargs):
+    def __init__(self, limit=[-90., 0., 90., 360.], verbose=0, zero_2pi=False, transpose=False, use_local_dims=False, **kwargs):
         
         #Init system variables
 #        if limit is None : limit=[-90.,0.,90.,360.]
@@ -32,6 +32,8 @@ class nc :
 
         self.count = 0
         self.size = 0
+        
+#        self.transpose=False
 
         self.use_local_dims=use_local_dims
     
@@ -106,12 +108,12 @@ class nc :
         
         
     
-    def write(self, data, outfile, clobber=False,**kwargs):
+    def write(self, data, outfile, clobber=False,format='NETCDF4'):
         
         #Open file
         if self.verbose == 1 : self.message(1, 'Writing data file {}'.format(os.path.basename(outfile)))
         elif self.verbose > 1 : self.message(2, 'Writing data file {}'.format(outfile))
-        root_grp=ncfile(outfile, 'w', format='NETCDF4', clobber=clobber)
+        root_grp=ncfile(outfile, 'w', format=format, clobber=clobber)
 #        root_grp.description = 'nctools.write() file'
         
         #Get attributes
@@ -170,13 +172,14 @@ class nc :
             ##############
             
             #look at scaler factors and offsets in both attributes and data structure keys
-            scale_factor=data[p]['data'].__dict__.get('scale_factor',None) 
-            if scale_factor is None : scale_factor=data[p].get('scale_factor',None)
-            if scale_factor is None : scale_factor=data[p]['data'].__dict__.get('scale',None) 
+            scale_factor=scale_factor=data[p].get('scale_factor',None)
             if scale_factor is None : scale_factor=data[p].get('scale',None)
+            if scale_factor is None and hasattr(data[p]['data'],'__dict__') : scale_factor=data[p]['data'].__dict__.get('scale_factor',None)  
+            if scale_factor is None and hasattr(data[p]['data'],'__dict__') : scale_factor=data[p]['data'].__dict__.get('scale',None) 
             
-            offset=data[p]['data'].__dict__.get('add_ofset',None) 
-            if offset is None : offset=data[p].get('add_ofset',None)
+            
+            offset=data[p].get('add_ofset',None) 
+            if offset is None and hasattr(data[p]['data'],'__dict__') : offset=data[p]['data'].__dict__.get('add_ofset',None)
             
             #Apply scaling and prepare message
             scale_msg='Apply scaling : {}'.format(p)
@@ -202,11 +205,29 @@ class nc :
                                                data[p]['data'].dtype if not str(data[p]['data'].dtype).startswith('|S') else 'S1',
                                                pardim)
             
+            #Get data and compare to current dimensions
+            dumVar=data[p].pop('data')
+            ncsh=tuple([long(dimVal[dimlist.index(d)]) for d in pardim if d in dimlist])
+            ncdimname=tuple([d for d in pardim if d in dimlist])
+            
+            #Transposition is done if provided dimensions is not in phase with data dimensions (and if provided dimensions has no unlimited dimensions)
+            if not ncsh == dumVar.shape and ncsh.count(0) == 0 :
+                dimOrder=tuple([ncsh.index(d) for d in dumVar.shape])
+                self.message(2, 'Transposing data axes {0}{1}'.format(ncdimname,dimOrder)) #Make it a bit more explicit...
+                dumVar=dumVar.transpose(dimOrder)
+            
             #Transpose data before writing it into file
-            locals()[p][:]=data[p].pop('data').transpose(tuple(range(len(pardim))[::-1]))
+            locals()[p][:]=dumVar
+            #.transpose(tuple(range(len(pardim))[::-1])) #old stuff
                 
             #Update with attribute list
-            locals()[p].setncatts(data[p])
+            attrDict=locals()[p].__dict__
+            attrDict.update(data[p])
+            [attrDict.pop(k) for k in  locals()[p].__dict__.keys()]
+            
+            
+            #Get common attributes first
+            locals()[p].setncatts(attrDict)
 #                for a in data[p].keys() :
 #                    if not hasattr(locals()[p],a) :
 #                        locals()[p].setncattr(a,data[p][a])
@@ -288,12 +309,15 @@ class nc :
         par_list = par_list.compress([len(par) != 0 for par in par_list])
         nparam = par_list.size
         
+        if nparam == 0 : self.Error('File has no data ({0})'.format(self._filename))
+        
         #Get dimensions
         ncdimlist = np.array(['{0}'.format(d) for d in ncf.dimensions.keys()])
         ndims = len(ncdimlist)
         dimStr = OrderedDict()
         dimStr.update({'_ndims':ndims})
     
+        if ndims == 0 : self.Error('File has no dimensions ({0})'.format(self._filename))
         
         #Check for the presence of strategic dimensions
         checkedDims = np.array(['lon', 'lat', 'time', 'depth'])
@@ -322,7 +346,8 @@ class nc :
         #TODO : Add scaling here in case...
         for i,d in enumerate(existDim) : 
             if identified[i] :
-                dimStr.update({checkedDims[i]:len(ncf.dimensions[ncdimlist[d]])})
+                dimStr.update({ncdimlist[d]:len(ncf.dimensions[ncdimlist[d]])}) #Append dimension
+#                dimStr.update({checkedDims[i]:len(ncf.dimensions[ncdimlist[d]])}) #Append dimension
                 cmd = checkedDims[i] + '=load_ncVar(\'' + ncdimlist[d] + '\',nc=ncf)'
                 self.message(4, 'exec : ' + cmd)
                 exec(cmd)
@@ -390,8 +415,12 @@ class nc :
                 lon['_dimensions'][lon['_dimensions'].keys()[1]] = flag.sum()
                 lat['data'] = lat['data'].compress(flag)
                 lat['_dimensions'][lat['_dimensions'].keys()[1]] = flag.sum()
-            dimStr['lon']=len(lon)
-            dimStr['lat']=len(lat)
+            
+            locals()[ncdimlist[existDim[0]]]=lon.copy()
+            locals()[ncdimlist[existDim[1]]]=lat.copy()
+            
+            dimStr.update({ncdimlist[existDim[0]]:len(lon['data'])})
+            dimStr.update({ncdimlist[existDim[1]]:len(lat['data'])})
 #            self.message(4, 'self.lon & self.lat updated')
         
         if (existDim[2] > -1):
@@ -400,7 +429,8 @@ class nc :
             if timeflag.sum() == 0 : self.Error('No data within specified depth range (min/max = {0}/{1})'.format(np.min(time), np.max(time)))
             time['data'] = time['data'].compress(timeflag)
             time['_dimensions'][time['_dimensions'].keys()[1]] = timeflag.sum()
-            dimStr['time']=len(time)
+            locals()[ncdimlist[existDim[2]]]=time.copy()
+            dimStr.update({ncdimlist[existDim[2]]:len(time['data'])})
 #            self.message(4, 'self.lon & self.lat updated')
         
         #Extract within depth range
@@ -410,17 +440,18 @@ class nc :
             if depthflag.sum() == 0 : self.Error('No data within specified depth range (min/max = {0}/{1})'.format(np.min(depth), np.max(depth)))
             depth['data'] = depth['data'].compress(depthflag)
             depth['_dimensions'][depth['_dimensions'].keys()[1]] = depthflag.sum()
-            dimStr['depth']=len(depth)
+            locals()[ncdimlist[existDim[3]]]=depth.copy()
+            dimStr.update({ncdimlist[existDim[3]]:len(depth['data'])})
         
         #Create output data structure
         outStr = OrderedDict()
         outStr.update({'_dimensions':dimStr})
         outStr.update({'_attributes':attrStr})
         
-        if (existDim[0] > -1) : outStr.update({'lon':lon})
-        if (existDim[1] > -1) : outStr.update({'lat':lat})
-        if (existDim[2] > -1) : outStr.update({'time':time})
-        if (existDim[3] > -1) : outStr.update({'depth':depth})
+        if (existDim[0] > -1) : outStr.update({ncdimlist[existDim[0]]:lon})
+        if (existDim[1] > -1) : outStr.update({ncdimlist[existDim[1]]:lat})
+        if (existDim[2] > -1) : outStr.update({ncdimlist[existDim[2]]:time})
+        if (existDim[3] > -1) : outStr.update({ncdimlist[existDim[3]]:depth})
         
         
         #Update object with remaining variables
@@ -475,7 +506,8 @@ class nc :
             curDim = [str(dimname) for dimname in dimStr.keys()[1:]] #[str(dimname) for dimname in ncf.variables['LONGITUDE'].dimensions]
             curDimval = [dimStr[dim] for dim in curDim] #[len(ncf.dimensions[dimname]) for dimname in curDim]
             
-            curDim = dimlist[where_list(curDim, ncdimlist.tolist())] #Convert to object dimension names
+#            curDim = dimlist[where_list(curDim, ncdimlist.tolist())] #Convert to object dimension names
+            curDim = dimlist[where_list(curDim, dimlist.tolist())] #Convert to object dimension names (???)
             
 ##            curDim = [str(dimname) for dimname in ncf.variables[param].dimensions]
 ##            curDimval = [len(ncf.dimensions[dimname]) for dimname in curDim]
@@ -631,9 +663,15 @@ def load_ncVar(varName, nc=None, **kwargs):
 #        else : varOut = var[ind_list]
         
         #Mask it!
-        if var.__dict__.has_key('_FillValue') : mask = varOut == var._FillValue
-        elif var.__dict__.has_key('missing_value') : mask = varOut == var.missing_value
-        else : mask = np.zeros(varOut.shape, dtype='bool')
+        if var.__dict__.has_key('_FillValue') :
+            fill_value=var._FillValue
+            mask = varOut == var._FillValue
+        elif var.__dict__.has_key('missing_value') :
+            fill_value=var._FillValue
+            mask = varOut == var._FillValue
+        else :
+            fill_value = None
+            mask = np.zeros(varOut.shape, dtype='bool')
         
         #Scale it
         #note : we do not use the *= or += operators to force casting to scaling attribute types
@@ -642,14 +680,14 @@ def load_ncVar(varName, nc=None, **kwargs):
         if var.__dict__.has_key('add_offset') : varOut = varOut + var.add_offset
         
         #Set masks properly
-        if isinstance(varOut, np.ndarray) : varOut = np.ma.masked_array(varOut, mask=mask)
+        if isinstance(varOut, np.ndarray) : varOut = np.ma.masked_array(varOut, mask=mask,dtype=varOut.dtype,fill_value=fill_value)
         elif isinstance(varOut, np.ma.masked_array) : var.mask = mask
         else : raise 'This data type {} has not been defined - code it!'.format(type(varOut))
         
         #Update masked data properly
         varOut.data[varOut.mask]=varOut.fill_value
         
-        #Switch dimensions
+        #Switch dimensions 
         if not missDim : varOut=np.transpose(varOut,tuple(range(len(dims.keys()[1:]))[::-1]))
         
         #Build up output structure
