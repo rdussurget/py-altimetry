@@ -799,6 +799,7 @@ def yule_walker_regression(dx, Y, deg, res=None):
     NF=len(F)
     
     df=F[1]-F[0]
+    dfout=Fout[1]-Fout[0]
     
     #Solve Yule Walker Equation
     a, sig = yule_walker(gamma, deg)
@@ -863,7 +864,7 @@ def yule_walker_regression(dx, Y, deg, res=None):
     arspec/=fac
 
     esd=arspec
-    psd=arspec/df
+    psd=arspec/dfout
 
 
     #We define the AIC (http://pages.stern.nyu.edu/~churvich/TimeSeries/Handouts/AICC.pdf) to define the optimal model
@@ -877,7 +878,7 @@ def yule_walker_regression(dx, Y, deg, res=None):
 #        'X':{'name':'x','long_name':'time series','data':X},
 #        'gamma':{'name':'gamma','long_name':'autocorrelation function','data':gamma},
 #        'model':{'name':'model','long_name':'AR model parameters','data':a,'sig':sig,'deg':deg,'n':N,'aicc':aicc,'aic':aic},
-        'fq':F,
+        'fq':Fout,
         'ar':ar,#{'name':'ar','long_name':'Fitted model','data':ar},
 #        'argamma':{'name':'argamma','long_name':'Fitted autocorrelation function','data':argamma},
 #        'arspec':{'name':'arspec','long_name':'Fitted spectral model','data':arspec},

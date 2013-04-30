@@ -8,4 +8,8 @@ altimetry.data module
 import altimetry.tools
 from hydro import *
 from alti_data import *
-from rs_data import *
+
+try:
+ from rs_data import *
+except ImportError, e:
+ pass # module doesn't exist, deal with it.

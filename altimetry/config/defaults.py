@@ -27,5 +27,5 @@ class defaults(object):
         '''
         Constructor
         '''
-        self.etopo=subclass('C:\\VMShared\\data\\spare_products\\bathy\\ETOPO2v2g_f4.nc')
-        self.menor=subclass('C:\\VMShared\\data\\spare_products\\bathy\\bathy_menor.mat')
+        self.etopo=subclass('/archive/MSA/rdussurget/sauvegarde_13032013/VMShared/data/spare_products/bathy/ETOPO2v2g_f4.nc')
+        self.menor=subclass('/archive/MSA/rdussurget/sauvegarde_13032013/VMShared/data/spare_products/bathy/bathy_menor.mat')

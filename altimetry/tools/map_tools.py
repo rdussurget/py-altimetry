@@ -29,6 +29,7 @@ class plot_map(Basemap):
         edgecolor = kwargs.pop('edgecolor', 'none')
         limit = kwargs.pop('limit', None)
         resolution = kwargs.pop('resolution', 'i')
+        projection = kwargs.pop('projection', 'tmerc')
         xoffset = kwargs.pop('xoffset', 0.05)
         yoffset = kwargs.pop('yoffset', 0.05)
         length = kwargs.pop('length', 50.)
@@ -61,7 +62,7 @@ class plot_map(Basemap):
         
         
         # Init Basemap class
-        Basemap.__init__(self,projection='tmerc', resolution=resolution, llcrnrlat=limit[0], llcrnrlon=limit[1], urcrnrlat=limit[2], urcrnrlon=limit[3], lat_0=clat, lon_0=clon)
+        Basemap.__init__(self,projection=projection, resolution=resolution, llcrnrlat=limit[0], llcrnrlon=limit[1], urcrnrlat=limit[2], urcrnrlon=limit[3], lat_0=clat, lon_0=clon)
         
         #Set map characteristics fields
         self.limit=limit

@@ -57,6 +57,7 @@ import hydro as htools #This object is based on the hydro_data object
 from altimetry.externals import esutils_stat as es
 from altimetry.tools import cnes_convert, histogram_indices, recale, in_limits, cumulative_distance , nctools
 from collections import OrderedDict
+
 if __debug__ : import matplotlib.pyplot as plt
 
 
@@ -66,21 +67,29 @@ class alti_data(htools.hydro_data) :
     def __init__(self,file_pattern,time_range=None,output_is_dict=True,**kwargs):
         
         if time_range is not None :
-            ls=glob.glob(file_pattern)
+            ls=np.array(glob.glob(file_pattern))
+            if len(ls) == 0: raise Exception('File not found : {0}'.format(file_pattern))
             filelist=[os.path.basename(p) for p in ls]
             st=[f.split('_')[-3] for f in filelist]
-            en=[f.split('_')[-2] for f in filelist]
+            
 #            print st
-            jst = [cnes_convert('{0}/{1}/{2}'.format(s[-2:],s[-4:-2],s[0:4]))[0][0] for s in st]
-            jen = [cnes_convert('{0}/{1}/{2}'.format(s[-2:],s[-4:-2],s[0:4]))[0][0] for s in en]
-            dt=np.fix(np.median(np.array(jst[1:]) - np.array(jst[:-1])))
 
-            hist,R= es.histogram(np.array(jst),binsize=dt,use_weave=False,rev=True,min=time_range[0] - dt/2.,max=time_range[1] + dt/2.)
+            jst = np.array([cnes_convert('{0}/{1}/{2}'.format(s[-2:],s[-4:-2],s[0:4]))[0][0] for s in st])            
+            
+            #Time sort
+            order=np.argsort(jst)
+            jst=jst[order]
+            ls=ls[order]
+            
+            dft=jst[1:] - jst[:-1]
+            dt=np.fix(np.median(dft[dft != 0])) #If dft == 0 : then duplicates!
+
+            hist,R= es.histogram(jst,binsize=dt,use_weave=False,rev=True,min=time_range[0] - dt/2.,max=time_range[1] + dt/2.)
             dumind = histogram_indices(hist, R)
             ind=np.array([])
             for i in dumind : ind=np.append(ind,i)
             ind=ind.tolist()
-            file_pattern=np.array(ls)[ind]
+            file_pattern=ls[ind]
             
         htools.hydro_data.__init__(self,file_pattern,output_is_dict=output_is_dict,**kwargs)
         self.set_sats()
@@ -331,7 +340,7 @@ class alti_data(htools.hydro_data) :
         noargs = len(args) == 0
         return np.unique(self.cycle) if noargs else np.unique(self.cycle.compress(args[0]))
 
-    def reorder(self):
+    def reorder(self,*args,**kwargs):
         #update time range with real value
         trange_str = self.time_range()[0]
         cycle_list = self.cycle_list()
@@ -366,7 +375,6 @@ class alti_data(htools.hydro_data) :
         
         #Get object attributes to reform
         varSize = np.array([np.size(self.__dict__[k]) for k in self.__dict__.keys()])
-        varSize == self._dimensions['time']
         par_list=np.array(self.__dict__.keys())[varSize == self._dimensions['time']].tolist()
         
         #Refine param list
@@ -425,6 +433,20 @@ class alti_data(htools.hydro_data) :
         date.mask=False
         return date[:,N/2]
     
+    def update_with_slice(self,flag):
+        
+        N=flag.sum()
+        
+        #Get object attributes to update
+        varSize = np.array([np.size(self.__dict__[k]) for k in self.__dict__.keys()])
+        par_list=np.array(self.__dict__.keys())[varSize == self._dimensions['time']].tolist()
+        
+        self._dimensions['time']=N
+        
+        for par in par_list :
+            self.__setattr__(par,self.__dict__[par][flag])
+            if (hasattr(self.__dict__[par], '_dimensions')) : self.__dict__[par]._dimensions['time']=self._dimensions['time']
+        
     def ncstruct(self):
         par_list = self.par_list.tolist()
         dimStr=self._dimensions

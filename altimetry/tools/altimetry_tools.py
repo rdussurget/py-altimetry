@@ -1,6 +1,11 @@
 # -*- coding: utf-8 -*-
 import numpy as np
-import seawater.gibbs
+
+try:
+ import seawater.gibbs
+except ImportError, e:
+ pass # module doesn't exist, deal with it.
+ 
 from altimetry.tools import deriv, calcul_distance, interp1d, loess
 if __debug__ : import matplotlib.pyplot as plt
 
@@ -327,7 +332,10 @@ def coriolis(lat):
     return 2. * omega * np.sin(np.deg2rad(lat))
 
 def gravity(*args):
-    return seawater.gibbs.grav(*args)
+    try :
+        return seawater.gibbs.grav(*args)
+    except :
+        return np.repeat(6.67384e-11,len(args[0]))
 
 def geost_1d(*args,**kwargs) : #(lon,lat,nu): OR (dst,nu)
     """

@@ -7,8 +7,11 @@ import numpy as np
 
 import matplotlib.pyplot as plt
 from netCDF4 import Dataset as ncfile
-import seawater.gibbs as gsw
-import seawater.csiro as csw
+try:
+    import seawater.gibbs as gsw
+    import seawater.csiro as csw
+except ImportError:
+    pass # module doesn't exist, deal with it.
 
 #import alti_tools as atools
 from scipy import interpolate
@@ -1207,15 +1210,23 @@ class glider_data(hydro_data):
         if outStr.has_key('pres') : 
             deph = outStr['pres'].copy()
             deph_surf = outStr['pres_surf'].copy()
-            deph['data']=gsw.z_from_p(outStr['pres']['data'],outStr['lat']['data'])
-            deph_surf['data']=gsw.z_from_p(outStr['pres_surf']['data'],outStr['lat_surf']['data'])
+            try:
+                deph['data']=gsw.z_from_p(outStr['pres']['data'],outStr['lat']['data'])
+                deph_surf['data']=gsw.z_from_p(outStr['pres_surf']['data'],outStr['lat_surf']['data'])
+            except :
+                deph['data'][:]=deph['data'].fill_value
+                deph_surf['data'][:]=deph['data'].fill_value
             outStr.update({'deph' : deph})
             outStr.update({'deph_surf' : deph_surf})
         if outStr.has_key('psal') and outStr.has_key('temp') and outStr.has_key('pres') :
             rho=outStr['psal'].copy()
             rho_surf=outStr['psal_surf'].copy()
-            rho['data']=gsw.rho(outStr['psal']['data'],outStr['temp']['data'],outStr['pres']['data'])
-            rho_surf['data']=gsw.rho(outStr['psal_surf']['data'],outStr['temp_surf']['data'],outStr['pres_surf']['data'])
+            try:
+                rho['data']=gsw.rho(outStr['psal']['data'],outStr['temp']['data'],outStr['pres']['data'])
+                rho_surf['data']=gsw.rho(outStr['psal_surf']['data'],outStr['temp_surf']['data'],outStr['pres_surf']['data'])
+            except :
+                rho['data'][:]=deph['data'].fill_value
+                rho_surf['data'][:]=deph['data'].fill_value
             outStr.update({'rho' : rho})
             outStr.update({'rho_surf' : rho_surf})
         
@@ -1419,9 +1430,14 @@ def read_cnv(self,filename,**kwargs):
         lon=np.ma.masked_array(np.repeat(lon,reclen))
         lat=np.ma.masked_array(np.repeat(lat,reclen))
         
-        psal=csw.salt(cond/gsw.cte.C3515, temp, pres)
-        depth=gsw.z_from_p(pres,lat)
-        dens= gsw.rho(psal,temp,pres)
+        try :
+            psal=csw.salt(cond/gsw.cte.C3515, temp, pres)
+            depth=gsw.z_from_p(pres,lat)
+            dens= gsw.rho(psal,temp,pres)
+        except :
+            psal=np.ma.masked_array(np.repeat(lon.fill_value,reclen),mask=True)
+            depth=np.ma.masked_array(np.repeat(lon.fill_value,reclen),mask=True)
+            dens=np.ma.masked_array(np.repeat(lon.fill_value,reclen),mask=True)
         
         
         sz=np.shape(lon)
