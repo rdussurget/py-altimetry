@@ -181,7 +181,7 @@ def powell_leben_filter_km(*args,**kwargs):
     #We use a p+q filter (default 2 1Hz points on each side ~ 12km)
     #-> Set p & q distances to defaults if they don't exist    
     p = kwargs.pop('p',12.)
-    q = kwargs.pop('q',18.)
+    q = kwargs.pop('q',12.)
     verbose = kwargs.pop('verbose',False)
         
     dt = np.median(dst[1:] - dst[:-1])   #Median point-to-point distance in meters
@@ -335,7 +335,7 @@ def gravity(*args):
     try :
         return seawater.gibbs.grav(*args)
     except :
-        return np.repeat(6.67384e-11,len(args[0]))
+        return np.repeat(6.67384,len(args[0]))
 
 def geost_1d(*args,**kwargs) : #(lon,lat,nu): OR (dst,nu)
     """
@@ -418,7 +418,7 @@ def geost_1d(*args,**kwargs) : #(lon,lat,nu): OR (dst,nu)
     
     
     #Compute gravitational & coriolis forces
-    if strict : sh[1] -=1
+    if strict : sh = (sh[0]-1,sh[1])
     g = np.repeat(gravity(lat),nt).reshape(sh)
     f = np.repeat(coriolis(lat),nt).reshape(sh)
     

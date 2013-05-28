@@ -115,8 +115,8 @@ def get_spec(dx,Vin,verbose=False,gain=1.0,integration=True):
     k = k[1:imx-1]  
     k_= k[:-1] + dk_half  #Shift wavelengths by half the unit
     
-    cesd = c**2 *(N/2) #Energy (ESD)
-    csquared = c ** 2 
+#    cesd = c**2 *(N/2) #Energy (ESD)
+    csquared = c ** 2 #Energy (ESD)
     
     if verbose : print 'Check parseval theorem 5: SUM|Y(f)|²={0}, SUM|y(t)|²={1}'.format((csquared*(N/2)).sum(),((V-V.mean())**2).sum())
     

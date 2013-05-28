@@ -142,7 +142,7 @@ def deriv(*args):
         #; Where: x01 = x0-x1, x02 = x0-x2, x12 = x1-x2, etc.
     
         if isinstance(x,np.ma.masked_array) :  x = x.data                # Convert masked arrays to classic arrays
-        if not isinstance(x.data[0],np.float) : x.astype(np.float) #;If not floating type, ensure floating... 
+        if not isinstance(x,np.float) : x.astype(np.float) #;If not floating type, ensure floating... 
         
         x12 = x - np.roll(x,-1)                                      #;x1 - x2
         x01 = np.roll(x,1) - x                                       #;x0 - x1

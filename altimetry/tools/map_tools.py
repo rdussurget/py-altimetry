@@ -223,7 +223,6 @@ class plot_map(Basemap):
             self.arrow(reflon,reflatarr,scale*ref,0.0,**kwargs)
             if type(ref) == bool : self.text(reflon, reflat, '{0:.1f} m/s'.format(z[0]))
             else : self.text(reflon, reflat, '{0:.1f} m/s'.format(ref))
-        
     
     def quiver(self,*args,**kwargs):
         lon=np.array(args[0]) 
