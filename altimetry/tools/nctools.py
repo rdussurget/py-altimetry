@@ -212,7 +212,7 @@ class nc :
             
             #Transposition is done if provided dimensions is not in phase with data dimensions (and if provided dimensions has no unlimited dimensions)
             if not ncsh == dumVar.shape and ncsh.count(0) == 0 :
-                dimOrder=tuple([ncsh.index(d) for d in dumVar.shape])
+                dimOrder=tuple([ncsh.index(dsh) for dsh in dumVar.shape])
                 self.message(2, 'Transposing data axes {0}{1}'.format(ncdimname,dimOrder)) #Make it a bit more explicit...
                 dumVar=dumVar.transpose(dimOrder)
             
@@ -227,10 +227,11 @@ class nc :
             
             
             #Get common attributes first
+            attrDict.pop('_FillValue',None)
             locals()[p].setncatts(attrDict)
-#                for a in data[p].keys() :
-#                    if not hasattr(locals()[p],a) :
-#                        locals()[p].setncattr(a,data[p][a])
+#            for a in attrDict :
+#                if not hasattr(locals()[p],a) :
+#                    locals()[p].setncattr(a,data[p][a])
         
         self.message(2, 'Closing file')
         root_grp.close()
@@ -321,11 +322,11 @@ class nc :
         
         #Check for the presence of strategic dimensions
         checkedDims = np.array(['lon', 'lat', 'time', 'depth'])
-        existDim = -np.ones(4)
+        existDim = -np.ones(4,dtype=int)
         if not self.use_local_dims :
             for i,d in enumerate(ncdimlist) :
-                if (d.lower().startswith('lon')) | (d.lower().find('longitude') != -1) : existDim[0]=i
-                if (d.lower().startswith('lat')) | (d.lower().find('latitude') != -1) : existDim[1]=i
+                if ( (d.lower().startswith('lon')) | (d.lower().find('longitude') != -1) ) & (d.find('LatLon') ==-1) : existDim[0]=i
+                if ( (d.lower().startswith('lat')) | (d.lower().find('latitude') != -1) ) & (d.find('LatLon') ==-1): existDim[1]=i
                 if (d.lower().startswith('time')) | (d.lower().startswith('date')) : existDim[2]=i
                 if (d.lower().startswith('lev')) | (d.lower().startswith('dep')) : existDim[3]=i
                     
@@ -347,26 +348,28 @@ class nc :
         for i,d in enumerate(existDim) : 
             if identified[i] :
                 dimStr.update({ncdimlist[d]:len(ncf.dimensions[ncdimlist[d]])}) #Append dimension
-#                dimStr.update({checkedDims[i]:len(ncf.dimensions[ncdimlist[d]])}) #Append dimension
-                cmd = checkedDims[i] + '=load_ncVar(\'' + ncdimlist[d] + '\',nc=ncf)'
-                self.message(4, 'exec : ' + cmd)
-                exec(cmd)
+                cmd =  'load_ncVar(\'' + ncdimlist[d] + '\',nc=ncf)'
+                self.message(4, 'loading : {0}={1}'.format(checkedDims[i],cmd))
+                locals()[checkedDims[i]]=load_ncVar(ncdimlist[d], nc=ncf,**kwargs)
 
-        for i,d in enumerate(ncdimlist) :
-            if not identified[i] :
-                dimStr.update({d:len(ncf.dimensions[d])})
-                if ncf.variables.has_key(d) :
-                    cmd = d + '=load_ncVar(\'' + d + '\',nc=ncf)'
-                    self.message(4, 'exec : ' + cmd)
-                    exec(cmd)
-                #If the variable associated to the dimension do not exist, generate it
-                else :
-                    self.message(1, '[WARNING] Netcdf file not standard - creating data for {0} dimnsion'.format(d))
-                    ndim=len(ncf.dimensions[d])
-                    var = {'_dimensions':{'_ndims':1,d:ndim}, 'data':np.arange(ndim)}
-                    cmd = d + '=var'
-                    self.message(4, 'exec : ' + cmd)
-                    exec(cmd)
+        missdims=set(ncdimlist)
+        missdims.difference_update(ncdimlist[existDim[identified]])
+        missdims=list(missdims)
+
+        for i,d in enumerate(missdims) :
+            dimStr.update({d:len(ncf.dimensions[d])})
+            if ncf.variables.has_key(d) :
+                cmd = 'load_ncVar(\'' + d + '\',nc=ncf)'
+                self.message(4, 'loading : {0}={1}'.format(d,cmd))
+                locals()[d]=load_ncVar(d, nc=ncf,**kwargs)
+                        
+            #If the variable associated to the dimension do not exist, generate it
+            else :
+                self.message(1, '[WARNING] Netcdf file not standard - creating data for {0} dimnsion'.format(d))
+                ndim=len(ncf.dimensions[d])
+                cmd = '=var'
+                self.message(4, 'loading : {0}={1}'.format(d,cmd))
+                locals()[d]={'_dimensions':{'_ndims':1,d:ndim}, 'data':np.arange(ndim)}
         
 #        #Update dimension structure with identified dimensions
 #        for cn, vn in zip(*(checkedDims[identified], ncdimlist[identified])) : dimStr.update({cn:len(ncf.dimensions[vn])})
@@ -389,15 +392,24 @@ class nc :
             
         #Update dimlist with dimensions present in the object
 #        dimlist = np.append(checkedDims[identified], ncdimlist[~identified])
-        dimlist=[]
-        for d in dimStr.keys() :
-            if not d.startswith('_') : dimlist = np.append(dimlist,d)
+
+        dimlist=ncdimlist.copy()
+#        dimlist[existDim[identified]]=checkedDims[identified]
+        if identified.sum() > 0 : dimlist[existDim[identified]]=checkedDims[identified]
+        else : dimlist = dimlist[[]]
+        
+#        for d in ncdimlist[checkedDims[identified]] :
+#            if not d.startswith('_') : dimlist = np.append(dimlist,d)
 #        dimlist=[(d if not d.startswith('_') else None) for d in dimStr.keys()]
         
         if params is not None :
             if force : par_list = [i.upper() for i in params]
             else :par_list = list(set(params).intersection(par_list))
         else : par_list = par_list.tolist()
+        
+        #remove dimensional  variable
+        for d in ncdimlist[existDim[identified]] :
+            par_list.pop(par_list.index(d))
         
         self.message(2, 'Recorded parameters : ' + str(nparam) + ' -> ' + str(par_list))
      
@@ -477,9 +489,7 @@ class nc :
 #        for d in dimlist : outStr.update({d:self.__dict__[d]})
 
         #Sort NCDIMLIST to match DIMLIST
-#        ncdimlist[np.arange(len(identified))[np.arange(len(identified))]]=ncdimlist[existDim[identified].tolist()]
-        ncdimlist[np.sort(existDim.astype(np.int)[identified])]=ncdimlist[existDim[identified].tolist()]
-
+#        ncdimlist[np.sort(existDim.astype(np.int)[identified])]=ncdimlist[existDim[identified].tolist()]
 
         #Setup kwargs with current dimensionnal properties
         for d, ncd in zip(*(dimlist,ncdimlist)):
@@ -491,7 +501,7 @@ class nc :
                 else :
                     dvar=ncdimStr[d]['data']
                     if isinstance(dvar,np.ma.masked_array) : kwargs.update({ncd:(np.nanmin(dvar.data),np.nanmax(dvar.data))})
-                    else : kwargs.update({ncd:(np.nanmin(dvar),np.nanmax(dvar.data))})
+                    else : kwargs.update({ncd:(np.nanmin(dvar),np.nanmax(dvar))})
 #            else :
 #                outStr['NbLatitudes']['data']        
         for param in par_list :
@@ -500,14 +510,14 @@ class nc :
             
             
             dumVar = load_ncVar(param,  nc=ncf, **kwargs) #Load variables
-            dimStr = dumVar['_dimensions']
+#            dimStr = dumVar['_dimensions']
             
             #update dimensions
-            curDim = [str(dimname) for dimname in dimStr.keys()[1:]] #[str(dimname) for dimname in ncf.variables['LONGITUDE'].dimensions]
-            curDimval = [dimStr[dim] for dim in curDim] #[len(ncf.dimensions[dimname]) for dimname in curDim]
+#            curDim = [str(dimname) for dimname in dimStr.keys()[1:]] #[str(dimname) for dimname in ncf.variables['LONGITUDE'].dimensions]
+#            curDimval = [dimStr[dim] for dim in curDim] #[len(ncf.dimensions[dimname]) for dimname in curDim]
             
 #            curDim = dimlist[where_list(curDim, ncdimlist.tolist())] #Convert to object dimension names
-            curDim = dimlist[where_list(curDim, dimlist.tolist())] #Convert to object dimension names (???)
+#            curDim = dimlist[where_list(curDim, dimlist.tolist())] #Convert to object dimension names (???)
             
 ##            curDim = [str(dimname) for dimname in ncf.variables[param].dimensions]
 ##            curDimval = [len(ncf.dimensions[dimname]) for dimname in curDim]
@@ -588,11 +598,13 @@ def load_ncVar(varName, nc=None, **kwargs):
         var.set_auto_maskandscale(False)
         
         #Load dimensions
-        varDim = [str(dim) for dim in var.dimensions] #Revert the dimensions indices for numpy
-#        varDim = [str(dim) for dim in var.dimensions][::-1] #Revert the dimensions indices for numpy
+        varDim = [str(dim) for dim in var.dimensions]
         missDim=len(varDim) == 0
         if (missDim): warn('No dimension found')
         else : varDimval = [len(nc.dimensions[dimname]) for dimname in varDim]
+        
+        #Load Attributes
+        attrStr=var.__dict__
         
         ind_list = [] #Init index list
         dims = OrderedDict({'_ndims':0}) #Init dimensions
@@ -607,7 +619,6 @@ def load_ncVar(varName, nc=None, **kwargs):
             #No indexation on current dimension
             if not kwargs.has_key(vn) :
                 dstr=np.append(dstr,':')
-                
                 sz=np.long(varDimval[vid])
 #                ind_list.append(range(varDimval[vid])) # if no restriction in kargs then equivalent to [:]
 #                dims.update({vn:varDimval[vid]})
@@ -701,3 +712,84 @@ def load_ncVar(varName, nc=None, **kwargs):
         return outStr
 #            ind_list=[[]] 
     
+#Additional functions
+#def load_ncVar(varName,nc=None,**kwargs):
+#        
+#        if nc is None : raise 'No Netcdf file passed'
+#        
+#        #Load variable
+#        var = nc.variables[varName]
+#        
+#        var.set_auto_maskandscale(False)
+#        
+#        #Load dimensions
+#        varDim = [str(dim) for dim in var.dimensions]
+#        varDimval = [len(nc.dimensions[dimname]) for dimname in varDim]
+#        
+#        #Load Attributes
+#        attrStr=var.__dict__
+#        
+##        from collections import deque
+#        ind_list = [] #deque() #Init index list
+#        dims={'_ndims':0} #Init dimensions
+#
+#        #Construct index list
+#        #looping on variable dimension list
+#        for enum in enumerate(varDim) :
+#            
+#            #No indexation on current dimension
+#            if not kwargs.has_key(enum[1]) :
+##                ind_list+=tuple(xrange(varDimval[enum[0]]))
+#                ind_list.append(xrange(varDimval[enum[0]]))
+##                ind_list=(ind_list,xrange(varDimval[enum[0]])) if len(ind_list) != 0 else (xrange(varDimval[enum[0]]),)
+##                .append(xrange(varDimval[enum[0]])) # if no restriction in kargs then equivalent to [:]
+#                dims.update({enum[1]:varDimval[enum[0]]})
+#            
+#            #Data is indexed along current dimension
+#            else :
+#                dumind = kwargs[enum[1]]
+##                if not isinstance(dumind,list) : dumind=tuple(dumind)
+#                if isinstance(dumind,np.ndarray) : dumind=dumind.tolist() #Rq: tolist() can take a very long time to run on large arrays
+#                if type(dumind) is not list : dumind=[dumind] 
+#                ind_list.append(dumind)
+##                ind_list=(ind_list,dumind)  if len(ind_list) != 0 else (dumind,)
+#                dims.update({enum[1]:len(dumind)})
+#        
+#        #check index list
+#        sz=[len(i) for i in ind_list]
+#        
+#        #find empty dimensions
+#        if not (where_list([0],sz)[0] == -1 ) : varOut=var[[0]][[]] #np.array(where_list(sz,[0])) == -1
+#        else :
+#            varOut=var[ind_list]#.copy() #THIS IS LONG!!
+#            if var.shape == (1,1) : varOut=varOut.reshape(var.shape)
+#        
+#        #Mask it!
+#        if var.__dict__.has_key('_FillValue') : mask=varOut == var._FillValue
+#        elif var.__dict__.has_key('missing_value') : mask=varOut == var.missing_value
+#        else : mask=np.zeros(varOut.shape,dtype='bool')
+#        
+#        #Scale it
+#        #note : we do not use the *= or += operators to force casting to scaling attribute types
+#        if var.__dict__.has_key('scale') : varOut =varOut * var.scale
+#        elif var.__dict__.has_key('scale_factor') : varOut = varOut * var.scale_factor
+#        if var.__dict__.has_key('add_offset') : varOut = varOut + var.add_offset
+#        
+#        #Set masks properly
+#        if isinstance(varOut,np.ndarray) : varOut=np.ma.masked_array(varOut,mask=mask)
+#        elif isinstance(varOut,np.ma.masked_array) : var.mask=mask
+#        else : raise 'This data type {} has not been defined - code it!'.format(type(varOut))
+#        
+#        #Get attributes
+#        attrStr=var.__dict__
+#        attrStr.pop('_FillValue',None) #Remove this attributed as it is overidden
+#        
+#        #Append attributes to varOut
+#        varOut.__dict__.update(attrStr)
+#        
+#        #Build up output structure
+#        outStr={'_dimensions':dims,'data':varOut}
+#        dims.update({'_ndims':len(dims.keys()[1:])})
+#        
+#        return outStr
+##            ind_list=[[]] 

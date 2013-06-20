@@ -46,7 +46,7 @@ def main(argv=None):
     try:
         # setup option parser
         parser = OptionParser(version=program_version_string, epilog=program_longdesc, description=program_license)
-        parser.add_option("-v", "--verbose", dest="verbose", action="count", help="set verbosity level [default: %default]",default=0)
+        parser.add_option("-v", "--verbose", dest="verbose", action="store", type="int", help="set verbosity level [default: %default]",default=0)
         parser.add_option("-l", "--use_local_dims", dest="use_local_dims", action="store_true", help="Use local netcdf dimensions [default: %default]",default=True)
         parser.add_option("-O", "--overwrite", dest="overwrite", action="store_true", help="Overwrite output file [default: %default]",default=False)
         parser.add_option("-f", "--format", dest="format", action="store", help="Output NetCDF format [default: %default]",default="NETCDF4")
@@ -99,6 +99,12 @@ def main(argv=None):
     for k in d2.keys():
         dout.update({k:d2.get(k)})
     
+    attrStr=dout.get('_attributes',{})
+    
+    cmd=[os.path.basename(sys.argv[0])]
+    for a in argv : cmd.append(a)
+    attrStr.update({'history':attrStr.pop('history','') +' '.join(cmd)})
+    dout.update({'_attributes':attrStr})
     ncr.write(dout,fout,clobber=opts.overwrite,format=opts.format)
 
 

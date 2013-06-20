@@ -7,6 +7,7 @@ import numpy as np
 
 import matplotlib.pyplot as plt
 from netCDF4 import Dataset as ncfile
+from altimetry.tools.nctools import load_ncVar
 try:
     import seawater.gibbs as gsw
     import seawater.csiro as csw
@@ -24,11 +25,9 @@ from altimetry.tools import recale_limits, in_limits, cumulative_distance, calcu
 from collections import OrderedDict
 
 
-
-
 class hydro_data(object):
     
-    def __init__(self,file_pattern,limit=None,verbose=1,round=True,zero_2pi=False,output_is_dict=True,**kwargs):
+    def __init__(self,file_pattern,limit=None,verbose=1,round=True,zero_2pi=True,output_is_dict=True,**kwargs):
         
         #Init system variables
 #        if limit is None : limit=[-90.,0.,90.,360.]
@@ -265,7 +264,7 @@ class hydro_data(object):
             
             #Check mask consistency (mask length should be the same as data)
             if masked :
-                if self.__dict__.get(enum[1][0]).mask.size != self.__dict__.get(enum[1][0]).data.size : raise np.ma.core.MaskError("Mask length is not consistent with data")
+                if (self.__dict__.get(enum[1][0]).mask.size != self.__dict__.get(enum[1][0]).data.size): raise np.ma.core.MaskError("Mask length is not consistent with data")
             
             #Check dimensions
             self.message(4, 'checking variables -> {0}(N={1}) - {2}:{3}'.format(enum[1][0],varSize,enum[1][1],dimSize))
@@ -528,6 +527,20 @@ class hydro_data(object):
 #        if not surf : return (self.date >= timerange[0]) & (self.date < timerange[1])
 #        else : return (self.date_surf >= timerange[0]) & (self.date_surf < timerange[1])
 
+    def update_with_slice(self,flag):
+        
+        N=flag.sum()
+        
+        #Get object attributes to update
+        varSize = np.array([np.size(self.__dict__[k]) for k in self.__dict__.keys()])
+        par_list=np.array(self.__dict__.keys())[varSize == self._dimensions['time']].tolist()
+        
+        self._dimensions['time']=N
+        
+        for par in par_list :
+            self.__setattr__(par,self.__dict__[par][flag])
+            if (hasattr(self.__dict__[par], '_dimensions')) : self.__dict__[par]._dimensions['time']=self._dimensions['time']
+
     def get_file(self,pattern):
         flag=[fnmatch.fnmatch(l,pattern) for l in self.filelist]
         id=self.fid_list.compress(flag)
@@ -687,7 +700,7 @@ class hydro_data(object):
         
         if endpoint_size is None : endpoint_size=2*ms
         
-        id_list=np.unique(id).astype('a')
+        id_list=np.unique(id)
         cnt=np.size(id_list)
         
 #        #Go to next iteration when no data
@@ -940,6 +953,7 @@ class buoy_data(hydro_data):
 #        if extension == '.nc' : outStr=self.read_ArgoNC(filename,N_LEVELS=0,**kwargs)
         if extension == '.nc' : outStr=self.read_ArgoNC(filename,**kwargs)
         elif extension == '.dat' : outStr = self.read_txt(filename)
+        elif extension == '.asc' : outStr = self.read_asc(filename) #CLS dumps
         else : self.Error('Unknown formatting')
         
         
@@ -1032,7 +1046,57 @@ class buoy_data(hydro_data):
         
         
         
-        return {'_dimensions':{'_ndims':ndims,'nbpoints':sz[0]},'lon':lon,'lat':lat,'date':date,'id':id,'temp':temp,'u':u,'v':v}
+        return {'_dimensions':{'_ndims':ndims,'N_PROF':sz[0],'N_LEVELS':1},'lon':lon,'lat':lat,'date':date,'id':id,'temp':temp,'u':u,'v':v}
+
+    def read_asc(self,filename):
+        
+        #Open file
+        self._filename = filename
+        
+        asc=open(self._filename)
+        
+        #get header length
+        l=0
+        for line in asc.readlines():
+            if not line.startswith('//') : break
+            else : l+=1
+                
+        data=np.genfromtxt(filename,skip_header=l)
+        
+        sz=data.shape[0]
+        mask=np.zeros(sz,dtype=bool)
+        
+        dimStr={'_dimensions':{'_ndims':2,'N_PROF':sz,'N_LEVELS':1}}
+        
+        #Convert to numpy arrays
+        id={'_dimensions':{'_ndims':1,'N_PROF':sz},'data':np.ma.masked_array(data[:,0],mask=mask)}
+        date={'_dimensions':{'_ndims':1,'N_PROF':sz},'data':np.ma.masked_array(data[:,1],mask=mask)}
+        lon={'_dimensions':{'_ndims':1,'N_PROF':sz},'data':np.ma.masked_array(data[:,2],mask=mask)}
+        lat={'_dimensions':{'_ndims':1,'N_PROF':sz},'data':np.ma.masked_array(data[:,3],mask=mask)}
+        utot={'_dimensions':{'_ndims':1,'N_PROF':sz},'data':np.ma.masked_array(data[:,4],mask=mask)}
+        vtot={'_dimensions':{'_ndims':1,'N_PROF':sz},'data':np.ma.masked_array(data[:,5],mask=mask)}
+        uek={'_dimensions':{'_ndims':1,'N_PROF':sz},'data':np.ma.masked_array(data[:,6],mask=mask)}
+        vek={'_dimensions':{'_ndims':1,'N_PROF':sz},'data':np.ma.masked_array(data[:,7],mask=mask)}
+        uekfilt={'_dimensions':{'_ndims':1,'N_PROF':sz},'data':np.ma.masked_array(data[:,8],mask=mask)}
+        vekfilt={'_dimensions':{'_ndims':1,'N_PROF':sz},'data':np.ma.masked_array(data[:,9],mask=mask)}
+        
+        u={'_dimensions':{'_ndims':1,'N_PROF':sz},'data':utot['data']-uek['data']}
+        v={'_dimensions':{'_ndims':1,'N_PROF':sz},'data':vtot['data']-vek['data']}
+        ugeofilt={'_dimensions':{'_ndims':1,'N_PROF':sz},'data':utot['data']-uekfilt['data']}
+        vgeofilt={'_dimensions':{'_ndims':1,'N_PROF':sz},'data':vtot['data']-vekfilt['data']}
+        
+        N_PROF={'_dimensions':{'_ndims':1,'N_PROF':sz},'data':np.ma.array(np.arange(sz),mask=mask)}
+        N_LEVELS={'_dimensions':{'_ndims':1,'N_PROF':sz},'data':np.ma.array(np.repeat(25.,sz),mask=mask)}
+        
+        outStr = OrderedDict()
+        outStr.update(dimStr)
+        
+        keys=['N_PROF','N_LEVELS','date','id','lon','lat','u','v','ugeofilt','vgeofilt','uek','vek','uekfilt','vekfilt']
+        for k in keys :
+            outStr.update({k:locals()[k]})
+        
+        return outStr
+             
 
 #    def plot_track(self,pmap,date):
 #        
@@ -1445,79 +1509,3 @@ def read_cnv(self,filename,**kwargs):
                 
         return {'_dimensions':{'_ndims':ndims,'nbpoints':sz[0]},'lon':lon,'lat':lat,'date':date,'id':id,'depth':depth,'pres':pres,'temp':temp,'psal':psal}  
    
-
-
-#Additional functions
-def load_ncVar(varName,nc=None,**kwargs):
-        
-        if nc is None : raise 'No Netcdf file passed'
-        
-        #Load variable
-        var = nc.variables[varName]
-        
-        var.set_auto_maskandscale(False)
-        
-        #Load dimensions
-        varDim = [str(dim) for dim in var.dimensions]
-        varDimval = [len(nc.dimensions[dimname]) for dimname in varDim]
-        
-        #Load Attributes
-        attrStr=var.__dict__
-        
-        ind_list=[] #Init index list
-        dims={'_ndims':0} #Init dimensions
-
-        #Construct index list
-        #looping on variable dimension list
-        for enum in enumerate(varDim) :
-            
-            #No indexation on current dimension
-            if not kwargs.has_key(enum[1]) :
-                ind_list.append(range(varDimval[enum[0]])) # if no restriction in kargs then equivalent to [:]
-                dims.update({enum[1]:varDimval[enum[0]]})
-            
-            #Data is indexed along current dimension
-            else :
-                dumind = kwargs[enum[1]]
-                if isinstance(dumind,np.ndarray) : dumind=dumind.tolist() #Rq: tolist() can take a very long time to run on large arrays
-                if type(dumind) is not list : dumind=[dumind] 
-                ind_list.append(dumind)
-                dims.update({enum[1]:len(dumind)})
-        
-        #check index list
-        sz=[np.size(i) for i in ind_list]
-        
-        #find empty dimensions
-        if not (where_list([0],sz)[0] == -1 ) : varOut=var[[0]][[]] #np.array(where_list(sz,[0])) == -1
-        else : varOut=var[ind_list]
-        
-        #Mask it!
-        if var.__dict__.has_key('_FillValue') : mask=varOut == var._FillValue
-        elif var.__dict__.has_key('missing_value') : mask=varOut == var.missing_value
-        else : mask=np.zeros(varOut.shape,dtype='bool')
-        
-        #Scale it
-        #note : we do not use the *= or += operators to force casting to scaling attribute types
-        if var.__dict__.has_key('scale') : varOut =varOut * var.scale
-        elif var.__dict__.has_key('scale_factor') : varOut = varOut * var.scale_factor
-        if var.__dict__.has_key('add_offset') : varOut = varOut + var.add_offset
-        
-        #Set masks properly
-        if isinstance(varOut,np.ndarray) : varOut=np.ma.masked_array(varOut,mask=mask)
-        elif isinstance(varOut,np.ma.masked_array) : var.mask=mask
-        else : raise 'This data type {} has not been defined - code it!'.format(type(varOut))
-        
-        #Get attributes
-        attrStr=var.__dict__
-        attrStr.pop('_FillValue',None) #Remove this attributed as it is overidden
-        
-        #Append attributes to varOut
-        varOut.__dict__.update(attrStr)
-        
-        #Build up output structure
-        outStr={'_dimensions':dims,'data':varOut}
-        dims.update({'_ndims':len(dims.keys()[1:])})
-        
-        return outStr
-#            ind_list=[[]] 
-    

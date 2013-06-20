@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import numpy as np
-import scipy
+import scipy.interpolate
 import threading
 import Queue
 import bisect
@@ -131,8 +131,17 @@ def interp2d1d(x,y,Z,xout,yout,**kwargs):
     gxout = xout
     gyout = yout
     gz = Z.flatten()
+    
+    Zout=np.empty(Z.shape,dtype=Z.dtype)
+    
+#    if isinstance(Z,np.ma.masked_array):
+#        mask=Z.mask
+#        Zout=np.ma.array(Zout,mask=True)
+#    else : mask=np.ones(gz.shape,dtype=bool)
      
-    points = zip(*(gx.flatten(),gy.flatten())) 
+#    points_masked = zip(*(gx[mask].flatten(),gy[mask].flatten()))
+    points = zip(*(gx.flatten(),gy.flatten()))
+#    gz=gz[mask.flatten()]
     xi = zip(*(gxout,gyout))
     
     try : Zout = scipy.interpolate.griddata(points, gz, xi, **kwargs)
@@ -291,7 +300,7 @@ def interp2d1d_parallel(x,y,Z,xout,yout,split_factor=4,**kwargs):
     
 
 
-def interp2d2d(x,y,Z,xout,yout,split_factor=2,**kwargs):
+def interp2d2d(x,y,Z,xout,yout,split_factor=1,**kwargs):
     """    
     INTERP2D2D : Interpolate a 2D matrix into another 2D matrix
     
@@ -315,45 +324,26 @@ def interp2d2d(x,y,Z,xout,yout,split_factor=2,**kwargs):
         #We override the __init__ method
         def __init__(self, input_q,indices_q,result_q):
             threading.Thread.__init__(self)
-            self.Z = input_q
-#            self.indices = indices_q
+            self.input = input_q
+            self.indices = indices_q
             self.result = result_q
         
         def task(self,NaN=True):
             
             #grabs host from queue
             inargs = self.input.get()
-            x = inargs[0]
-            y = inargs[1]
-            Z = inargs[2]
-            xout = inargs[3]
-            yout = inargs[4]
+            ind = inargs[0] #thread index
+            x = inargs[1]
+            y = inargs[2]
+            Z = inargs[3]
+            xout = inargs[4]
+            yout = inargs[5]
             
-            #Get dimensions to split matrix
-            nxin=x.size
-            nyin=y.size
-            nxout=xout.size
-            nyout=yout.size
+            Zout=_interp2d2d(x,y,Z,xout,yout,**kwargs)
             
-#            if verbose > 0 : print "%s started at time: %s" % (self.getName(), datetime.datetime.now())
-            
-            gx = np.reshape(np.repeat(x,nyin),(nxin,nyin))
-            gy = np.reshape(np.repeat(y,nxin),(nyin,nxin)).transpose((1,0))
-        
-            gxout = np.reshape(np.repeat(xout,nyout),(nxout,nyout)).flatten()
-            gyout = np.reshape(np.repeat(yout,nxout),(nyout,nxout)).transpose((1,0)).flatten()
-        
-            gz = Z.flatten()
-             
-            points = zip(*(gx.flatten(),gy.flatten())) 
-            xi = zip(*(gxout,gyout))
-            
-            try : Zout = scipy.interpolate.griddata(points, gz, xi, **kwargs)
-            except RuntimeError : Zout = np.ones((xout.size,yout.size))*np.NaN
         #    Zout = sc.interpolate.griddata(points, gz, xi, **kwargs)
-            return Zout.reshape((xout.size,yout.size))   
-                   
-#            self.indices.put(h)
+            
+            self.indices.put(ind)
             self.result.put(Zout)
     
             del Zout
@@ -390,6 +380,9 @@ def interp2d2d(x,y,Z,xout,yout,split_factor=2,**kwargs):
     gyout = np.reshape(np.repeat(yout,nxout),(nyout,nxout)).transpose((1,0))
     
     #Map output coordinates
+    ind=[]
+    
+    #Map output coordinates
     xsplit=[]
     ysplit=[]
     for i in np.arange(split_factor) : 
@@ -422,40 +415,84 @@ def interp2d2d(x,y,Z,xout,yout,split_factor=2,**kwargs):
     
     #Feed threads with data
     for i in range(N_threads):
-        xoind=np.array(xsplit)[[i*2,(i*2)+1]]
-        yoind=np.array(ysplit)[[i*2,(i*2)+1]]
+        xoind=xsplit[[i*2,(i*2)+1]]
+        yoind=ysplit[[i*2,(i*2)+1]]
         xiind=x[xout[xoind].astype(int)].astype(int)
         yiind=y[yout[yoind].astype(int)].astype(int)
-        th_x=gx[xiind[0]:xiind[1],yiind[0]:yiind[1]]
-        th_y=gy[xiind[0]:xiind[1],yiind[0]:yiind[1]]
-        th_xo=gx[xoind[0]:xoind[1],yoind[0]:yoind[1]]
-        th_yo=gy[xoind[0]:xoind[1],yoind[0]:yoind[1]]
-        th_z=Z[xiind[0]:xiind[1],yiind[0]:yiind[1]]
-        print i
-#        input_q.put((i,th_x,th_y,Z[indices[i]],x[indices[i]],cut,ind_out[i]))
+        th_x=x[xiind[0]:xiind[1]+1]
+        th_y=y[yiind[0]:yiind[1]+1]
+        th_xo=xout[xoind[0]:xoind[1]+1]
+        th_yo=yout[yoind[0]:yoind[1]+1]
+        th_z=Z[xiind[0]:xiind[1]+1,yiind[0]:yiind[1]+1]
+#        input_q.put((i,np.copy(points),gz.copy(),xout[iind[i]].copy(),yout[iind[i]].copy()))
+        input_q.put((i,th_x,th_y,th_z,th_xo,th_yo))
 
-#    #wait on the queue until everything has been processed     
-#    input_q.join()
-#    
-#    #Sort threads
-#    tnb=[]
-#    for i in range(N_threads) : tnb.append(indices_q.get(i))
-#    tsort=np.argsort(tnb)
-#    
-#    #Get back the results for each thread in a list of results
-#    for i in np.arange(N_thread) :
-#        r=result_q.get(i)
-#        if i == 0 : dum = [r]
-#        else : dum.append(r)
-#
-#    #Reorder data from each thread into output matrix
-#    for i in tsort :
-#        if i == tsort[0] : outmat = dum[i]
-#        else : outmat=np.ma.concatenate((outmat,dum[i]),0) if isinstance(h,np.ma.masked_array) else np.concatenate((outmat,dum[i]),0)
-#    
-#    if len(outmat) != len(h) :
-#        raise '[ERROR]Output array is not coherent with input array - check array reconstruction'
-#    return(outmat)
+   
+#    outvar=Z.copy()
+#    outvar.data[:]=outvar.fill_value
+    
+#    for i in range(N_threads):
+#        print "%s launched time: %s" % (i, datetime.datetime.now())
+#        input_q.put((i,np.copy(points),gz.copy(),xout[iind[i]].copy(),yout[iind[i]].copy()))
+
+    
+
+    #wait on the queue until everything has been processed     
+    input_q.join()
+    
+    #Sort threads
+    tnb=[]
+    for i in range(N_threads) : tnb.append(indices_q.get(i))
+    tsort=np.argsort(tnb)
+    
+    #Get back the results for each thread in a list of results
+    for i in np.arange(N_threads) :
+        r=result_q.get(i)
+        if i == 0 : dum = [r]
+        else : dum.append(r)
+
+    #Reorder data from each thread into output matrix
+    for i in tsort :
+        if i == tsort[0] : outmat = dum[i]
+        else : outmat=np.ma.concatenate((outmat,dum[i]),0) if isinstance(outmat,np.ma.masked_array) else np.concatenate((outmat,dum[i]),0)
+    
+    if len(outmat) != len(outmat) :
+        raise '[ERROR]Output array is not coherent with input array - check array reconstruction'
+    return(outmat)
+
+def _interp2d2d(x,y,Z,xout,yout,**kwargs):
+            
+            #Get dimensions to split matrix
+            nxin=x.size
+            nyin=y.size
+            nxout=xout.size
+            nyout=yout.size
+            
+#            if verbose > 0 : print "%s started at time: %s" % (self.getName(), datetime.datetime.now())
+            
+            gx = np.reshape(np.repeat(x,nyin),(nxin,nyin))
+            gy = np.reshape(np.repeat(y,nxin),(nyin,nxin)).transpose((1,0))
+        
+            gxout = np.reshape(np.repeat(xout,nyout),(nxout,nyout)).flatten()
+            gyout = np.reshape(np.repeat(yout,nxout),(nyout,nxout)).transpose((1,0)).flatten()
+        
+            gz = Z.flatten()
+            if isinstance(Z,np.ma.masked_array): gmask=gz.mask
+             
+            points = zip(*(gx.flatten(),gy.flatten())) 
+            xi = zip(*(gxout,gyout))
+            
+            try : Zout = scipy.interpolate.griddata(points, gz, xi, **kwargs)
+            except RuntimeError : Zout = np.ones((xout.size,yout.size))*np.NaN
+            
+            Zout=Zout.reshape((xout.size,yout.size))
+            
+            if isinstance(Z,np.ma.masked_array) :
+                try : maskout = scipy.interpolate.griddata(points, gmask, xi, **kwargs).astype(bool)
+                except RuntimeError : Zout = np.ones((xout.size,yout.size))*np.NaN
+                Zout = np.ma.array(Zout,mask=maskout.reshape(xout.size,yout.size))
+            
+            return Zout
 
 def interp3d(x,y,t,Z,xout,yout,tout,**kwargs):
     

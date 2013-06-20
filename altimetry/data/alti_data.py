@@ -132,6 +132,229 @@ class alti_data(htools.hydro_data) :
     def read_sla(self,filename,params=None,force=False,timerange=None,datatype=None,**kwargs):
         
         """
+        READ_SLA : Read AVISO Along-Track products
+        
+        @return: outStr {type:dict} Output data structure containing all recorded parameters as specificied by NetCDF file PARAMETER list.
+        @author: Renaud Dussurget
+        """
+        
+        from time import time
+        from datetime import timedelta
+#        a = time()
+        
+        self.message(2,'Reading SLAext data ({0})'.format(datatype))
+        
+        #Open file
+        self._filename = filename
+        self._ncfile = ncfile(self._filename, "r")
+        
+        #Get delimiter
+        if os.path.basename(filename).count('.') > os.path.basename(filename).count('_'): delim='.'
+        else : delim = '_'
+        
+        #Gat sat name
+        splitted=os.path.basename(filename).split(delim)
+        if (datatype == 'DT') | (datatype == 'NRT') : sat_name = splitted[2] if splitted[0] == 'nrt' else splitted[3]
+        if datatype == 'PISTACH' : sat_name = 'J2'
+        
+     
+        #Get list of recorded parameters:
+        par_list=[i.encode() for i in self._ncfile.variables.keys()]
+        for i in ['BeginDates','Longitudes','Latitudes'] : par_list.pop(par_list.index(i))
+        nparam=len(par_list)
+        
+        self.message(2,'Recorded parameters : '+str(nparam)+' -> '+str(par_list))
+     
+        lon = self.load_ncVar('Longitudes',**kwargs)
+        lon['data'] = recale(lon['data'], degrees=True, zero_2pi=True) #shift longitudes
+        lat = self.load_ncVar('Latitudes',**kwargs)
+        
+#        lon = self.load_ncVar('Longitudes',Longitudes=(self.limit[1],self.limit[3]),**kwargs)
+#        lon['data'] = recale(lon['data'], degrees=True, zero_2pi=True) #shift longitudes
+#        lat = self.load_ncVar('Latitudes',Latitudes=(self.limit[0],self.limit[1]),**kwargs)
+
+        
+        #Extract within limits
+        ind, flag = in_limits(lon['data'],lat['data'],limit=self.limit)
+        dim_lon = lon['_dimensions']
+        lat = lat['data'].compress(flag)
+        lon = lon['data'].compress(flag)
+        dist=cumulative_distance(lat, lon)
+        
+        sz=np.shape(lon)
+        ndims=np.size(sz)
+        
+        #Get dates
+        stDate = self.load_ncVar('BeginDates',**kwargs)['data']
+        nbCyc = self.load_ncVar('Cycles',**kwargs)['data']
+        Ntra = nbCyc.shape[0]
+        Ncycs = nbCyc.shape[1] if len(nbCyc.shape) > 1 else 1
+        nbTra = self.load_ncVar('Tracks',**kwargs)['data']
+        
+#        if np.size(stDate) == 1 : stDate.
+        
+        DeltaT = self._ncfile.variables['DeltaT'][0]  / 86400. #* self._ncfile.variables['DeltaT'].scale_factor
+        npts = self.load_ncVar('NbPoints',**kwargs)['data']
+        dumind=np.cumsum(npts)
+        
+        #Loop 1
+#        date=np.ma.array([],mask=[])
+#        cycles=np.ma.array([],mask=[])
+#        tracks=np.ma.array([],mask=[])
+#        for i in xrange(Ncycs) :
+#            np.ma.concatenate((nbTra,nbTra))
+#        
+#        for i,nc in enumerate(nbCyc.data.flatten()):
+#            N=npts[i]
+#            curInd=np.array(list(set(xrange(dumind[i]-N,dumind[i]) if N > 0 else []).intersection(ind)))
+#            ncur=len(curInd)
+#            date=np.ma.concatenate((date,(curInd - dumind[0])*DeltaT+stDate.flatten()[i]))
+#            cycles=np.ma.concatenate((cycles,np.ma.array((nbCyc.data.flatten()[i],)*ncur)))#,mask=np.repeat(nbCyc.mask[i][j],ncur))))
+#            tracks=np.ma.concatenate((tracks,np.ma.array((nbTra.data.flatten()[i],)*ncur)))
+        
+        #Loop 2
+        
+        import operator
+        
+        date = ()
+        cycles = ()
+        tracks = ()
+        
+#        rowind = (0,)*Ntra
+        
+#        nind=0
+#        for i in xrange(Ncycs): nind+=(npts*(~nbCyc.mask.T[i])).sum()
+        
+        indcopy=ind.copy()
+#        npts_copy=npts.copy()
+        npts[npts.mask]=0
+        dumind[dumind.mask]=0
+        
+        nbTra_copy=nbTra.copy()
+        
+        for i in np.arange(1,Ncycs) :
+            nbTra=np.ma.concatenate((nbTra,nbTra_copy))
+            npts=np.ma.concatenate((npts,(0,)*Ntra))
+#            rowind+=(i,)*Ntra      
+        
+        npts=npts.reshape(nbCyc.shape[::-1]).T
+        nbTra=nbTra.reshape(nbCyc.shape[::-1]).T
+#        rowind=np.reshape(rowind,nbCyc.shape[::-1]).T
+        
+#        npts.mask=nbCyc.mask
+        nbTra.mask=nbCyc.mask
+        
+        npts=npts.flatten()
+        nbTra=nbTra.flatten()
+#        rowind=rowind.flatten()
+        
+        nbCyc_flatten=nbCyc.flatten()
+        nbTra_flatten=nbTra.flatten()
+        stDate_flatten=stDate.flatten()
+        
+#        nind=0
+        
+        outInd=[]
+        
+        for i,nc in enumerate(nbCyc.data.flatten()):
+            N=npts[i]
+            Nprev=npts[i-Ncycs] if i >= (Ncycs) else 0
+            indcopy-=Nprev #if rowind[i] == 0 else 0
+            curInd=tuple(sorted(set(xrange(N) if N > 0 else []).intersection(indcopy)))
+            ncur=len(curInd)
+#            nind+=ncur
+            outInd+=map(operator.sub, curInd,(( (curInd[0] if len(curInd) > 0 else 0) - (outInd[-1] if len(outInd) > 0 else 0) + len(ind)*(np.remainder(float(i),Ncycs)),)*ncur))
+            curInd=tuple(map(operator.mul, curInd, (DeltaT,)*ncur))     
+            date+=tuple(map(operator.add, curInd, (stDate_flatten[i],)*ncur))
+            cycles+=(nbCyc_flatten[i],)*ncur
+            tracks+=(nbTra_flatten[i],)*ncur
+        
+        date=np.ma.masked_array(date,mask=False)
+        cycles=np.ma.masked_array(cycles,mask=False)
+        tracks=np.ma.masked_array(tracks,mask=False)
+                
+        #Loop 3
+#        date=np.ma.array([],mask=[])
+#        cycles=np.ma.array([],mask=[])
+#        tracks=np.ma.array([],mask=[])
+#        for j in xrange(Ncycs) :
+#            for i,N in enumerate(npts.data) :
+##                curFg=(ind >= dumind[i]-N) & (ind <= dumind[i])
+#                curInd=np.array(list(set(xrange(dumind[i]-N,dumind[i]) if N > 0 else []).intersection(ind)))
+#                ncur=len(curInd)
+#                date=np.ma.concatenate((date,(curInd - dumind[0])*DeltaT+stDate[i][j]))
+#                cycles=np.ma.concatenate((cycles,np.ma.array((nbCyc.data[i][j],)*ncur)))#,mask=np.repeat(nbCyc.mask[i][j],ncur))))
+#                tracks=np.ma.concatenate((tracks,np.ma.array((nbTra.data[i],)*ncur)))#,mask=np.repeat(nbCyc.mask[i][j],ncur))))
+        
+        outInd=np.array(outInd,dtype=int)
+        
+        nt=len(date)
+        date.mask=(False,)*nt
+        cycles.mask=date.mask
+        tracks.mask=date.mask
+#        date=date.reshape((Ncycs,)+(npts.sum(),)).T
+#        mask=date.mask
+#        date=date.compressed()
+#        cycles=cycles.reshape((Ncycs,)+(npts.sum(),)).T.compressed()
+#        tracks=tracks.reshape((Ncycs,)+(npts.sum(),)).T.compressed()
+        
+        
+#        lon=np.repeat(lon,Ncycs)
+#        lat=np.repeat(lat,Ncycs)
+#        mask=~lon.mask
+        
+        dimStr = dim_lon
+        dimStr.pop('Data')
+        nrec=len(date)
+        dimStr.update({'time':nrec})
+        
+        for i in ['DeltaT','NbPoints','Cycles','Tracks','DataIndexes'] : par_list.pop(par_list.index(i))
+        
+        outStr={'_dimensions':dimStr,'lon':lon,'lat':lat,'date':date,'cycle':cycles,'track':tracks}
+        
+        
+        
+        for param in par_list :
+            a = time()
+            dumVar = self.load_ncVar(param,Data=ind,**kwargs) #Load variables            
+            runtime = time() - a
+#            print 'runtime:', timedelta(seconds=runtime)
+            
+            dimStr=dumVar['_dimensions']
+            dimStr.pop('Cycles')
+            dimStr.pop('Data')
+            dimStr['time']=nrec
+            dimStr['_ndims']=len(dimStr.keys())-1
+            
+            #update dimensions
+            curDim = [str(dimname) for dimname in dimStr.keys()[1:]] #[str(dimname) for dimname in self._ncfile.variables['LONGITUDE'].dimensions]
+            curDimval = [dimStr[dim] for dim in curDim] #[len(self._ncfile.dimensions[dimname]) for dimname in curDim]
+            flag = [(np.array(dimname) == outStr['_dimensions'].keys()).sum() == 0 for dimname in curDim] #find dimensions to update
+            dimUpdate = np.array(curDim).compress(flag)
+            for enum in enumerate(dimUpdate) : 
+                self.message(3, 'Appending dimensions {0}:{1} to dataStructure'.format(enum[1],np.array(curDimval).compress(flag)[enum[0]]))
+                outStr['_dimensions'].update({enum[1]:np.array(curDimval).compress(flag)[enum[0]]}) #Append new dimension
+                outStr['_dimensions']['_ndims']+=1 #update dimension counts
+            
+#            dumStr = {param.lower() : dumVar['data']}
+            dumStr = {param.lower() : dumVar['data'].flatten()[outInd]}
+#            cmd = 'dumStr = {\''+param.lower()+'\':dumVar[\'data\']}'
+#            self.message(4, 'exec : '+cmd)
+#            exec(cmd)
+            outStr.update(dumStr)
+        
+        id=np.repeat(sat_name,outStr['_dimensions']['time'])
+        
+        
+        outStr.update({'id':id})
+        self._ncfile.close()
+        
+        #Checkit [len(outStr[k]) for k in outStr.keys()]
+        return outStr
+    
+    def read_slaext(self,filename,params=None,force=False,timerange=None,datatype=None,**kwargs):
+        
+        """
         READ_SLAEXT : Read AVISO Along-Track SLA regional products
         
         @return: outStr {type:dict} Output data structure containing all recorded parameters as specificied by NetCDF file PARAMETER list.
@@ -433,19 +656,19 @@ class alti_data(htools.hydro_data) :
         date.mask=False
         return date[:,N/2]
     
-    def update_with_slice(self,flag):
-        
-        N=flag.sum()
-        
-        #Get object attributes to update
-        varSize = np.array([np.size(self.__dict__[k]) for k in self.__dict__.keys()])
-        par_list=np.array(self.__dict__.keys())[varSize == self._dimensions['time']].tolist()
-        
-        self._dimensions['time']=N
-        
-        for par in par_list :
-            self.__setattr__(par,self.__dict__[par][flag])
-            if (hasattr(self.__dict__[par], '_dimensions')) : self.__dict__[par]._dimensions['time']=self._dimensions['time']
+#    def update_with_slice(self,flag):
+#        
+#        N=flag.sum()
+#        
+#        #Get object attributes to update
+#        varSize = np.array([np.size(self.__dict__[k]) for k in self.__dict__.keys()])
+#        par_list=np.array(self.__dict__.keys())[varSize == self._dimensions['time']].tolist()
+#        
+#        self._dimensions['time']=N
+#        
+#        for par in par_list :
+#            self.__setattr__(par,self.__dict__[par][flag])
+#            if (hasattr(self.__dict__[par], '_dimensions')) : self.__dict__[par]._dimensions['time']=self._dimensions['time']
         
     def ncstruct(self):
         par_list = self.par_list.tolist()

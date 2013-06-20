@@ -29,7 +29,7 @@ class plot_map(Basemap):
         edgecolor = kwargs.pop('edgecolor', 'none')
         limit = kwargs.pop('limit', None)
         resolution = kwargs.pop('resolution', 'i')
-        projection = kwargs.pop('projection', 'tmerc')
+        projection = kwargs.pop('projection', 'merc')
         xoffset = kwargs.pop('xoffset', 0.05)
         yoffset = kwargs.pop('yoffset', 0.05)
         length = kwargs.pop('length', 50.)

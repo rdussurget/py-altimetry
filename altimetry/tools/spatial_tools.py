@@ -5,12 +5,12 @@ if __debug__ : import matplotlib.pyplot as plt
 
 def in_limits(lon, lat, limit):
     
-    limit = recale_limits(limit)
+    limitin = recale_limits(limit)
     
-    lats = limit[0]
-    lons = limit[1]
-    late = limit[2]
-    lone = limit[3]
+    lats = limitin[0]
+    lons = limitin[1]
+    late = limitin[2]
+    lone = limitin[3]
 
     ind=[]
     
@@ -51,37 +51,58 @@ def in_limits(lon, lat, limit):
     
     return ind, flag
 
-def recale_limits(limitin, zero_2pi=True, minpi_pi=None): 
+def recale_limits(limitin, zero_2pi=True, minpi_pi=None,type=None): 
+    
+    if type is not None : limitin=[type(l) for l in limitin]
     
     #defaults
     if (minpi_pi is not None) : zero_2pi != minpi_pi
+    if (zero_2pi is not None) & (zero_2pi is False) : minpi_pi = True
     
-    limitout=limitin
+    limitout=limitin[:]
     if isinstance(limitin,np.ndarray) : limitout[[1,3]]=recale(limitin[[1,3]], zero_2pi=zero_2pi, minpi_pi=minpi_pi,degrees=True) #Always in degrees!
     else :
         limitout[1]=recale(limitin[1], zero_2pi=zero_2pi, minpi_pi=minpi_pi,degrees=True)
-        limitout[3]=recale(limitin[3]-1e2*np.MachAr().resolution, zero_2pi=zero_2pi, minpi_pi=minpi_pi,degrees=True)
+        limitout[3]=recale(limitin[3], zero_2pi=zero_2pi, minpi_pi=minpi_pi,degrees=True)
 
+    if type is not None : limitin=[type(l) for l in limitout]
     return limitout
 
 def recale(angle, degrees=False, zero_2pi=True, minpi_pi=None) :
 
     #defaults
     if (minpi_pi is not None) : zero_2pi = not minpi_pi
-    radians = not degrees
-  
-    modulus= 360.0 if degrees else 2.0 * np.pi
-  
+    
+    modulus = 360.0 if degrees else 2.0*np.pi
+    
     limits=np.array([0.0, 2.0*np.pi])
     if minpi_pi : limits-=np.pi
     if degrees : limits = np.rad2deg(limits)
+#    if minpi_pi : angle+=limits[0]
     
-    angle = np.mod(angle + limits[0],limits[0]+limits[1]) - limits[0]
+#    angle = np.mod(angle + limits[0],limits[0]+limits[1]) - limits[0]
+    
+#     res = angle
+#     if angle > limits[1] or angle == limits[0]:
+#         angle = limits[0] + abs(angle + limits[1]) % (abs(limits[0]) + abs(limits[1]))
+#     if angle < limits[0] or angle == limits[1]:
+#         angle = limits[1] - abs(limits[1] - lower) % (abs(limits[0]) + abs(limits[1]))
+    
+    over=angle > limits[1]
+    under=angle < limits[0]
+#    over=np.mod(angle,limits[1])
+#    under=angle < limits[0]
+    angle+=under*modulus#*np.floor(np.abs(angle)/modulus)
+    angle-=over*modulus#*np.floor(np.abs(angle)/modulus)
+  
+    
+#    if minpi_pi : angle+=limits[0]
     
 #    over=angle >= limits[1]
 #    under=angle < limits[0]
-#    angle+=under*modulus
-#    angle-=over*modulus
+#    angle = over *(limits[0] + abs(angle[over] + limits[1]) % (abs(limits[0]) + abs(limits[1])))
+#    angle= under * (limits[1] - abs(angle[under] - limits[0]) % (abs(limits[0]) + abs(limits[1])))
+
   
     return angle
 
