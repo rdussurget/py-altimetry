@@ -10,6 +10,7 @@ from scipy import zeros, linspace, shape, float32 as Float, concatenate
 import numpy as np
 import matplotlib.colors
 import glob, os
+from altimetry import defaults
 
 
 def cpt2seg(file_name, sym=False, discrete=False):
@@ -82,7 +83,7 @@ def revert_cpt(cptdata):
 
 def get_cmap(cmap_name,revert=False,N=256):
     
-    cpt_dir='C:\\Workspace\\PyWorkspace\\PyValid\\altimetry\\externals\\cpt-city\\'
+    cpt_dir=defaults.cptDir
     
     ls = glob.glob(cpt_dir + cmap_name + '.cpt')
     if len(ls) == 0 : raise Exception('file {0} do not exists'.format(os.path.basename(cpt_dir + cmap_name + '.cpt')))

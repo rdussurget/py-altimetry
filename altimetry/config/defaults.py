@@ -5,6 +5,7 @@ Created on 7 dec 2012
 @author: rdussurg
 '''
 import os
+from altimetry import __file__ as root_file
 
 #Path storage class
 class subclass(object):
@@ -29,3 +30,5 @@ class defaults(object):
         '''
         self.etopo=subclass('/archive/MSA/rdussurget/sauvegarde_13032013/VMShared/data/spare_products/bathy/ETOPO2v2g_f4.nc')
         self.menor=subclass('/archive/MSA/rdussurget/sauvegarde_13032013/VMShared/data/spare_products/bathy/bathy_menor.mat')
+        self.rootDir=os.path.dirname(root_file)
+        self.cptDir=os.path.join(self.rootDir,'externals/cpt-city/')

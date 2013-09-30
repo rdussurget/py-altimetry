@@ -100,7 +100,7 @@ class alti_data(htools.hydro_data) :
             self.sat=np.append(self.sat,[enum[1].split('_')[2]]*self.filelist_count[enum[0]])
         self.sat=np.ma.array(self.sat,mask=False) 
     
-    def read(self,filename,datatype=None,**kwargs):
+    def read(self,filename,datatype=None,slaext=False,**kwargs):
         
         fname,extension = os.path.splitext(filename)
         
@@ -117,7 +117,8 @@ class alti_data(htools.hydro_data) :
 #            datatype='RAW' #Setup default as raw NetCDF file
         
         if (datatype == 'DT') | (datatype == 'NRT') | (datatype == 'PISTACH') :
-            outStr=self.read_sla(filename,datatype=datatype,**kwargs)
+            if slaext : outStr=self.read_slaext(filename,datatype=datatype,**kwargs)
+            else : outStr=self.read_sla(filename,datatype=datatype,**kwargs)
             self.update_fid_list(os.path.basename(filename),outStr['_dimensions']['time'])
         elif (datatype == 'CTOH') :
             outStr=self.read_CTOH(filename,**kwargs)
@@ -142,7 +143,7 @@ class alti_data(htools.hydro_data) :
         from datetime import timedelta
 #        a = time()
         
-        self.message(2,'Reading SLAext data ({0})'.format(datatype))
+        self.message(2,'Reading AVISO DT data ({0})'.format(datatype))
         
         #Open file
         self._filename = filename
@@ -186,9 +187,10 @@ class alti_data(htools.hydro_data) :
         
         #Get dates
         stDate = self.load_ncVar('BeginDates',**kwargs)['data']
-        nbCyc = self.load_ncVar('Cycles',**kwargs)['data']
-        Ntra = nbCyc.shape[0]
-        Ncycs = nbCyc.shape[1] if len(nbCyc.shape) > 1 else 1
+        dumVar = self.load_ncVar('Cycles',**kwargs)
+        nbCyc = dumVar['data']
+        Ncycs = dumVar['_dimensions']['Cycles']
+        Ntra = dumVar['_dimensions']['Tracks']
         nbTra = self.load_ncVar('Tracks',**kwargs)['data']
         
 #        if np.size(stDate) == 1 : stDate.
@@ -232,9 +234,9 @@ class alti_data(htools.hydro_data) :
         
         nbTra_copy=nbTra.copy()
         
-        for i in np.arange(1,Ncycs) :
+        for i in np.arange(1,Ncycs,1.0,dtype=int) :
             nbTra=np.ma.concatenate((nbTra,nbTra_copy))
-            npts=np.ma.concatenate((npts,(0,)*Ntra))
+            npts=np.ma.concatenate((npts,tuple((~nbCyc.T[i].mask)*1*npts)))
 #            rowind+=(i,)*Ntra      
         
         npts=npts.reshape(nbCyc.shape[::-1]).T
@@ -258,12 +260,12 @@ class alti_data(htools.hydro_data) :
         
         for i,nc in enumerate(nbCyc.data.flatten()):
             N=npts[i]
-            Nprev=npts[i-Ncycs] if i >= (Ncycs) else 0
+            Nprev=npts[i-Ncycs] if i >= (Ncycs) and np.remainder(float(i),Ncycs) == 0 else 0
             indcopy-=Nprev #if rowind[i] == 0 else 0
             curInd=tuple(sorted(set(xrange(N) if N > 0 else []).intersection(indcopy)))
             ncur=len(curInd)
 #            nind+=ncur
-            outInd+=map(operator.sub, curInd,(( (curInd[0] if len(curInd) > 0 else 0) - (outInd[-1] if len(outInd) > 0 else 0) + len(ind)*(np.remainder(float(i),Ncycs)),)*ncur))
+            outInd+=map(operator.sub, curInd,(( (curInd[0] if len(curInd) > 0 else 0) - (outInd[-1] +1 if len(outInd) > 0 else 0) - len(ind)*(np.remainder(float(i),Ncycs)),)*ncur))
             curInd=tuple(map(operator.mul, curInd, (DeltaT,)*ncur))     
             date+=tuple(map(operator.add, curInd, (stDate_flatten[i],)*ncur))
             cycles+=(nbCyc_flatten[i],)*ncur
@@ -287,6 +289,9 @@ class alti_data(htools.hydro_data) :
 #                tracks=np.ma.concatenate((tracks,np.ma.array((nbTra.data[i],)*ncur)))#,mask=np.repeat(nbCyc.mask[i][j],ncur))))
         
         outInd=np.array(outInd,dtype=int)
+        
+        #Check output index
+#         print outInd.shape[0],npts.cumsum().max()
         
         nt=len(date)
         date.mask=(False,)*nt
@@ -568,10 +573,16 @@ class alti_data(htools.hydro_data) :
         trange_str = self.time_range()[0]
         cycle_list = self.cycle_list()
         track_list=self.track_list()
+        
+        #Solve precision problem (for unique)!
+        precision=np.finfo(self.lon.dtype).precision-2 #9
+        self.lon=self.lon.round(decimals=precision)
+        self.lat=self.lat.round(decimals=precision)
             
         #Detect recurrent  lon/lat/track triplets
         self.message(2, 'Detect recurrent lon/lat/track triplets')
         triplets = np.unique(zip(*(self.lon, self.lat, self.track)))
+        
         
         #Sort by track (we do not sort using other columns to preserve descending/ascending order)
         triplets=np.ma.array(sorted(triplets, key=operator.itemgetter(2)))
@@ -580,6 +591,10 @@ class alti_data(htools.hydro_data) :
         lon = triplets[:,0]
         lat = triplets[:,1]
         tracknb = triplets[:,2]
+        
+        #!!!!
+        #PROBLEM WITH UNIQUE!!!! DUPLICATES ARE STILL PRESENT! 
+        
         track=track_list
         cycle=cycle_list
         
@@ -595,6 +610,8 @@ class alti_data(htools.hydro_data) :
         self.message(2, 'Computing space and time indices')
         xid = np.array([np.where((ln == lon) & (self.lat[i] == lat))[0][0] for i,ln in enumerate(self.lon) ])
         tid = np.array([np.where(c == cycle_list)[0][0] for c in self.cycle])
+        
+        #PROBLE
         
         #Get object attributes to reform
         varSize = np.array([np.size(self.__dict__[k]) for k in self.__dict__.keys()])

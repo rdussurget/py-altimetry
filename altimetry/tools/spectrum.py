@@ -2,7 +2,7 @@
 import numpy as np
 import scipy.fftpack as ft
 from scipy import stats
-from altimetry_tools import detrend as detrend_fun, grid_track
+from altimetry.tools import detrend as detrend_fun, grid_track, message
 if __debug__ : import matplotlib.pyplot as plt
 
 def get_kx(N,dx):
@@ -86,7 +86,7 @@ def get_spec(dx,Vin,verbose=False,gain=1.0,integration=True):
 #        => Ck = [Ak^2 + Bk^2]^(1/2), where e^(iwt) = cos(wt) + i.sin(wt)
     a = fft.real
     b = fft.imag
-    c = np.sqrt(a**2.0 + b**2.0) #This is the energy
+    c = np.sqrt(a**2.0 + b**2.0) #This is the magnitude
     
     if verbose : print 'Check parseval theorem 2: SUM|Y(f)|²={0}, SUM|y(t)|²={1}'.format(((c**2)/N).sum(),(V**2).sum()) 
     
@@ -484,60 +484,121 @@ def spectral_analysis(dx,Ain,tapering=None,overlap=None,wsize=None,alpha=3.0,det
 #    return outdst, outlon, outlat, outsla, dx, interpolated
 
 
-def preprocess(lat,lon,sla,N_min=None,per_min=15.0,max_gap=None,remove_edges=True,interp_over_continents=False,truncate_if_continents=True):
+def preprocess(lat,lon,sla,
+               N_min=None,
+               per_min=15.0,
+               max_gap=None,
+               leave_gaps=False,
+               remove_edges=True,
+               interp_over_continents=False,
+               truncate_if_continents=True,
+               discard_continental_gaps = True, #do not consider gaps on continents to discard time steps using max_gap.
+               flag_interp=False,
+               return_lonlat=False,
+               return_interpolated=False,
+               verbose=1):
     sh=sla.shape
     nt=sh[0]
     nx=sh[1]
     dumsla=sla.copy()
-    
-    continent=False #This is a keyword to know if the pass went over a land mass
-    
+        
     #Remove profiles with less than 3 points
     ok=np.where(sla.mask.sum(axis=1) < (nx -3))[0]
+    if (nt != len(ok)) : message(1, '%i time steps were removed as they contained less than 3 valid points of data' % (nt - len(ok)))
     dumsla=dumsla[ok,:]
     nt=len(ok)
     
+    
+    
+    # 1 - regrid tracks regularly
+    #     get gap lengths
+    #############################
     for i in np.arange(nt):
+        
+        #grid track regularly
         fg=~dumsla.mask[i,:]
-        dst, dumlon, dumlat, dsla, lgaps, n, edges, int = grid_track(lat[fg], lon[fg], dumsla[i,:][fg],remove_edges=False,backbone=[lon,lat],interp_over_continents=interp_over_continents)
-        if dsla.mask.sum() > 0:
-            pass
-        if (len(dumlon) > len(lon)) & (i == 0) :
-            continent=True
+        dst, dumlon, dumlat, dsla, lgaps, n, edges, inter = grid_track(lat[fg], lon[fg], dumsla[i,:][fg],remove_edges=False,backbone=[lon,lat],interp_over_continents=interp_over_continents)
+
+        #extend matrix width if track has gone over any land (ie. any points not found in the backbone)
+        if (len(dumlon) > len(lon)) & (i == 0) :            
             lendiff = len(dumlon) - len(lon)
             print '[WARNING] : Pass goes over a land mass, changing the track size from {0} to {1}'.format(nx,nx+lendiff)
             nx+=lendiff
-#        dumsla[i,:]=dsla
+
+        dumint=inter.reshape((1,len(dsla))) if i == 0 else np.ma.concatenate([dumint,inter.reshape((1,len(dsla)))],axis=0)
         dumslaout=dsla.reshape((1,len(dsla))) if i == 0 else np.ma.concatenate([dumslaout,dsla.reshape((1,len(dsla)))],axis=0)
-        if i == 0 : gaplen = [lgaps]
-        else : gaplen.append(lgaps)
+        if i == 0 :
+            gaplen = [lgaps]
+            gapedges= [edges]
+        else :
+            gaplen.append(lgaps)
+            gapedges.append(edges)
         ngaps = n if i == 0 else np.append(ngaps,n) 
     dumsla=dumslaout.copy()
-        
+    
+    #These points are the continental ones.
+    dumint=dumint.astype(bool)
+    continent=dumsla.mask & dumint
+    flagged=dumint.astype(bool) & ~continent
+    
+    #check for continental gaps
+    iscont=np.sum(continent,axis=0) == nt
+    indcont=np.arange(nx)[iscont]
+    
+    #here we get the position of the gap from its egdes and intersect with the continental points
+    # -> if any point is over continent, cont_gap is set to True
+    cont_gap = [[len(set(indcont).intersection(range(gapedges[j][0][jj],gapedges[j][1][jj]))) > 0 for jj in xrange(ngaps[j])] for j in xrange(nt)]
+
+    if discard_continental_gaps :
+        gaplen=[ np.array([g[jj] for jj in xrange(len(g)) if not cont_gap[j][jj]]) for j,g in enumerate(gaplen)]
+    
+    # 2 - remove/subsample using stats from previous loop and keyword arguments 
+    ###########################################################################
     if max_gap is not None:
         
         #Remove profiles with long gaps
         gapmax=np.array([np.max(g) if len(g) > 0 else 0 for g in gaplen])
-        id1 = np.where(gapmax <= max_gap)[0]
+        id1 = np.where(gapmax <= max_gap)[0] if not leave_gaps else ok
+        
+        if len(id1) == 0 : raise Exception('[ERROR] : All gaps in current track are greater than the maximum specified gap')
+        if (len(id1) != nt) : message(1, '%i have been removed due to the presence of gaps > %i point' %(nt - len(id1), int(max_gap)))
+        
         dumsla=dumsla[id1,:]
         
-        #Remove profiles with not enough coverage
+        #Remove profiles with not enough coverage :
+        # -> based on points with interpolation flag from grid_track and not on continents
 #        per=100 * dumsla.mask.sum(axis=0) / np.float(nt)
-        per = 100. * dumsla.mask.sum(axis=1)/np.float(nx)
+        per = 100. * flagged[id1,:].sum(axis=1)/np.float(nx)
         if N_min is None :
-            N_min = np.round((0.01* (100- per_min)) * nx)
+#             N_min = np.round((0.01* (100- per_min)) * nx)
+            N_min = nx
 #        if per_min is None : per_min = 100* (1 - N_min/np.float(nx))
         
         id2 = np.where( per <= per_min)[0]
+        
+        if len(id2) == 0 : raise Exception('[ERROR] : All time steps in current track have a percentage of invalid data > than the maximum allowed (%i)' % int(per_min))
+        if (len(id2) != len(id1)) : message(1, '%i have been removed. They exceeded the maximum percentage of allowed invalid data (%i)' %(len(id1) - len(id2), int(per_min)))
+        
         dumsla=dumsla[id2,:]
+        
+        
         
         #At this point track edges are removed
         dumsla,id3=get_segment(dumsla,N_min,remove_edges=remove_edges,truncate_if_continents=truncate_if_continents)
         
-        return dumsla, id1[id2[id3]]
+        if len(id3) == 0 : raise Exception('[ERROR] : Remaining time steps do not reach the minimum length of %i points' % int(N_min))
+        if (len(id3) != len(id2)) : message(1, '%i time steps no reaching rhe minimum length of %i points have been removed)' %(len(id2) - len(id3), int(N_min)))
+        
+        
+        res=(dumsla, ok[id1[id2[id3]]])
+        
         
     else :
-        return dumsla, ngaps, gaplen
+        res=(dumsla, ngaps, gaplen)
+    
+    if return_lonlat : res+=(dumlon, dumlat)
+    if return_interpolated : res += (dumint,)
+    return res
 
 def get_segment(sla,N,last=True,mid=None,first=None,remove_edges=True,truncate_if_continents=True):
     

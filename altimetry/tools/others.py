@@ -3,6 +3,7 @@ import numpy as np
 from Tkinter import Tk
 import inspect
 import getpass, socket #User and Host names
+from warnings import warn
 
 def get_zero_element(array):
     try : array = array.flat.next()
@@ -263,4 +264,26 @@ def username():
 
 def hostname():
     return socket.gethostbyaddr(socket.gethostname())[0]
+
+def message(MSG_LEVEL,str,verbose=1):
+    """
+     MESSAGE : print function wrapper. Print a message depending on the verbose level
+     
+     @param MSG_LEVEL {in}{required}{type=int} level of the message to be compared with self.verbose
+     
+     @example self.message(0,'This message will be shown for any verbose level') 
+    """
     
+    caller=get_caller()
+    if MSG_LEVEL <= verbose :  print('[{0}.{1}()] {2}'.format(__name__,caller.co_name,str))
+
+def warning(MSG_LEVEL,str,verbose=1):
+    """
+     WARNING : Wrapper to the warning function. Returns a warning when verbose level is not 0. 
+     
+     @param MSG_LEVEL {in}{required}{type=int} level of the message to be compared with self.verbose
+     
+     @example self.waring(1,'Warning being issued) 
+    """
+    
+    if verbose <= 1 : warn(str)

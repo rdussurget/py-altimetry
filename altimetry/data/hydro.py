@@ -4,10 +4,11 @@ import inspect
 import fnmatch
 
 import numpy as np
-
 import matplotlib.pyplot as plt
 from netCDF4 import Dataset as ncfile
-from altimetry.tools.nctools import load_ncVar
+import copy
+
+from altimetry.tools.nctools import load_ncVar, load_ncVar_v2
 try:
     import seawater.gibbs as gsw
     import seawater.csiro as csw
@@ -512,6 +513,9 @@ class hydro_data(object):
     def Error(self,ErrorMsg):    
         raise Exception(ErrorMsg)
     
+    def copy(self,deep=True):
+        return copy.deepcopy(self) if deep else copy.copy(self)
+    
     def slice(self,param,range,surf=False,dimension=None):
         if np.size(range) == 2 :
             if not surf : fg = (self.__dict__[param] >= np.min(range)) & (self.__dict__[param] < np.max(range))
@@ -715,11 +719,15 @@ class hydro_data(object):
             dumlat=lat.compress(dumflag)[sort]
             dumid=id.compress(dumflag)[sort]
             dumcnt=np.size(dumid)
-            if isinstance(col,str) : p=pmap.plot(dumlon,dumlat,col,ms=ms,linewidth=linewidth,**kwargs)
-            else : p=pmap.scatter(dumlon,dumlat,col.compress(dumflag)[sort],s=ms,linewidth=linewidth,**kwargs)
-            pmap.plot(dumlon[dumcnt-1],dumlat[dumcnt-1],endpoint,ms=endpoint_size)
-            pmap.text(dumlon[dumcnt-1],dumlat[dumcnt-1],'{0}'.format(j),fontsize=fontsize,color=textcolor)
-            if title is not None : pmap.title(title)
+            dumvalid=(~dumlon.mask & ~dumlat.mask & ~dumid.mask).sum()
+            if dumvalid > 0:
+                if isinstance(col,str) : p=pmap.plot(dumlon,dumlat,col,ms=ms,linewidth=linewidth,**kwargs)
+                else : p=pmap.scatter(dumlon,dumlat,col.compress(dumflag)[sort],s=ms,linewidth=linewidth,**kwargs)
+                pmap.plot(dumlon[dumcnt-1],dumlat[dumcnt-1],endpoint,ms=endpoint_size)
+                pmap.text(dumlon[dumcnt-1],dumlat[dumcnt-1],'{0}'.format(j),fontsize=fontsize,color=textcolor)
+                if title is not None : pmap.title(title)
+#                 print j
+#                 pmap.show()
             
         try : return p
         finally : return pmap.plot(-100,-370,'')
@@ -935,7 +943,7 @@ class hydro_data(object):
         return outStr
 
     def load_ncVar(self,varName,nc=None,**kwargs):
-        return load_ncVar(varName, nc=self._ncfile, **kwargs)
+        return load_ncVar_v2(varName, nc=self._ncfile, **kwargs)
 
 class buoy_data(hydro_data):
     
@@ -953,7 +961,10 @@ class buoy_data(hydro_data):
 #        if extension == '.nc' : outStr=self.read_ArgoNC(filename,N_LEVELS=0,**kwargs)
         if extension == '.nc' : outStr=self.read_ArgoNC(filename,**kwargs)
         elif extension == '.dat' : outStr = self.read_txt(filename)
-        elif extension == '.asc' : outStr = self.read_asc(filename) #CLS dumps
+        elif extension == '.asc' :
+            kwread=kwargs.get('lon_name',{})
+            kwread=kwargs.get('lat_name',{})
+            outStr = self.read_asc(filename,**kwread) #CLS dumps
         else : self.Error('Unknown formatting')
         
         
@@ -1048,52 +1059,67 @@ class buoy_data(hydro_data):
         
         return {'_dimensions':{'_ndims':ndims,'N_PROF':sz[0],'N_LEVELS':1},'lon':lon,'lat':lat,'date':date,'id':id,'temp':temp,'u':u,'v':v}
 
-    def read_asc(self,filename):
+    def read_asc(self,filename,lon_name='LON_FILTRE',lat_name='LAT_FILTRE'):
         
         #Open file
         self._filename = filename
         
         asc=open(self._filename)
         
-        #get header length
+        #get header properties
         l=0
+        par_list=[]
+        par_dv=[]
         for line in asc.readlines():
             if not line.startswith('//') : break
-            else : l+=1
-                
+            else :
+                if line.startswith('//\tClip') :
+                    par_list.append(line.split(' ')[-1].replace('\n',''))
+                if line.startswith('//\tDefaut') :
+                    par_dv.append(line.split('=')[-1].replace('\n',''))
+                l+=1
+        
+        nPar=len(par_list)
+        col_id=np.arange(nPar)+2
+        
+        #Get lon & lat
+        par_list[par_list.index(lon_name)]='lon'
+        par_list[par_list.index(lat_name)]='lat'
+        
         data=np.genfromtxt(filename,skip_header=l)
         
-        sz=data.shape[0]
-        mask=np.zeros(sz,dtype=bool)
+        sz=data.shape[0]    
+        mask=np.zeros(sz,dtype=bool)    
         
+        #Construct output structure
         dimStr={'_dimensions':{'_ndims':2,'N_PROF':sz,'N_LEVELS':1}}
-        
-        #Convert to numpy arrays
-        id={'_dimensions':{'_ndims':1,'N_PROF':sz},'data':np.ma.masked_array(data[:,0],mask=mask)}
-        date={'_dimensions':{'_ndims':1,'N_PROF':sz},'data':np.ma.masked_array(data[:,1],mask=mask)}
-        lon={'_dimensions':{'_ndims':1,'N_PROF':sz},'data':np.ma.masked_array(data[:,2],mask=mask)}
-        lat={'_dimensions':{'_ndims':1,'N_PROF':sz},'data':np.ma.masked_array(data[:,3],mask=mask)}
-        utot={'_dimensions':{'_ndims':1,'N_PROF':sz},'data':np.ma.masked_array(data[:,4],mask=mask)}
-        vtot={'_dimensions':{'_ndims':1,'N_PROF':sz},'data':np.ma.masked_array(data[:,5],mask=mask)}
-        uek={'_dimensions':{'_ndims':1,'N_PROF':sz},'data':np.ma.masked_array(data[:,6],mask=mask)}
-        vek={'_dimensions':{'_ndims':1,'N_PROF':sz},'data':np.ma.masked_array(data[:,7],mask=mask)}
-        uekfilt={'_dimensions':{'_ndims':1,'N_PROF':sz},'data':np.ma.masked_array(data[:,8],mask=mask)}
-        vekfilt={'_dimensions':{'_ndims':1,'N_PROF':sz},'data':np.ma.masked_array(data[:,9],mask=mask)}
-        
-        u={'_dimensions':{'_ndims':1,'N_PROF':sz},'data':utot['data']-uek['data']}
-        v={'_dimensions':{'_ndims':1,'N_PROF':sz},'data':vtot['data']-vek['data']}
-        ugeofilt={'_dimensions':{'_ndims':1,'N_PROF':sz},'data':utot['data']-uekfilt['data']}
-        vgeofilt={'_dimensions':{'_ndims':1,'N_PROF':sz},'data':vtot['data']-vekfilt['data']}
-        
-        N_PROF={'_dimensions':{'_ndims':1,'N_PROF':sz},'data':np.ma.array(np.arange(sz),mask=mask)}
-        N_LEVELS={'_dimensions':{'_ndims':1,'N_PROF':sz},'data':np.ma.array(np.repeat(25.,sz),mask=mask)}
         
         outStr = OrderedDict()
         outStr.update(dimStr)
         
-        keys=['N_PROF','N_LEVELS','date','id','lon','lat','u','v','ugeofilt','vgeofilt','uek','vek','uekfilt','vekfilt']
-        for k in keys :
-            outStr.update({k:locals()[k]})
+        outStr.update({'N_PROF':{'_dimensions':{'_ndims':1,'N_PROF':sz},'data':np.ma.array(np.arange(sz),mask=mask.copy())}})
+        outStr.update({'N_LEVELS':{'_dimensions':{'_ndims':1,'N_PROF':sz},'data':np.ma.array(np.repeat(25.,sz),mask=mask.copy())}})
+        
+        #1st row is assigned to float ID, 2nd to date (julian seconds)
+        outStr.update({'id':{'_dimensions':{'_ndims':1,'N_PROF':sz},'data':np.ma.masked_array(data[:,0],mask=mask.copy())}})
+        outStr.update({'date':{'_dimensions':{'_ndims':1,'N_PROF':sz},'data':np.ma.masked_array(data[:,1]/86400.,mask=mask.copy())}})
+
+
+        for i,p in enumerate(par_list):
+            dumVar=data[:,col_id[i]]
+            mask=dumVar==eval('np.{0}'.format(dumVar.dtype))(par_dv[i])
+            outStr.update({p:{'_dimensions':{'_ndims':1,'N_PROF':sz},'data':np.ma.masked_array(dumVar,mask=mask.copy())}})
+        
+        #recompute mask based on lon,lat,date validity
+        mask=outStr['lon']['data'].mask.copy() \
+            | outStr['lat']['data'].mask.copy() \
+            | outStr['date']['data'].mask.copy()
+        
+        
+        #Reapply mask (we may check dimensions?)
+        outStr['date']['data'].mask=mask.copy()
+        for k in par_list :
+            if outStr[k].has_key('data') : outStr[k]['data'].mask=mask.copy()
         
         return outStr
              

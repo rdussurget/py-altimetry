@@ -5,4 +5,3 @@ altimetry.externals module
 @author: Renaud DUSSURGET, LER/PAC IFREMER.
 @change: Create in December 2012 by RD.
 '''
-import pycpt as pycpt

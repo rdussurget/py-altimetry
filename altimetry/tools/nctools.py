@@ -636,7 +636,7 @@ def load_ncVar(varName, nc=None, **kwargs):
                 if fg.sum() == 0 :
                     #retry switrhcing lon/lat
                     dumvar=recale(dumvar,degrees=True)
-                    drange=tuple(recale(drange,degrees=True).astype(np.long))
+                    drange=tuple(recale(drange,degrees=True))#.astype(np.long))
                     fg=(dumvar >= drange[0]) & (dumvar <= drange[1])
                 if fg.sum() == 0 :
                     raise IndexError('{0} {1} is not matching given dimensions {2}'.format(vn,(np.nanmin(nc.variables[vn][:]),np.nanmax(nc.variables[vn][:])),drange))
@@ -646,10 +646,10 @@ def load_ncVar(varName, nc=None, **kwargs):
                 elif len(fg) == 0:
                     sz=0L
                 else :
-                    dumind=np.arange(varDimval[vid]).compress(fg)
+                    dumind=np.arange(varDimval[vid],dtype=long).compress(fg)
                     bg=dumind[0]
                     en=dumind[-1]+1
-                    st=drange[2]
+                    st=long(drange[2])
                     dstr=np.append(dstr,'{0}:{1}:{2}'.format(bg,en,st))
                     sz = np.long(np.mod(np.float(en-bg-1)/st,np.float(en-bg)) + 1.)
             
@@ -713,83 +713,83 @@ def load_ncVar(varName, nc=None, **kwargs):
 #            ind_list=[[]] 
     
 #Additional functions
-#def load_ncVar(varName,nc=None,**kwargs):
-#        
-#        if nc is None : raise 'No Netcdf file passed'
-#        
-#        #Load variable
-#        var = nc.variables[varName]
-#        
-#        var.set_auto_maskandscale(False)
-#        
-#        #Load dimensions
-#        varDim = [str(dim) for dim in var.dimensions]
-#        varDimval = [len(nc.dimensions[dimname]) for dimname in varDim]
-#        
-#        #Load Attributes
-#        attrStr=var.__dict__
-#        
-##        from collections import deque
-#        ind_list = [] #deque() #Init index list
-#        dims={'_ndims':0} #Init dimensions
-#
-#        #Construct index list
-#        #looping on variable dimension list
-#        for enum in enumerate(varDim) :
-#            
-#            #No indexation on current dimension
-#            if not kwargs.has_key(enum[1]) :
-##                ind_list+=tuple(xrange(varDimval[enum[0]]))
-#                ind_list.append(xrange(varDimval[enum[0]]))
-##                ind_list=(ind_list,xrange(varDimval[enum[0]])) if len(ind_list) != 0 else (xrange(varDimval[enum[0]]),)
-##                .append(xrange(varDimval[enum[0]])) # if no restriction in kargs then equivalent to [:]
-#                dims.update({enum[1]:varDimval[enum[0]]})
-#            
-#            #Data is indexed along current dimension
-#            else :
-#                dumind = kwargs[enum[1]]
-##                if not isinstance(dumind,list) : dumind=tuple(dumind)
-#                if isinstance(dumind,np.ndarray) : dumind=dumind.tolist() #Rq: tolist() can take a very long time to run on large arrays
-#                if type(dumind) is not list : dumind=[dumind] 
-#                ind_list.append(dumind)
-##                ind_list=(ind_list,dumind)  if len(ind_list) != 0 else (dumind,)
-#                dims.update({enum[1]:len(dumind)})
-#        
-#        #check index list
-#        sz=[len(i) for i in ind_list]
-#        
-#        #find empty dimensions
-#        if not (where_list([0],sz)[0] == -1 ) : varOut=var[[0]][[]] #np.array(where_list(sz,[0])) == -1
-#        else :
-#            varOut=var[ind_list]#.copy() #THIS IS LONG!!
-#            if var.shape == (1,1) : varOut=varOut.reshape(var.shape)
-#        
-#        #Mask it!
-#        if var.__dict__.has_key('_FillValue') : mask=varOut == var._FillValue
-#        elif var.__dict__.has_key('missing_value') : mask=varOut == var.missing_value
-#        else : mask=np.zeros(varOut.shape,dtype='bool')
-#        
-#        #Scale it
-#        #note : we do not use the *= or += operators to force casting to scaling attribute types
-#        if var.__dict__.has_key('scale') : varOut =varOut * var.scale
-#        elif var.__dict__.has_key('scale_factor') : varOut = varOut * var.scale_factor
-#        if var.__dict__.has_key('add_offset') : varOut = varOut + var.add_offset
-#        
-#        #Set masks properly
-#        if isinstance(varOut,np.ndarray) : varOut=np.ma.masked_array(varOut,mask=mask)
-#        elif isinstance(varOut,np.ma.masked_array) : var.mask=mask
-#        else : raise 'This data type {} has not been defined - code it!'.format(type(varOut))
-#        
-#        #Get attributes
-#        attrStr=var.__dict__
-#        attrStr.pop('_FillValue',None) #Remove this attributed as it is overidden
-#        
-#        #Append attributes to varOut
-#        varOut.__dict__.update(attrStr)
-#        
-#        #Build up output structure
-#        outStr={'_dimensions':dims,'data':varOut}
-#        dims.update({'_ndims':len(dims.keys()[1:])})
-#        
-#        return outStr
+def load_ncVar_v2(varName,nc=None,**kwargs):
+        
+        if nc is None : raise 'No Netcdf file passed'
+        
+        #Load variable
+        var = nc.variables[varName]
+        
+        var.set_auto_maskandscale(False)
+        
+        #Load dimensions
+        varDim = [str(dim) for dim in var.dimensions]
+        varDimval = [len(nc.dimensions[dimname]) for dimname in varDim]
+        
+        #Load Attributes
+        attrStr=var.__dict__
+        
+#        from collections import deque
+        ind_list = [] #deque() #Init index list
+        dims={'_ndims':0} #Init dimensions
+
+        #Construct index list
+        #looping on variable dimension list
+        for enum in enumerate(varDim) :
+            
+            #No indexation on current dimension
+            if not kwargs.has_key(enum[1]) :
+#                ind_list+=tuple(xrange(varDimval[enum[0]]))
+                ind_list.append(xrange(varDimval[enum[0]]))
+#                ind_list=(ind_list,xrange(varDimval[enum[0]])) if len(ind_list) != 0 else (xrange(varDimval[enum[0]]),)
+#                .append(xrange(varDimval[enum[0]])) # if no restriction in kargs then equivalent to [:]
+                dims.update({enum[1]:varDimval[enum[0]]})
+            
+            #Data is indexed along current dimension
+            else :
+                dumind = kwargs[enum[1]]
+#                if not isinstance(dumind,list) : dumind=tuple(dumind)
+                if isinstance(dumind,np.ndarray) : dumind=dumind.tolist() #Rq: tolist() can take a very long time to run on large arrays
+                if type(dumind) is not list : dumind=[dumind] 
+                ind_list.append(dumind)
+#                ind_list=(ind_list,dumind)  if len(ind_list) != 0 else (dumind,)
+                dims.update({enum[1]:len(dumind)})
+        
+        #check index list
+        sz=[len(i) for i in ind_list]
+        
+        #find empty dimensions
+        if not (where_list([0],sz)[0] == -1 ) : varOut=var[[0]][[]] #np.array(where_list(sz,[0])) == -1
+        else :
+            varOut=var[ind_list]#.copy() #THIS IS LONG!!
+            if var.shape == (1,1) : varOut=varOut.reshape(var.shape)
+        
+        #Mask it!
+        if var.__dict__.has_key('_FillValue') : mask=varOut == var._FillValue
+        elif var.__dict__.has_key('missing_value') : mask=varOut == var.missing_value
+        else : mask=np.zeros(varOut.shape,dtype='bool')
+        
+        #Scale it
+        #note : we do not use the *= or += operators to force casting to scaling attribute types
+        if var.__dict__.has_key('scale') : varOut =varOut * var.scale
+        elif var.__dict__.has_key('scale_factor') : varOut = varOut * var.scale_factor
+        if var.__dict__.has_key('add_offset') : varOut = varOut + var.add_offset
+        
+        #Set masks properly
+        if isinstance(varOut,np.ndarray) : varOut=np.ma.masked_array(varOut,mask=mask)
+        elif isinstance(varOut,np.ma.masked_array) : var.mask=mask
+        else : raise 'This data type {} has not been defined - code it!'.format(type(varOut))
+        
+        #Get attributes
+        attrStr=var.__dict__
+        attrStr.pop('_FillValue',None) #Remove this attributed as it is overidden
+        
+        #Append attributes to varOut
+        varOut.__dict__.update(attrStr)
+        
+        #Build up output structure
+        outStr={'_dimensions':dims,'data':varOut}
+        dims.update({'_ndims':len(dims.keys()[1:])})
+        
+        return outStr
 ##            ind_list=[[]] 
