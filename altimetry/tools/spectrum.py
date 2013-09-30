@@ -637,13 +637,15 @@ def get_segment(sla,N,last=True,mid=None,first=None,remove_edges=True,truncate_i
         rlag=right-midpt
         llag=midpt-left
         odd = np.int(N)&1 and True or False
-        if odd : nr=nl=np.int(N)/2
+        if not odd : nr=nl=np.int(N)/2
         else :
-            nr=np.int(N)/2  + 1
+            nr=np.int(N)/2 + 1
             nl=np.int(N)/2
-        for i,jk in enumerate(zip(*(llag,rlag))):
-            j,k=jk  
-        print 'THIS MUST BE COMPLETED!!!'
+#         for i,jk in enumerate(zip(*(llag,rlag))):
+#             j,k=jk
+#             st=0
+        st=np.repeat(midpt-nl,nt)
+        en=np.repeat(midpt+nr,nt)
     elif first :
         st=(left).astype(int)
         en=(left+N).astype(int)
