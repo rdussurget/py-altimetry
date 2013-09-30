@@ -515,12 +515,19 @@ def preprocess(lat,lon,sla,
     # 1 - regrid tracks regularly
     #     get gap lengths
     #############################
+    fg_dumlon=nx
     for i in np.arange(nt):
         
         #grid track regularly
         fg=~dumsla.mask[i,:]
         dst, dumlon, dumlat, dsla, lgaps, n, edges, inter = grid_track(lat[fg], lon[fg], dumsla[i,:][fg],remove_edges=False,backbone=[lon,lat],interp_over_continents=interp_over_continents)
-
+        if isinstance(dumlon,np.ma.masked_array) : fg_dumlon_new = dumlon.mask.sum() 
+        else : fg_dumlon_new = np.isfinite(dumlon).sum()
+        if fg_dumlon_new < fg_dumlon :
+            fg_dumlon = fg_dumlon_new
+            lonout = dumlon
+            latout = dumlat
+        
         #extend matrix width if track has gone over any land (ie. any points not found in the backbone)
         if (len(dumlon) > len(lon)) & (i == 0) :            
             lendiff = len(dumlon) - len(lon)
@@ -599,7 +606,7 @@ def preprocess(lat,lon,sla,
     
     nt=res[0].shape[0]
     if (nt != ntinit) : message(1, '%i time steps on %i removed by data pre-processing' %(ntinit - nt, ntinit))
-    if return_lonlat : res+=(dumlon, dumlat)
+    if return_lonlat : res+=(lonout, latout)
     if return_interpolated : res += (dumint,)
     return res
 
