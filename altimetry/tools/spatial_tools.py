@@ -109,63 +109,6 @@ def recale(angle, degrees=False, zero_2pi=True, minpi_pi=None) :
 def rgb_int2tuple(rgbint):
     return (rgbint // 256 // 256 % 256, rgbint // 256 % 256, rgbint % 256)
 
-def calcul_distanceV2(*args):
-    '''
-    Harvesine formulae
-    '''
-    lon_a_in = args[1]
-    lat_a_in = args[0]
-    
-    if np.size(lon_a_in) != np.size(lat_a_in) : raise 'Error : arguments are not the same size'
-    
-    if len(args) == 2 :
-        lon_b_in = lon_a_in
-        lat_b_in = lat_a_in
-        lon_a_in = get_zero_element(lon_a_in)
-        lat_a_in = get_zero_element(lat_a_in)
-    elif len(args) == 4 :
-        lat_b_in = args[2]
-        lon_b_in = args[3]
-        if np.size(lon_b_in) != np.size(lat_b_in) : raise 'Error : arguments are not the same size'
-    else :
-        print "ERROR"
-        return -1
-
-    #Earth radius (km)
-    rt = 6378.137
-    
-    #Degree to radians conversion
-    lon_a = np.deg2rad(lon_a_in)
-    lat_a = np.deg2rad(lat_a_in)
-    lon_b = np.deg2rad(lon_b_in)
-    lat_b = np.deg2rad(lat_b_in)
-
-#    interm = (np.cos(lon_b) * np.cos(lat_b)) * (np.cos(lon_a) * np.cos(lat_a)) + \
-#      (np.sin(lon_a) * np.cos(lat_a)) * (np.sin(lon_b) * np.cos(lat_b)) + \
-#      np.sin(lat_a) * np.sin(lat_b)
-    
-#    interm = (np.cos(lon_b) * np.cos(lat_b)) * (np.cos(lon_a) * np.cos(lat_a)) + \
-#      (np.sin(lon_a) * np.cos(lat_a)) * (np.sin(lon_b) * np.cos(lat_b)) + \
-#      np.sin(lat_a) * np.sin(lat_b)
-
-    #;   calcul de la distance entre les deux points consideres (
-    dlat = lat_b-lat_a
-    dlon = lon_b-lon_a
-    a = np.sin(dlat/2) * np.sin(dlat/2) + np.cos(np.radians(lat_a)) \
-        * np.cos(np.radians(lat_b)) * np.sin(dlon/2) * np.sin(dlon/2)
-    c = 2 * np.arctan2(np.sqrt(a), np.sqrt(1-a))
-
-    dist = rt * c
-    
-    #Remove computation errors
-    fgerr=(lon_b == lon_a) & (lat_b == lat_a)
-    if fgerr.sum() > 0 :
-        if np.size(dist) == 1 : dist = 0. 
-        else : dist[fgerr] = 0.
-    
-    return dist
-
-
 def calcul_distance(*args):
     """
     ;+
