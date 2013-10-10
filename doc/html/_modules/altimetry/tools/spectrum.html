@@ -1,0 +1,1115 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>altimetry.tools.spectrum &mdash; altimetry tools 0 documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/nature.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="top" title="altimetry tools 0 documentation" href="../../../index.html" />
+    <link rel="up" title="Module code" href="../../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">altimetry tools 0 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for altimetry.tools.spectrum</h1><div class="highlight"><pre>
+<span class="c"># -*- coding: utf-8 -*-</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">scipy.fftpack</span> <span class="kn">as</span> <span class="nn">ft</span>
+<span class="kn">from</span> <span class="nn">scipy</span> <span class="kn">import</span> <span class="n">stats</span>
+<span class="kn">from</span> <span class="nn">altimetry.tools</span> <span class="kn">import</span> <span class="n">detrend</span> <span class="k">as</span> <span class="n">detrend_fun</span><span class="p">,</span> <span class="n">grid_track</span><span class="p">,</span> <span class="n">message</span>
+<span class="k">if</span> <span class="n">__debug__</span> <span class="p">:</span> <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="kn">as</span> <span class="nn">plt</span>
+
+<div class="viewcode-block" id="get_kx"><a class="viewcode-back" href="../../../altimetry.tools.spectrum.html#altimetry.tools.spectrum.get_kx">[docs]</a><span class="k">def</span> <span class="nf">get_kx</span><span class="p">(</span><span class="n">N</span><span class="p">,</span><span class="n">dx</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    GET_KX</span>
+<span class="sd">    :summary: Returns the frequencies to be used with FFT analysis</span>
+<span class="sd">    </span>
+<span class="sd">    :parameter N: number of samples in data</span>
+<span class="sd">    :parameter dx: sampling step</span>
+<span class="sd">    </span>
+<span class="sd">    :return: Returns</span>
+<span class="sd">      * k: frequency</span>
+<span class="sd">      * L: length</span>
+<span class="sd">      * imx: index of maximum frequency (for separating positive and negative frequencies)</span>
+<span class="sd">    </span>
+<span class="sd">    :author: Renaud DUSSURGET (RD) - LER/PAC, Ifremer</span>
+<span class="sd">    :change: Created by RD, July 2012</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    
+    <span class="c"># to work with dimensional axes</span>
+    <span class="n">L</span> <span class="o">=</span> <span class="n">N</span><span class="o">*</span><span class="n">dx</span>
+    
+    <span class="c">#Odd or even</span>
+    <span class="n">odd</span> <span class="o">=</span> <span class="n">N</span><span class="o">&amp;</span><span class="mi">1</span> <span class="ow">and</span> <span class="bp">True</span> <span class="ow">or</span> <span class="bp">False</span>
+    
+    <span class="c">#Get frequency &amp; wavenumber</span>
+    <span class="n">k</span><span class="o">=</span><span class="n">ft</span><span class="o">.</span><span class="n">fftfreq</span><span class="p">(</span><span class="n">N</span><span class="p">,</span><span class="n">d</span><span class="o">=</span><span class="n">dx</span><span class="p">)</span>
+<span class="c">#    k=f*N</span>
+    
+    <span class="n">imx</span> <span class="o">=</span> <span class="p">(</span><span class="n">N</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span> <span class="k">if</span> <span class="n">odd</span> <span class="k">else</span> <span class="n">N</span><span class="o">/</span><span class="mi">2</span> <span class="c">#Maximum frequency</span>
+    
+    <span class="c">#Convert into frequencies</span>
+<span class="c">#    k/=L</span>
+    
+    <span class="k">return</span> <span class="n">k</span><span class="p">,</span> <span class="n">L</span><span class="p">,</span> <span class="n">imx</span>
+
+</div>
+<div class="viewcode-block" id="get_spec"><a class="viewcode-back" href="../../../altimetry.tools.spectrum.html#altimetry.tools.spectrum.get_spec">[docs]</a><span class="k">def</span> <span class="nf">get_spec</span><span class="p">(</span><span class="n">dx</span><span class="p">,</span><span class="n">Vin</span><span class="p">,</span><span class="n">verbose</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span><span class="n">gain</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span><span class="n">integration</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    GET_SPEC</span>
+<span class="sd">    :summary: Returns the spectrum of a regularly sampled dataset</span>
+<span class="sd">    </span>
+<span class="sd">    :parameter dq: sampling interval (1D)</span>
+<span class="sd">    :parameter V: data to analyse (1D).</span>
+<span class="sd">    </span>
+<span class="sd">    :note: NaN can not be used. </span>
+<span class="sd">    </span>
+<span class="sd">    :return:</span>
+<span class="sd">    </span>
+<span class="sd">      * psd: Power Spectral Density</span>
+<span class="sd">      * esd: Energy Spectral Density</span>
+<span class="sd">      * fq: frequency</span>
+<span class="sd">      * p: wavelength (period)</span>
+<span class="sd">    </span>
+<span class="sd">    :author: Renaud DUSSURGET (RD) - LER/PAC, Ifremer</span>
+<span class="sd">    :change: Created by RD, July 2012. Changes</span>
+<span class="sd">      * 29/08/2012 : Changed the computation of frequencies and the spectral integration (spectrum is averaged at mid-width frequencies)</span>
+<span class="sd">      * 30/11/2012 : Outstanding changes : corrected the spectral integration for computing psd and corrected the normalisation</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">V</span><span class="o">=</span><span class="n">Vin</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">N</span><span class="o">=</span><span class="n">V</span><span class="o">.</span><span class="n">size</span>
+
+    <span class="c"># part 1 - estimate of the wavenumbers</span>
+    <span class="c">######################################</span>
+    <span class="p">[</span><span class="n">k</span><span class="p">,</span><span class="n">L</span><span class="p">,</span><span class="n">imx</span><span class="p">]</span> <span class="o">=</span> <span class="n">get_kx</span><span class="p">(</span><span class="n">N</span><span class="p">,</span><span class="n">dx</span><span class="p">)</span>
+<span class="c">#    print &quot;dx = %s&quot; %(dx)</span>
+<span class="c">#    print &quot;kx = &quot;,k[0:3]</span>
+<span class="c">#    print &quot;shape&quot;,k.shape</span>
+
+    <span class="c"># part 2 - estimate of the spectrum</span>
+    <span class="c"># fast fourier transform</span>
+    <span class="c">##########################</span>
+    <span class="n">fft</span><span class="o">=</span><span class="n">ft</span><span class="o">.</span><span class="n">fft</span><span class="p">(</span><span class="n">V</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="n">gain</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">verbose</span> <span class="p">:</span> <span class="k">print</span> <span class="s">&#39;Check parseval theorem 1: SUM|Y(f)|²={0}, SUM|y(t)|²={1}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(((</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">fft</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">/</span><span class="n">N</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(),(</span><span class="n">V</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span> 
+
+<span class="c">#        Compute magnitude</span>
+<span class="c">#        CF.Wilks, 2006. Statistical Methods in the Atmopsheric Sciences. 2nd Edition. International Geophysics Series vol.96. Elsevier.</span>
+<span class="c">#        =&gt; Ck = [Ak^2 + Bk^2]^(1/2), where e^(iwt) = cos(wt) + i.sin(wt)</span>
+    <span class="n">a</span> <span class="o">=</span> <span class="n">fft</span><span class="o">.</span><span class="n">real</span>
+    <span class="n">b</span> <span class="o">=</span> <span class="n">fft</span><span class="o">.</span><span class="n">imag</span>
+    <span class="n">c</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">a</span><span class="o">**</span><span class="mf">2.0</span> <span class="o">+</span> <span class="n">b</span><span class="o">**</span><span class="mf">2.0</span><span class="p">)</span> <span class="c">#This is the magnitude</span>
+    
+    <span class="k">if</span> <span class="n">verbose</span> <span class="p">:</span> <span class="k">print</span> <span class="s">&#39;Check parseval theorem 2: SUM|Y(f)|²={0}, SUM|y(t)|²={1}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(((</span><span class="n">c</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">/</span><span class="n">N</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(),(</span><span class="n">V</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span> 
+    
+    <span class="c">#Normalise data</span>
+    <span class="n">c</span> <span class="o">/=</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">(</span><span class="n">N</span><span class="p">)</span>
+    
+    <span class="k">if</span> <span class="n">verbose</span> <span class="p">:</span> <span class="k">print</span> <span class="s">&#39;Check parseval theorem 3: SUM|Y(f)|²={0}, SUM|y(t)|²={1}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(((</span><span class="n">c</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">*</span><span class="n">N</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(),(</span><span class="n">V</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span> 
+    
+<span class="c">#    mean=fft.real[0]/N #Get average</span>
+    
+    <span class="c">#Remove negative frequencies</span>
+<span class="c">#    phase=np.angle(2*fft[1:imx]) #Get phase (not used yet)</span>
+    <span class="n">c</span> <span class="o">=</span> <span class="mi">2</span><span class="o">*</span><span class="n">c</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="n">imx</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="c">#Multiply by 2 (because of negative frequencies removal) - loses a bit of energy</span>
+    
+    <span class="k">if</span> <span class="n">verbose</span> <span class="p">:</span> <span class="k">print</span> <span class="s">&#39;Check parseval theorem 4: SUM|Y(f)|²={0}, SUM|y(t)|²={1}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(((</span><span class="n">c</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">*</span><span class="p">(</span><span class="n">N</span><span class="o">/</span><span class="mf">2.0</span><span class="p">))</span><span class="o">.</span><span class="n">sum</span><span class="p">(),((</span><span class="n">V</span><span class="o">-</span><span class="n">V</span><span class="o">.</span><span class="n">mean</span><span class="p">())</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span> 
+    
+<span class="c">#    if not(N&amp;1 and True or False) : print (np.sum(fft[1:N/2+1])-np.sum(fft[N/2+1:])), fft[N/2] #This is equal to fft[n/2] </span>
+<span class="c">#    cbis=np.absolute(2*fft[0:imx-1]) #Slightly differing from previous one    </span>
+<span class="c">#    cbis /= np.float32(N)</span>
+   
+    <span class="c"># integration of the spectrum</span>
+    <span class="c"># shift to have values centered on the intervals</span>
+    <span class="n">dk</span> <span class="o">=</span> <span class="n">k</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">k</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">dk_half</span> <span class="o">=</span> <span class="n">dk</span><span class="o">/</span><span class="mi">2</span>  <span class="c"># half of the interval</span>
+        
+    <span class="n">k</span> <span class="o">=</span> <span class="n">k</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="n">imx</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>  
+    <span class="n">k_</span><span class="o">=</span> <span class="n">k</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">dk_half</span>  <span class="c">#Shift wavelengths by half the unit</span>
+    
+<span class="c">#    cesd = c**2 *(N/2) #Energy (ESD)</span>
+    <span class="n">csquared</span> <span class="o">=</span> <span class="n">c</span> <span class="o">**</span> <span class="mi">2</span> <span class="c">#Energy (ESD)</span>
+    
+    <span class="k">if</span> <span class="n">verbose</span> <span class="p">:</span> <span class="k">print</span> <span class="s">&#39;Check parseval theorem 5: SUM|Y(f)|²={0}, SUM|y(t)|²={1}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">((</span><span class="n">csquared</span><span class="o">*</span><span class="p">(</span><span class="n">N</span><span class="o">/</span><span class="mi">2</span><span class="p">))</span><span class="o">.</span><span class="n">sum</span><span class="p">(),((</span><span class="n">V</span><span class="o">-</span><span class="n">V</span><span class="o">.</span><span class="n">mean</span><span class="p">())</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+    
+    <span class="c">#Spectral integration</span>
+    <span class="k">if</span> <span class="n">integration</span> <span class="p">:</span>
+        <span class="n">esd</span> <span class="o">=</span> <span class="n">k_</span><span class="o">*</span><span class="mf">0.0</span>
+        <span class="n">psd</span> <span class="o">=</span> <span class="n">k_</span><span class="o">*</span><span class="mf">0.0</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">k_</span><span class="p">)):</span>
+            <span class="n">esd</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">((</span><span class="n">csquared</span> <span class="o">*</span> <span class="p">(</span><span class="n">N</span><span class="o">/</span><span class="mf">2.0</span><span class="p">))[(</span><span class="n">k</span> <span class="o">&gt;</span> <span class="p">(</span><span class="n">k_</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">-</span><span class="n">dk</span><span class="p">))</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">k</span> <span class="o">&lt;</span> <span class="p">(</span><span class="n">k_</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">+</span><span class="n">dk</span><span class="p">))])</span> <span class="o">/</span> <span class="mf">2.0</span>
+            <span class="n">psd</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">csquared</span><span class="p">[(</span><span class="n">k</span> <span class="o">&gt;</span> <span class="p">(</span><span class="n">k_</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">-</span><span class="n">dk</span><span class="p">))</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">k</span> <span class="o">&lt;</span> <span class="p">(</span><span class="n">k_</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">+</span><span class="n">dk</span><span class="p">))])</span> <span class="o">/</span> <span class="p">(</span><span class="mf">2.0</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="c">#This is variance units integration</span>
+        <span class="n">fq</span><span class="o">=</span><span class="n">k_</span>
+    <span class="k">else</span> <span class="p">:</span>
+        <span class="n">esd</span> <span class="o">=</span> <span class="n">csquared</span>
+        <span class="n">psd</span> <span class="o">=</span> <span class="n">esd</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>  <span class="o">/</span><span class="mf">2.</span>
+        <span class="n">fq</span><span class="o">=</span><span class="n">k</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        
+    <span class="n">psd</span> <span class="o">=</span> <span class="n">psd</span> <span class="o">/</span> <span class="n">dk</span>
+<span class="c">#    psd = psd/ (N**2.0) / dk    # Normalisation (Danioux 2011) </span>
+
+    <span class="k">if</span> <span class="n">verbose</span> <span class="p">:</span> <span class="k">print</span> <span class="s">&#39;Check parseval theorem 6: SUM|Y(f)|²={0}, SUM|y(t)|²={1}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">esd</span><span class="o">.</span><span class="n">sum</span><span class="p">(),((</span><span class="n">V</span><span class="o">-</span><span class="n">V</span><span class="o">.</span><span class="n">mean</span><span class="p">())</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+
+    <span class="c">#Get frequencies and period  </span>
+    <span class="n">p</span><span class="o">=</span><span class="mi">1</span><span class="o">/</span><span class="n">fq</span>
+    
+    <span class="k">return</span> <span class="p">{</span><span class="s">&#39;psd&#39;</span><span class="p">:</span><span class="n">psd</span><span class="p">,</span><span class="s">&#39;esd&#39;</span><span class="p">:</span><span class="n">esd</span><span class="p">,</span><span class="s">&#39;fq&#39;</span><span class="p">:</span><span class="n">fq</span><span class="p">,</span><span class="s">&#39;p&#39;</span><span class="p">:</span><span class="n">p</span><span class="p">,</span><span class="s">&#39;gain&#39;</span><span class="p">:</span><span class="n">gain</span><span class="p">}</span>
+    
+    <span class="c"># Normalisation (Danioux 2011)</span>
+<span class="c">#    specvar = specvar / (var.size)**2 / dk #No normalization!!</span>
+
+    <span class="c">#Power spectral density</span>
+
+    <span class="c"># Dimensionalization to be able to compare with the litterature</span>
+<span class="c">#    nbwave=k*1000.0/2.0 #/np.pi     # from rad/m to km/m</span>
+<span class="c">#    dk=dk*1000.0/2.0 #/np.pi</span>
+<span class="c">#    if fft: specvar=specvar*2.0*np.pi/1000.0</span>
+</div>
+<div class="viewcode-block" id="spectral_analysis"><a class="viewcode-back" href="../../../altimetry.tools.spectrum.html#altimetry.tools.spectrum.spectral_analysis">[docs]</a><span class="k">def</span> <span class="nf">spectral_analysis</span><span class="p">(</span><span class="n">dx</span><span class="p">,</span><span class="n">Ain</span><span class="p">,</span><span class="n">tapering</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span><span class="n">overlap</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span><span class="n">wsize</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span><span class="n">alpha</span><span class="o">=</span><span class="mf">3.0</span><span class="p">,</span><span class="n">detrend</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span><span class="n">normalise</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span><span class="n">integration</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span><span class="n">average</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span><span class="n">ARspec</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Spectral_Analysis :</span>
+<span class="sd">    This function performs a spatial spectral analysis with different options on a time series of SLA profiles.</span>
+<span class="sd">    </span>
+<span class="sd">    .. _spectral_analysis:</span>
+<span class="sd">    </span>
+<span class="sd">    :parameter dx: sampling distance</span>
+<span class="sd">    :parameter Ain: 2D table of sla data with time along 2nd axis (NXxNT with NX the spatial length and NT the time length)</span>
+<span class="sd">    :keyword tapering: apply tapering to the data</span>
+<span class="sd">    </span>
+<span class="sd">      * If this keyword is of type bool : apply hamming window.</span>
+<span class="sd">      * If this keyword is a string : apply a hamming (&#39;hamm&#39;), hann (&#39;hann&#39;), kaiser-bessel (&#39;kaiser&#39;), kaiser-bessel (&#39;blackman&#39;) or no (&#39;none&#39;) tapering function.</span>
+<span class="sd">      * If this keyword is an :class:`numpy.array` object : apply this array as taper.</span>
+<span class="sd">       </span>
+<span class="sd">    :keyword overlap: overlap coefficient of the windows (0.75 means 75% overlap).</span>
+<span class="sd">    :keyword wsize: size of the sub-segments.</span>
+<span class="sd">    :keyword normalise: If True, normalise the spectrum by its overall energy content.</span>
+<span class="sd">    :keyword detrend: If True, removes a linear trend to the segmented signal (if tapered) or to the whole signal (if not tapered).</span>
+<span class="sd">    :keyword integration: If True, integrate the spectrum between 2 frequencies. </span>
+<span class="sd">    :parameter sla: data</span>
+<span class="sd">    :return: a spectrum structure</span>
+<span class="sd">    </span>
+<span class="sd">       .. code-block:: python</span>
+<span class="sd">       </span>
+<span class="sd">          {&#39;esd&#39;:esd,       #Energy Spectral Density</span>
+<span class="sd">           &#39;psd&#39;:psd,       #Power Spectral Density</span>
+<span class="sd">           &#39;fq&#39;:fq,         #frequency</span>
+<span class="sd">           &#39;p&#39;:p,           #wavelength</span>
+<span class="sd">           &#39;params&#39;:params} #tapering parameters.</span>
+<span class="sd">    </span>
+<span class="sd">    :author: Renaud DUSSURGET (RD) - LER/PAC, Ifremer</span>
+<span class="sd">    :change: Created by RD, December 2012</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    
+    <span class="n">A</span><span class="o">=</span><span class="n">Ain</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+    <span class="c">#Check dimensions</span>
+    <span class="n">sh</span> <span class="o">=</span> <span class="n">A</span><span class="o">.</span><span class="n">shape</span>
+    <span class="n">ndims</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">sh</span><span class="p">)</span>
+    <span class="n">N</span> <span class="o">=</span> <span class="n">sh</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="c">#Time series are found along the last dimension</span>
+    
+    <span class="c">#If vector, add one dimension</span>
+    <span class="k">if</span> <span class="n">ndims</span> <span class="o">==</span> <span class="mi">1</span> <span class="p">:</span>
+        <span class="n">A</span> <span class="o">=</span> <span class="n">A</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="n">N</span><span class="p">,</span><span class="mi">1</span><span class="p">))</span>
+        <span class="n">sh</span> <span class="o">=</span> <span class="n">A</span><span class="o">.</span><span class="n">shape</span>
+        <span class="n">ndims</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">sh</span><span class="p">)</span>
+    
+    <span class="n">nr</span> <span class="o">=</span> <span class="n">sh</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="c">#Number of repeats  </span>
+    <span class="n">nt</span> <span class="o">=</span> <span class="n">nr</span>
+    
+<span class="c">#    gain=1.0 #Scaling gain... (used for tapering issues)</span>
+    
+<span class="c">#    #Get the overall energy</span>
+<span class="c">#    spec=get_spec(dx, A[:,0])</span>
+<span class="c">#    F=spec[&#39;fq&#39;]   </span>
+<span class="c">#    Eref = ((A[:,0]-A[:,0].mean())**2).sum() #Get the reference energy level</span>
+<span class="c">#    ESDref=spec[&#39;esd&#39;]</span>
+<span class="c">#    SFactor=Eref/spec[&#39;esd&#39;].sum()</span>
+<span class="c">#    ESDref*=SFactor</span>
+<span class="c">#    PSDref=spec[&#39;psd&#39;]*SFactor</span>
+<span class="c">#    print &#39;Check parseval theorem : SUM|Y(f)|²={0}, SUM|y(t)|²={1}&#39;.format(spec[&#39;esd&#39;].sum(),((A[:,0]-A[:,0].mean())**2).sum())</span>
+    
+    <span class="c">#Apply tapering if asked</span>
+    <span class="c">########################</span>
+    <span class="k">if</span> <span class="n">tapering</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+        
+        <span class="c">#Set tapering defaults</span>
+        <span class="n">overlap</span><span class="o">=</span><span class="mf">0.50</span> <span class="k">if</span> <span class="n">overlap</span> <span class="ow">is</span> <span class="bp">None</span> <span class="k">else</span> <span class="n">overlap</span>
+        <span class="n">wsize</span><span class="o">=</span><span class="mf">0.5</span><span class="o">*</span><span class="n">N</span> <span class="k">if</span> <span class="n">wsize</span> <span class="ow">is</span> <span class="bp">None</span> <span class="k">else</span> <span class="n">wsize</span>
+
+        <span class="c">#Get time splitting (tapering) parameters</span>
+        <span class="c">#########################################</span>
+        <span class="n">a</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">(</span><span class="n">wsize</span><span class="p">)</span>
+        <span class="n">b</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">(</span><span class="n">overlap</span><span class="p">)</span> 
+        <span class="n">c</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">(</span><span class="n">N</span><span class="p">)</span> 
+        <span class="n">nn</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">((</span><span class="n">c</span> <span class="o">-</span> <span class="p">(</span><span class="n">a</span> <span class="o">*</span> <span class="n">b</span><span class="p">))</span><span class="o">/</span><span class="p">(</span><span class="n">a</span> <span class="o">-</span> <span class="p">(</span><span class="n">a</span> <span class="o">*</span> <span class="n">b</span><span class="p">)))</span> <span class="c">#This is the number of segments</span>
+        <span class="k">print</span> <span class="s">&#39;Number of windows :{0}</span><span class="se">\n</span><span class="s">Total windowed points : {1} ({2} missing)</span><span class="se">\n</span><span class="s">Total points : {3}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">nn</span><span class="p">,</span><span class="n">nn</span><span class="o">*</span><span class="n">wsize</span><span class="p">,</span><span class="n">N</span> <span class="o">-</span> <span class="n">nn</span><span class="o">*</span><span class="n">wsize</span><span class="p">,</span><span class="n">N</span><span class="p">)</span>
+        
+        <span class="n">ix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">nn</span><span class="p">)</span> <span class="o">*</span> <span class="p">((</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">b</span><span class="p">)</span> <span class="o">*</span> <span class="n">a</span><span class="p">)</span> <span class="c">#These are the starting points of each segments</span>
+
+        <span class="c">#Moving window</span>
+        <span class="c">##############</span>
+        <span class="n">dum</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">wsize</span><span class="p">,</span> <span class="n">nn</span><span class="p">,</span> <span class="n">nr</span><span class="p">),</span><span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">nr</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">nn</span><span class="p">):</span> <span class="c">#looping through time to get splitted time series </span>
+                <span class="n">dum</span><span class="p">[:,</span><span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">detrend_fun</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">wsize</span><span class="p">),</span><span class="n">A</span><span class="p">[</span><span class="n">ix</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="p">:</span> <span class="n">ix</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="n">wsize</span><span class="p">,</span><span class="n">j</span><span class="p">])</span> <span class="k">if</span> <span class="n">detrend</span> <span class="k">else</span> <span class="n">A</span><span class="p">[</span><span class="n">ix</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="p">:</span> <span class="n">ix</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="n">wsize</span><span class="p">,</span><span class="n">j</span><span class="p">]</span>
+        
+        <span class="c">#Set up tapering window</span>
+        <span class="c">#######################</span>
+        <span class="n">beta</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="n">alpha</span>
+        <span class="n">hamm</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">hamming</span><span class="p">(</span><span class="n">wsize</span><span class="p">)</span>
+        <span class="n">hann</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">hanning</span><span class="p">(</span><span class="n">wsize</span><span class="p">)</span>
+        <span class="n">kbess</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">kaiser</span><span class="p">(</span><span class="n">wsize</span><span class="p">,</span><span class="n">beta</span><span class="p">)</span>
+        <span class="n">blackman</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">blackman</span><span class="p">(</span><span class="n">wsize</span><span class="p">)</span>
+        <span class="n">notaper</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">wsize</span><span class="p">)</span> <span class="c">#overpass tapering option</span>
+        <span class="n">gain</span><span class="o">=</span><span class="mf">1.0</span>
+        
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">tapering</span><span class="p">,</span><span class="nb">bool</span><span class="p">)</span> <span class="p">:</span> <span class="n">which</span><span class="o">=</span><span class="s">&#39;hamm&#39;</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">tapering</span><span class="p">,</span><span class="nb">str</span><span class="p">)</span> <span class="p">:</span>
+            <span class="k">if</span> <span class="n">tapering</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span> <span class="o">==</span> <span class="s">&#39;HAMMING&#39;</span> <span class="p">:</span>
+                <span class="n">which</span><span class="o">=</span><span class="s">&#39;hamm&#39;</span>
+                <span class="n">gain</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">hamm</span><span class="p">)</span><span class="o">/</span><span class="n">wsize</span> <span class="c">#0.530416666667</span>
+            <span class="k">elif</span> <span class="n">tapering</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span> <span class="o">==</span> <span class="s">&#39;HANNING&#39;</span> <span class="p">:</span>
+                <span class="n">which</span><span class="o">=</span><span class="s">&#39;hann&#39;</span>
+                <span class="n">gain</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">hann</span><span class="p">)</span><span class="o">/</span><span class="n">wsize</span> <span class="c">#0.489583333333</span>
+            <span class="k">elif</span> <span class="n">tapering</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span> <span class="o">==</span> <span class="s">&#39;KAISER&#39;</span> <span class="p">:</span>
+                <span class="n">which</span><span class="o">=</span><span class="s">&#39;kbess&#39;</span>
+                <span class="n">gain</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">kbess</span><span class="p">)</span><span class="o">/</span><span class="n">wsize</span> <span class="c">#0.394170357504</span>
+            <span class="k">elif</span> <span class="n">tapering</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span> <span class="o">==</span> <span class="s">&#39;NONE&#39;</span> <span class="p">:</span>
+                <span class="n">which</span><span class="o">=</span><span class="s">&#39;notaper&#39;</span>
+                <span class="n">gain</span><span class="o">=</span><span class="mf">1.0</span>
+            <span class="k">elif</span> <span class="n">tapering</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span> <span class="o">==</span> <span class="s">&#39;BLACKMAN&#39;</span> <span class="p">:</span>
+                <span class="n">which</span><span class="o">=</span><span class="s">&#39;blackman&#39;</span>
+                <span class="n">gain</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">blackman</span><span class="p">)</span><span class="o">/</span><span class="n">wsize</span>
+            <span class="k">else</span> <span class="p">:</span> <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s">&#39;Unknown taper {0}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">tapering</span><span class="p">))</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">tapering</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="p">:</span> <span class="k">pass</span>
+        <span class="k">else</span> <span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s">&#39;Bad value for tapering keyword&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">tapering</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="p">:</span> <span class="k">exec</span><span class="p">(</span><span class="s">&#39;window=&#39;</span><span class="o">+</span><span class="n">which</span><span class="p">)</span>
+        <span class="k">else</span> <span class="p">:</span> <span class="n">window</span><span class="o">=</span><span class="n">tapering</span>
+        <span class="n">window</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">window</span><span class="p">,</span><span class="n">nn</span><span class="o">*</span><span class="n">nr</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="n">wsize</span><span class="p">,</span><span class="n">nn</span><span class="p">,</span><span class="n">nr</span><span class="p">))</span>
+    
+        <span class="c">#Apply tapering on segmented data</span>
+        <span class="n">A</span><span class="o">=</span><span class="n">dum</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span><span class="o">*</span><span class="n">window</span>
+        <span class="n">A</span><span class="o">=</span><span class="n">A</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">wsize</span><span class="p">,</span><span class="n">nr</span><span class="o">*</span><span class="n">nn</span><span class="p">)</span> <span class="c">#Reshapa matrix</span>
+        <span class="n">nr</span><span class="o">=</span><span class="n">nn</span><span class="o">*</span><span class="n">nr</span>
+    <span class="k">else</span> <span class="p">:</span>
+        <span class="k">if</span> <span class="n">detrend</span> <span class="p">:</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">nr</span><span class="p">):</span> <span class="n">A</span><span class="p">[:,</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">detrend_fun</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">N</span><span class="p">),</span><span class="n">A</span><span class="p">[:,</span><span class="n">i</span><span class="p">])</span> <span class="k">if</span> <span class="n">detrend</span> <span class="k">else</span> <span class="n">A</span><span class="p">[:,</span><span class="n">i</span><span class="p">]</span>
+        <span class="n">gain</span><span class="o">=</span><span class="mf">1.0</span>
+    
+    <span class="c">#Run transform</span>
+    <span class="c">###############</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">nr</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">ARspec</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span> <span class="p">:</span> <span class="n">spec</span><span class="o">=</span><span class="n">yule_walker_regression</span><span class="p">(</span><span class="n">dx</span><span class="p">,</span> <span class="n">A</span><span class="p">[:,</span><span class="n">i</span><span class="p">],</span> <span class="n">ARspec</span><span class="p">)</span>
+        <span class="k">else</span> <span class="p">:</span> <span class="n">spec</span><span class="o">=</span><span class="n">get_spec</span><span class="p">(</span><span class="n">dx</span><span class="p">,</span> <span class="n">A</span><span class="p">[:,</span><span class="n">i</span><span class="p">],</span><span class="n">integration</span><span class="o">=</span><span class="n">integration</span><span class="p">,</span><span class="n">gain</span><span class="o">=</span><span class="n">gain</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">esd</span> <span class="o">=</span> <span class="n">spec</span><span class="p">[</span><span class="s">&#39;esd&#39;</span><span class="p">]</span>
+            <span class="n">psd</span> <span class="o">=</span> <span class="n">spec</span><span class="p">[</span><span class="s">&#39;psd&#39;</span><span class="p">]</span>
+            <span class="n">fq</span> <span class="o">=</span> <span class="n">spec</span><span class="p">[</span><span class="s">&#39;fq&#39;</span><span class="p">]</span>
+        <span class="k">else</span> <span class="p">:</span> 
+            <span class="n">esd</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">esd</span><span class="p">,</span><span class="n">spec</span><span class="p">[</span><span class="s">&#39;esd&#39;</span><span class="p">])</span>
+            <span class="n">psd</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">psd</span><span class="p">,</span><span class="n">spec</span><span class="p">[</span><span class="s">&#39;psd&#39;</span><span class="p">])</span>
+    
+<span class="c">#    factor=((A[:,0]-A[:,0].mean())**2).sum()/spec[&#39;esd&#39;].sum()</span>
+    
+    <span class="c">#Average spectrum</span>
+    <span class="c">#################</span>
+    <span class="n">nf</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">fq</span><span class="p">)</span>
+    <span class="n">p</span><span class="o">=</span><span class="mf">1.</span><span class="o">/</span><span class="n">fq</span>
+    <span class="n">esd</span><span class="o">=</span><span class="n">esd</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">nr</span><span class="p">,</span><span class="n">nf</span><span class="p">)</span>
+    <span class="n">psd</span><span class="o">=</span><span class="n">psd</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">nr</span><span class="p">,</span><span class="n">nf</span><span class="p">)</span>
+    
+    <span class="k">if</span> <span class="n">average</span> <span class="p">:</span>
+        <span class="n">esd</span><span class="o">=</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">esd</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">/</span><span class="n">nr</span><span class="p">)</span><span class="c">#/gain</span>
+        <span class="n">psd</span><span class="o">=</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">psd</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">/</span><span class="n">nr</span><span class="p">)</span><span class="c">#/gain</span>
+    
+    <span class="n">psd</span> <span class="o">=</span> <span class="n">psd</span> <span class="o">*</span> <span class="p">(</span><span class="n">gain</span><span class="o">**</span><span class="mf">0.5</span><span class="p">)</span>
+<span class="c">#    print gain, np.sqrt(gain), gain **2, gain*0.5, gain/2.</span>
+<span class="c">#    esd=(np.sum(esd,axis=0))#/gain</span>
+<span class="c">#    psd=(np.sum(psd,axis=0))#/gain</span>
+
+
+    <span class="c">#Normalise by energy content    </span>
+    <span class="n">Scaling_Factor</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">fq</span><span class="p">)</span><span class="o">/</span><span class="n">esd</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">normalise</span> <span class="p">:</span>
+        <span class="n">esd</span><span class="o">*=</span><span class="n">Scaling_Factor</span>
+        <span class="n">psd</span><span class="o">*=</span><span class="n">Scaling_Factor</span>
+    
+    <span class="k">if</span> <span class="n">tapering</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span> <span class="p">:</span> <span class="k">return</span> <span class="p">{</span><span class="s">&#39;params&#39;</span><span class="p">:{</span><span class="s">&#39;tapering&#39;</span><span class="p">:</span><span class="n">tapering</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">,</span><span class="s">&#39;which&#39;</span><span class="p">:</span><span class="n">which</span><span class="p">,</span><span class="s">&#39;wsize&#39;</span><span class="p">:</span><span class="nb">int</span><span class="p">(</span><span class="n">wsize</span><span class="p">),</span><span class="s">&#39;nwind&#39;</span><span class="p">:</span><span class="nb">int</span><span class="p">(</span><span class="n">nn</span><span class="p">),</span><span class="s">&#39;overlap&#39;</span><span class="p">:</span><span class="nb">int</span><span class="p">(</span><span class="mf">100.</span><span class="o">*</span><span class="n">overlap</span><span class="p">),</span><span class="s">&#39;gain&#39;</span><span class="p">:</span><span class="n">gain</span><span class="p">},</span><span class="s">&#39;psd&#39;</span><span class="p">:</span><span class="n">psd</span><span class="p">,</span><span class="s">&#39;esd&#39;</span><span class="p">:</span><span class="n">esd</span><span class="p">,</span><span class="s">&#39;fq&#39;</span><span class="p">:</span><span class="n">fq</span><span class="p">,</span><span class="s">&#39;p&#39;</span><span class="p">:</span><span class="n">p</span><span class="p">}</span>
+    <span class="k">else</span> <span class="p">:</span> <span class="k">return</span> <span class="p">{</span><span class="s">&#39;params&#39;</span><span class="p">:{</span><span class="s">&#39;tapering&#39;</span><span class="p">:</span><span class="n">tapering</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">},</span><span class="s">&#39;psd&#39;</span><span class="p">:</span><span class="n">psd</span><span class="p">,</span><span class="s">&#39;esd&#39;</span><span class="p">:</span><span class="n">esd</span><span class="p">,</span><span class="s">&#39;fq&#39;</span><span class="p">:</span><span class="n">fq</span><span class="p">,</span><span class="s">&#39;p&#39;</span><span class="p">:</span><span class="n">p</span><span class="p">}</span>
+
+<span class="c">#def get_cospec(dx,dy,var1,var2):</span>
+<span class="c">#</span>
+<span class="c">#    # part 1 - estimate of the wavenumbers</span>
+<span class="c">#    [kx,Lx] = get_kx(var1.size,dx)</span>
+<span class="c">#</span>
+<span class="c">#    # part 2 - estimate of the spectrum</span>
+<span class="c">#    # fast fourier transform</span>
+<span class="c">#    hat_phi1=np.fft.fft(var1)</span>
+<span class="c">#    hat_phi2=np.fft.fft(var2)</span>
+<span class="c">#    hat_phi1=hat_phi1*hat_phi1.conj()</span>
+<span class="c">#    hat_phi1=hat_phi1.real.copy()  # useless</span>
+<span class="c">#    hat_phi2=hat_phi2*hat_phi2.conj()</span>
+<span class="c">#    hat_phi2=hat_phi2.real.copy()  # useless</span>
+<span class="c">#    hat_cospec = hat_phi1 + hat_phi2</span>
+<span class="c">#    </span>
+<span class="c">#    # integration of the spectrum</span>
+<span class="c">#    # shift to have values centered on the intervals</span>
+<span class="c">#    dk = kx[1] - kx[0]</span>
+<span class="c">#    dk_half = dk/2  # half of the interval</span>
+<span class="c">#    k_= kx[0:min(var1.shape[1],var1.shape[0])/2] + dk</span>
+<span class="c">#    cospecvar = k_*0</span>
+<span class="c">#    for i in range(len(k_)):</span>
+<span class="c">#        # get indexes that satisfy two conditions</span>
+<span class="c">#        # integration over a spectral width</span>
+<span class="c">#        cospecvar[i] = sum( hat_cospec[ np.nonzero(np.logical_and(kx&lt;=k_[i]+dk_half,kx&gt;k_[i]-dk_half) ) ] )</span>
+<span class="c">#</span>
+<span class="c">#    # Normalisation (Danioux 2011)</span>
+<span class="c">#    cospecvar = cospecvar / (var1.shape[1]*var1.shape[0])**2 / dk</span>
+<span class="c">#</span>
+<span class="c">#    # Dimensionalization to be able to compare with the litterature</span>
+<span class="c">#    nbwave=k_*1000.0/2.0/np.pi     # from rad/m to km/m</span>
+<span class="c">#    dk=dk*1000.0/2.0/np.pi</span>
+<span class="c">#    cospecvar=cospecvar*2.0*np.pi/1000.0</span>
+<span class="c">##    if options.debug: print &quot;\n Normalized co-spectrum : \n&quot;,cospecvar</span>
+<span class="c">#    return cospecvar,nbwave,dk</span>
+
+
+<span class="c">#def grid_track(dst,lat,lon,sla,remove_edges=True,backbone=None):</span>
+<span class="c">#    &quot;&quot;&quot;</span>
+<span class="c">#    # GRID_TRACK</span>
+<span class="c">#    # @summary: This function allow detecting gaps in a set of altimetry data and rebin this data regularlyy, with informations on gaps.</span>
+<span class="c">#    # @param dst {type:numeric} : along-track distance.</span>
+<span class="c">#    # @param lat {type:numeric} : latitude</span>
+<span class="c">#    # @param lon {type:numeric} : longitude</span>
+<span class="c">#    # @param sla {type:numeric} : data</span>
+<span class="c">#    # @return:</span>
+<span class="c">#    #    outdst : resampled distance</span>
+<span class="c">#    #    outlon : resampled longitude</span>
+<span class="c">#    #    outlat : resampled latitude</span>
+<span class="c">#    #    outsla : resampled data</span>
+<span class="c">#    #    gaplen : length of the longest gap in data</span>
+<span class="c">#    #    ngaps : number of detected gaps in data</span>
+<span class="c">#    #    dx : average spatial sampling</span>
+<span class="c">#    #    interpolated : True when data was interpolated (empty bin)</span>
+<span class="c">#    #</span>
+<span class="c">#    # @author: Renaud DUSSURGET (RD) - LER/PAC, Ifremer</span>
+<span class="c">#    # @change: Created by RD, July 2012</span>
+<span class="c">#    #    29/08/2012 : Major change -&gt; number of output variables changes (added INTERPOLATED), and rebinning modified</span>
+<span class="c">#    &quot;&quot;&quot;</span>
+<span class="c">#    </span>
+<span class="c">#    #Find gaps in data</span>
+<span class="c">#    dx = dst[1:] - dst[:-1]</span>
+<span class="c">#    mn_dx = np.median(dx)</span>
+<span class="c">#    bins = np.ceil(dst.max() / mn_dx) + 1</span>
+<span class="c">#    range=(0/2.,mn_dx * bins) - mn_dx/2</span>
+<span class="c">#    hist,bin_edges=np.histogram(dst, bins=bins, range=range) #We have binned the data along a regular grid of size (bins) in the range (range)</span>
+<span class="c">#                                                             #Missing data is thus represented by no data in a given bin</span>
+<span class="c">#    </span>
+<span class="c">#    #Remove leading and trailing edges (and synchronise bin_edges)</span>
+<span class="c">#    if remove_edges == True :</span>
+<span class="c">#        while hist[0] == 0 : </span>
+<span class="c">#            hist=np.delete(hist,[0])</span>
+<span class="c">#            bin_edges=np.delete(bin_edges,[0])</span>
+<span class="c">#        while hist[-1] == 0 :</span>
+<span class="c">#            hist=np.delete(hist,[len(hist)-1])</span>
+<span class="c">#            bin_edges=np.delete(bin_edges,[len(bin_edges)-1])</span>
+<span class="c">#    </span>
+<span class="c">#    #Get filled bins indices</span>
+<span class="c">#</span>
+<span class="c">#    ok = np.arange(len(hist)).compress(np.logical_and(hist,True or False))</span>
+<span class="c">#    empty = np.arange(len(hist)).compress(~np.logical_and(hist,True or False)) </span>
+<span class="c">#    </span>
+<span class="c">#    outsla = np.repeat(np.NaN,len(hist))</span>
+<span class="c">#    outlon = np.repeat(np.NaN,len(hist))</span>
+<span class="c">#    outlat = np.repeat(np.NaN,len(hist))</span>
+<span class="c">#    outdst = bin_edges [:-1]+ mn_dx/2 #distances is taken at bins centers</span>
+<span class="c">#    outsla[ok] = sla</span>
+<span class="c">#    outlon[ok] = lon</span>
+<span class="c">#    outlat[ok] = lat</span>
+<span class="c">#    </span>
+<span class="c">#    #Fill the gaps if there are some</span>
+<span class="c">#    if len(empty) &gt; 0 : </span>
+<span class="c">#        #Interpolate lon,lat @ empty positions</span>
+<span class="c">#        outlon[empty] = AT.interp1d(ok, outlon[ok], empty, kind=&#39;cubic&#39;)</span>
+<span class="c">#        outlat[empty] = AT.interp1d(ok, outlat[ok], empty, kind=&#39;cubic&#39;)</span>
+<span class="c">#        outsla[empty] = AT.interp1d(ok, outsla[ok], empty, spline=True)</span>
+<span class="c">#        </span>
+<span class="c">#    </span>
+<span class="c">#    </span>
+<span class="c">#    #Get gap properties</span>
+<span class="c">#    ind=np.arange(len(hist))</span>
+<span class="c">#    dhist=(hist[1:] - hist[:-1])</span>
+<span class="c">#    st=ind.compress(dhist==-1)+1</span>
+<span class="c">#    en=ind.compress(dhist==1)</span>
+<span class="c">#    gaplen=(en-st) + 1</span>
+<span class="c">#    ngaps=len(st)</span>
+<span class="c">#    </span>
+<span class="c">#    #Get empty bin flag</span>
+<span class="c">#    interpolated=~hist.astype(&#39;bool&#39;)</span>
+<span class="c">#    </span>
+<span class="c">#    return outdst, outlon, outlat, outsla, gaplen, ngaps, dx, interpolated</span>
+
+<span class="c">#def grid_track_backbone(lat,lon,sla,backlat,backlon,fill=None):</span>
+<span class="c">#    &quot;&quot;&quot;</span>
+<span class="c">#    # GRID_TRACK_BACKBONE</span>
+<span class="c">#    # @summary: This function allow detecting gaps in a set of altimetry data and rebin this data regularlyy, with informations on gaps.</span>
+<span class="c">#    # @param dst {type:numeric} : along-track distance.</span>
+<span class="c">#    # @param lat {type:numeric} : latitude</span>
+<span class="c">#    # @param lon {type:numeric} : longitude</span>
+<span class="c">#    # @param sla {type:numeric} : data</span>
+<span class="c">#    # @return:</span>
+<span class="c">#    #    outdst : resampled distance</span>
+<span class="c">#    #    outlon : resampled longitude</span>
+<span class="c">#    #    outlat : resampled latitude</span>
+<span class="c">#    #    outsla : resampled data</span>
+<span class="c">#    #    gaplen : length of the longest gap in data</span>
+<span class="c">#    #    ngaps : number of detected gaps in data</span>
+<span class="c">#    #    dx : average spatial sampling</span>
+<span class="c">#    #    interpolated : True when data was interpolated (empty bin)</span>
+<span class="c">#    #</span>
+<span class="c">#    # @author: Renaud DUSSURGET (RD) - LER/PAC, Ifremer</span>
+<span class="c">#    # @change: Created by RD, July 2012</span>
+<span class="c">#    #    29/08/2012 : Major change -&gt; number of output variables changes (added INTERPOLATED), and rebinning modified</span>
+<span class="c">#    &quot;&quot;&quot;</span>
+<span class="c">#    </span>
+<span class="c">#    #Find gaps in data</span>
+<span class="c">#    dst=AT.calcul_distance(backlat[0],backlon[0],lat,lon)</span>
+<span class="c">#    dstback=AT.calcul_distance(backlat,backlon)</span>
+<span class="c">#    dx = dstback[1:] - dstback[:-1]</span>
+<span class="c">#    mn_dx = np.median(dx)</span>
+<span class="c">#    </span>
+<span class="c">#    bins = np.ceil(dstback.max() / mn_dx) + 1</span>
+<span class="c">#    range=(0/2.,mn_dx * bins) - mn_dx/2</span>
+<span class="c">#    hist,bin_edges=np.histogram(dst, bins=bins, range=range) #We have binned the data along a regular grid of size (bins) in the range (range)</span>
+<span class="c">#                                                             #Missing data is thus represented by no data in a given bin</span>
+<span class="c">#    </span>
+<span class="c">#    #Get filled bins indices</span>
+<span class="c">#    ok = np.arange(len(hist)).compress(np.logical_and(hist,True or False))</span>
+<span class="c">#    empty = np.arange(len(hist)).compress(~np.logical_and(hist,True or False)) </span>
+<span class="c">#    </span>
+<span class="c">#    outsla = np.repeat(np.NaN,len(hist))</span>
+<span class="c">#    outlon = np.repeat(np.NaN,len(hist))</span>
+<span class="c">#    outlat = np.repeat(np.NaN,len(hist))</span>
+<span class="c">#    outdst = bin_edges [:-1]+ mn_dx/2 #distances is taken at bins centers</span>
+<span class="c">#    outsla[ok] = sla</span>
+<span class="c">#    outlon[ok] = lon</span>
+<span class="c">#    outlat[ok] = lat</span>
+<span class="c">#    </span>
+<span class="c">#    #Fill the gaps if there are some</span>
+<span class="c">#    if (fill is not None) &amp; (len(empty) &gt; fill) : </span>
+<span class="c">#        #Interpolate lon,lat @ empty positions</span>
+<span class="c">#        outlon[empty] = AT.interp1d(ok, outlon[ok], empty, kind=&#39;cubic&#39;)</span>
+<span class="c">#        outlat[empty] = AT.interp1d(ok, outlat[ok], empty, kind=&#39;cubic&#39;)</span>
+<span class="c">#        outsla[empty] = AT.interp1d(ok, outsla[ok], empty, spline=True)</span>
+<span class="c">#    </span>
+<span class="c">#    #Get empty bin flag</span>
+<span class="c">#    interpolated=(~hist.astype(&#39;bool&#39;))</span>
+<span class="c">#    </span>
+<span class="c">#    return outdst, outlon, outlat, outsla, dx, interpolated</span>
+
+</div>
+<div class="viewcode-block" id="preprocess"><a class="viewcode-back" href="../../../altimetry.tools.spectrum.html#altimetry.tools.spectrum.preprocess">[docs]</a><span class="k">def</span> <span class="nf">preprocess</span><span class="p">(</span><span class="n">lat</span><span class="p">,</span><span class="n">lon</span><span class="p">,</span><span class="n">sla</span><span class="p">,</span>
+               <span class="n">N_min</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+               <span class="n">per_min</span><span class="o">=</span><span class="mf">15.0</span><span class="p">,</span>
+               <span class="n">max_gap</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+               <span class="n">leave_gaps</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+               <span class="n">remove_edges</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+               <span class="n">interp_over_continents</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+               <span class="n">truncate_if_continents</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+               <span class="n">discard_continental_gaps</span> <span class="o">=</span> <span class="bp">True</span><span class="p">,</span> <span class="c">#do not consider gaps on continents to discard time steps using max_gap.</span>
+               <span class="n">flag_interp</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+               <span class="n">return_lonlat</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+               <span class="n">return_interpolated</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+               <span class="n">last</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span><span class="n">mid</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span><span class="n">first</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="c">#for get_segments</span>
+               <span class="n">verbose</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Preprocessing of the SLA data ::</span>
+<span class="sd">       * process positions :</span>
+<span class="sd">          * interpolate over gaps</span>
+<span class="sd">          * find continents (extend the positions over continents to get the discontinuity)</span>
+<span class="sd">          * find track edges</span>
+<span class="sd">          * find gap lengths</span>
+
+<span class="sd">       * clean SLA data::</span>
+<span class="sd">          * Remove gaps greater than maximum allowed length over which interpolate is OK.</span>
+<span class="sd">          * Remove time steps with not enough coverage</span>
+<span class="sd">          * get sub-segments of valid data of a given length</span>
+<span class="sd">          </span>
+<span class="sd">    :parameter lon: longitude</span>
+<span class="sd">    :parameter lat: longitude</span>
+<span class="sd">    :parameter sla: data</span>
+<span class="sd">    </span>
+<span class="sd">    :keyword N_min: Length of subsegments (cf :func:`altimetry.tools.spectrum.get_segments`)</span>
+<span class="sd">    :keyword per_min: Minimum percentage of valid data to allow.</span>
+<span class="sd">    :keyword max_gap: Maximum gap length to interpolate over (interpolation is done 1st, THEN long gaps are eliminated)</span>
+<span class="sd">    :keyword leave_gaps: Leave gaps (equivalent to setting max_gap to number of points in track).</span>
+<span class="sd">    </span>
+<span class="sd">    :keyword remove_edges: discard data at track edges.</span>
+<span class="sd">    :keyword truncate_if_continents: Force truncating data if a continent is found within a segment of data.</span>
+<span class="sd">    :keyword last: Get segments of data sticked to the last point in track (cf :func:`altimetry.tools.spectrum.get_segments`)</span>
+<span class="sd">    :keyword first: Get segments of data sticked to the first point in track (cf :func:`altimetry.tools.spectrum.get_segments`)</span>
+<span class="sd">    :keyword mid: Get segments of data sticked to the middle point in track (cf :func:`altimetry.tools.spectrum.get_segments`)</span>
+<span class="sd">    </span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">sh</span><span class="o">=</span><span class="n">sla</span><span class="o">.</span><span class="n">shape</span>
+    <span class="n">nt</span><span class="o">=</span><span class="n">sh</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">nx</span><span class="o">=</span><span class="n">sh</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">dumsla</span><span class="o">=</span><span class="n">sla</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        
+    <span class="c">#Remove profiles with less than 3 points</span>
+    <span class="n">ok</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">sla</span><span class="o">.</span><span class="n">mask</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">&lt;</span> <span class="p">(</span><span class="n">nx</span> <span class="o">-</span><span class="mi">3</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">nt</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">ok</span><span class="p">))</span> <span class="p">:</span> <span class="n">message</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s">&#39;</span><span class="si">%i</span><span class="s"> time steps on </span><span class="si">%i</span><span class="s"> removed: contain less than 3 valid data points&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">nt</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">ok</span><span class="p">),</span><span class="n">nt</span><span class="p">))</span>
+    <span class="n">dumsla</span><span class="o">=</span><span class="n">dumsla</span><span class="p">[</span><span class="n">ok</span><span class="p">,:]</span>
+    <span class="n">ntinit</span><span class="o">=</span><span class="n">nt</span>
+    <span class="n">nt</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">ok</span><span class="p">)</span>
+    
+    
+    
+    <span class="c"># 1 - regrid tracks regularly</span>
+    <span class="c">#     get gap lengths</span>
+    <span class="c">#############################</span>
+    <span class="n">fg_dumlon</span><span class="o">=</span><span class="n">nx</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">nt</span><span class="p">):</span>
+        
+        <span class="c">#grid track regularly</span>
+        <span class="n">fg</span><span class="o">=~</span><span class="n">dumsla</span><span class="o">.</span><span class="n">mask</span><span class="p">[</span><span class="n">i</span><span class="p">,:]</span>
+        <span class="n">dst</span><span class="p">,</span> <span class="n">dumlon</span><span class="p">,</span> <span class="n">dumlat</span><span class="p">,</span> <span class="n">dsla</span><span class="p">,</span> <span class="n">lgaps</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">edges</span><span class="p">,</span> <span class="n">inter</span> <span class="o">=</span> <span class="n">grid_track</span><span class="p">(</span><span class="n">lat</span><span class="p">[</span><span class="n">fg</span><span class="p">],</span> <span class="n">lon</span><span class="p">[</span><span class="n">fg</span><span class="p">],</span> <span class="n">dumsla</span><span class="p">[</span><span class="n">i</span><span class="p">,:][</span><span class="n">fg</span><span class="p">],</span><span class="n">remove_edges</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span><span class="n">backbone</span><span class="o">=</span><span class="p">[</span><span class="n">lon</span><span class="p">,</span><span class="n">lat</span><span class="p">],</span><span class="n">interp_over_continents</span><span class="o">=</span><span class="n">interp_over_continents</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">dumlon</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">masked_array</span><span class="p">)</span> <span class="p">:</span> <span class="n">fg_dumlon_new</span> <span class="o">=</span> <span class="n">dumlon</span><span class="o">.</span><span class="n">mask</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> 
+        <span class="k">else</span> <span class="p">:</span> <span class="n">fg_dumlon_new</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">dumlon</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">fg_dumlon_new</span> <span class="o">&lt;</span> <span class="n">fg_dumlon</span> <span class="p">:</span>
+            <span class="n">fg_dumlon</span> <span class="o">=</span> <span class="n">fg_dumlon_new</span>
+            <span class="n">lonout</span> <span class="o">=</span> <span class="n">dumlon</span>
+            <span class="n">latout</span> <span class="o">=</span> <span class="n">dumlat</span>
+        
+        <span class="c">#extend matrix width if track has gone over any land (ie. any points not found in the backbone)</span>
+        <span class="k">if</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">dumlon</span><span class="p">)</span> <span class="o">&gt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">lon</span><span class="p">))</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">i</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="p">:</span>            
+            <span class="n">lendiff</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">dumlon</span><span class="p">)</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">lon</span><span class="p">)</span>
+            <span class="k">print</span> <span class="s">&#39;[WARNING] : Pass goes over a land mass, changing the track size from {0} to {1}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">nx</span><span class="p">,</span><span class="n">nx</span><span class="o">+</span><span class="n">lendiff</span><span class="p">)</span>
+            <span class="n">nx</span><span class="o">+=</span><span class="n">lendiff</span>
+
+        <span class="n">dumint</span><span class="o">=</span><span class="n">inter</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="n">dsla</span><span class="p">)))</span> <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">else</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">dumint</span><span class="p">,</span><span class="n">inter</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="n">dsla</span><span class="p">)))],</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">dumslaout</span><span class="o">=</span><span class="n">dsla</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="n">dsla</span><span class="p">)))</span> <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">else</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">dumslaout</span><span class="p">,</span><span class="n">dsla</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="n">dsla</span><span class="p">)))],</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="mi">0</span> <span class="p">:</span>
+            <span class="n">gaplen</span> <span class="o">=</span> <span class="p">[</span><span class="n">lgaps</span><span class="p">]</span>
+            <span class="n">gapedges</span><span class="o">=</span> <span class="p">[</span><span class="n">edges</span><span class="p">]</span>
+        <span class="k">else</span> <span class="p">:</span>
+            <span class="n">gaplen</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">lgaps</span><span class="p">)</span>
+            <span class="n">gapedges</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">edges</span><span class="p">)</span>
+        <span class="n">ngaps</span> <span class="o">=</span> <span class="n">n</span> <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">else</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ngaps</span><span class="p">,</span><span class="n">n</span><span class="p">)</span> 
+    <span class="n">dumsla</span><span class="o">=</span><span class="n">dumslaout</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    
+    <span class="c">#These points are the continental ones.</span>
+    <span class="n">dumint</span><span class="o">=</span><span class="n">dumint</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">bool</span><span class="p">)</span>
+    <span class="n">continent</span><span class="o">=</span><span class="n">dumsla</span><span class="o">.</span><span class="n">mask</span> <span class="o">&amp;</span> <span class="n">dumint</span>
+    <span class="n">flagged</span><span class="o">=</span><span class="n">dumint</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">bool</span><span class="p">)</span> <span class="o">&amp;</span> <span class="o">~</span><span class="n">continent</span>
+    
+    <span class="c">#check for continental gaps</span>
+    <span class="n">iscont</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">continent</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">==</span> <span class="n">nt</span>
+    <span class="n">indcont</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">nx</span><span class="p">)[</span><span class="n">iscont</span><span class="p">]</span>
+    
+    <span class="c">#here we get the position of the gap from its egdes and intersect with the continental points</span>
+    <span class="c"># -&gt; if any point is over continent, cont_gap is set to True</span>
+    <span class="n">cont_gap</span> <span class="o">=</span> <span class="p">[[</span><span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">indcont</span><span class="p">)</span><span class="o">.</span><span class="n">intersection</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">gapedges</span><span class="p">[</span><span class="n">j</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="n">jj</span><span class="p">],</span><span class="n">gapedges</span><span class="p">[</span><span class="n">j</span><span class="p">][</span><span class="mi">1</span><span class="p">][</span><span class="n">jj</span><span class="p">])))</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">for</span> <span class="n">jj</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="n">ngaps</span><span class="p">[</span><span class="n">j</span><span class="p">])]</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="n">nt</span><span class="p">)]</span>
+
+    <span class="k">if</span> <span class="n">discard_continental_gaps</span> <span class="p">:</span>
+        <span class="n">gaplen</span><span class="o">=</span><span class="p">[</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">g</span><span class="p">[</span><span class="n">jj</span><span class="p">]</span> <span class="k">for</span> <span class="n">jj</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">g</span><span class="p">))</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">cont_gap</span><span class="p">[</span><span class="n">j</span><span class="p">][</span><span class="n">jj</span><span class="p">]])</span> <span class="k">for</span> <span class="n">j</span><span class="p">,</span><span class="n">g</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">gaplen</span><span class="p">)]</span>
+    
+    <span class="c"># 2 - remove/subsample using stats from previous loop and keyword arguments </span>
+    <span class="c">###########################################################################</span>
+    <span class="k">if</span> <span class="n">max_gap</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+        
+        <span class="c">#Remove profiles with long gaps</span>
+        <span class="n">gapmax</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">g</span><span class="p">)</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">g</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="mi">0</span> <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">gaplen</span><span class="p">])</span>
+        <span class="n">id1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">gapmax</span> <span class="o">&lt;=</span> <span class="n">max_gap</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">leave_gaps</span> <span class="k">else</span> <span class="n">ok</span>
+        
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">id1</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="p">:</span> <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s">&#39;[ERROR] : All gaps in current track are greater than the maximum specified gap&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">id1</span><span class="p">)</span> <span class="o">!=</span> <span class="n">nt</span><span class="p">)</span> <span class="p">:</span> <span class="n">message</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s">&#39;</span><span class="si">%i</span><span class="s"> time steps on </span><span class="si">%i</span><span class="s"> removed: gaps &gt; </span><span class="si">%i</span><span class="s"> point&#39;</span> <span class="o">%</span><span class="p">(</span><span class="n">nt</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">id1</span><span class="p">),</span> <span class="n">ntinit</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">max_gap</span><span class="p">)))</span>
+        
+        <span class="n">dumsla</span><span class="o">=</span><span class="n">dumsla</span><span class="p">[</span><span class="n">id1</span><span class="p">,:]</span>
+        
+        <span class="c">#Remove profiles with not enough coverage :</span>
+        <span class="c"># -&gt; based on points with interpolation flag from grid_track and not on continents</span>
+<span class="c">#        per=100 * dumsla.mask.sum(axis=0) / np.float(nt)</span>
+        <span class="n">per</span> <span class="o">=</span> <span class="mf">100.</span> <span class="o">*</span> <span class="n">flagged</span><span class="p">[</span><span class="n">id1</span><span class="p">,:]</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">/</span><span class="n">np</span><span class="o">.</span><span class="n">float</span><span class="p">(</span><span class="n">nx</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">N_min</span> <span class="ow">is</span> <span class="bp">None</span> <span class="p">:</span>
+<span class="c">#             N_min = np.round((0.01* (100- per_min)) * nx)</span>
+            <span class="n">N_min</span> <span class="o">=</span> <span class="n">nx</span>
+<span class="c">#        if per_min is None : per_min = 100* (1 - N_min/np.float(nx))</span>
+        
+        <span class="n">id2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span> <span class="n">per</span> <span class="o">&lt;=</span> <span class="n">per_min</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">id2</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="p">:</span> <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s">&#39;[ERROR] : All time steps in current track have a percentage of invalid data &gt; than the maximum allowed (</span><span class="si">%i</span><span class="s">)&#39;</span> <span class="o">%</span> <span class="nb">int</span><span class="p">(</span><span class="n">per_min</span><span class="p">))</span>
+        <span class="k">if</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">id2</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">id1</span><span class="p">))</span> <span class="p">:</span> <span class="n">message</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s">&#39;</span><span class="si">%i</span><span class="s"> time steps on </span><span class="si">%i</span><span class="s"> removed: exceed maximum allowed percentage of invalid data (</span><span class="si">%i</span><span class="s">)&#39;</span> <span class="o">%</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">id1</span><span class="p">)</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">id2</span><span class="p">),</span> <span class="n">ntinit</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">per_min</span><span class="p">)))</span>
+        
+        <span class="n">dumsla</span><span class="o">=</span><span class="n">dumsla</span><span class="p">[</span><span class="n">id2</span><span class="p">,:]</span>
+        
+        
+        
+        <span class="c">#At this point track edges are removed</span>
+        <span class="n">dumsla</span><span class="p">,</span><span class="n">id3</span><span class="o">=</span><span class="n">get_segment</span><span class="p">(</span><span class="n">dumsla</span><span class="p">,</span><span class="n">N_min</span><span class="p">,</span><span class="n">remove_edges</span><span class="o">=</span><span class="n">remove_edges</span><span class="p">,</span><span class="n">truncate_if_continents</span><span class="o">=</span><span class="n">truncate_if_continents</span><span class="p">,</span><span class="n">last</span><span class="o">=</span><span class="n">last</span><span class="p">,</span><span class="n">mid</span><span class="o">=</span><span class="n">mid</span><span class="p">,</span><span class="n">first</span><span class="o">=</span><span class="n">first</span><span class="p">)</span>
+        
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">id3</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="p">:</span> <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s">&#39;[ERROR] : Remaining time steps do not reach the minimum length of </span><span class="si">%i</span><span class="s"> points&#39;</span> <span class="o">%</span> <span class="nb">int</span><span class="p">(</span><span class="n">N_min</span><span class="p">))</span>
+        <span class="k">if</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">id3</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">id2</span><span class="p">))</span> <span class="p">:</span> <span class="n">message</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s">&#39;</span><span class="si">%i</span><span class="s"> time steps no reaching rhe minimum length of </span><span class="si">%i</span><span class="s"> points have been removed)&#39;</span> <span class="o">%</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">id2</span><span class="p">)</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">id3</span><span class="p">),</span> <span class="nb">int</span><span class="p">(</span><span class="n">N_min</span><span class="p">)))</span>
+        
+        <span class="n">res</span><span class="o">=</span><span class="p">(</span><span class="n">dumsla</span><span class="p">,</span> <span class="n">ok</span><span class="p">[</span><span class="n">id1</span><span class="p">[</span><span class="n">id2</span><span class="p">[</span><span class="n">id3</span><span class="p">]]])</span>
+        
+        
+    <span class="k">else</span> <span class="p">:</span>
+        <span class="n">res</span><span class="o">=</span><span class="p">(</span><span class="n">dumsla</span><span class="p">,</span> <span class="n">ngaps</span><span class="p">,</span> <span class="n">gaplen</span><span class="p">)</span>
+    
+    <span class="n">nt</span><span class="o">=</span><span class="n">res</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">nt</span> <span class="o">!=</span> <span class="n">ntinit</span><span class="p">)</span> <span class="p">:</span> <span class="n">message</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="s">&#39;</span><span class="si">%i</span><span class="s"> time steps on </span><span class="si">%i</span><span class="s"> removed by data pre-processing&#39;</span> <span class="o">%</span><span class="p">(</span><span class="n">ntinit</span> <span class="o">-</span> <span class="n">nt</span><span class="p">,</span> <span class="n">ntinit</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">return_lonlat</span> <span class="p">:</span> <span class="n">res</span><span class="o">+=</span><span class="p">(</span><span class="n">lonout</span><span class="p">,</span> <span class="n">latout</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">return_interpolated</span> <span class="p">:</span> <span class="n">res</span> <span class="o">+=</span> <span class="p">(</span><span class="n">dumint</span><span class="p">,)</span>
+    <span class="k">return</span> <span class="n">res</span>
+</div>
+<div class="viewcode-block" id="get_segment"><a class="viewcode-back" href="../../../altimetry.tools.spectrum.html#altimetry.tools.spectrum.get_segment">[docs]</a><span class="k">def</span> <span class="nf">get_segment</span><span class="p">(</span><span class="n">sla</span><span class="p">,</span><span class="n">N</span><span class="p">,</span><span class="n">last</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span><span class="n">mid</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span><span class="n">first</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span><span class="n">remove_edges</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span><span class="n">truncate_if_continents</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Intelligent segmentation of data.</span>
+<span class="sd">    </span>
+<span class="sd">    :keyword remove_edges: discard data at track edges.</span>
+<span class="sd">    :keyword truncate_if_continents: Force truncating data if a continent is found within a segment of data.</span>
+<span class="sd">    </span>
+<span class="sd">    :keyword last: Get segments of data sticked to the last point in track</span>
+<span class="sd">    :keyword first: Get segments of data sticked to the first point in track</span>
+<span class="sd">    :keyword mid: Get segments of data sticked to the middle point in track</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="c">#Set defaults</span>
+    <span class="k">if</span> <span class="n">first</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span> <span class="p">:</span>
+        <span class="n">last</span><span class="o">=</span><span class="bp">None</span>
+        <span class="n">mid</span><span class="o">=</span><span class="bp">None</span>
+    <span class="k">elif</span> <span class="n">mid</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span> <span class="p">:</span>
+        <span class="n">last</span><span class="o">=</span><span class="bp">None</span>
+        <span class="n">first</span><span class="o">=</span><span class="bp">None</span>
+    
+    <span class="n">dumsla</span><span class="o">=</span><span class="n">sla</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">nx</span><span class="o">=</span><span class="n">sla</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">nt</span><span class="o">=</span><span class="n">sla</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    
+    <span class="c">#Save input mask</span>
+    <span class="n">dumsla</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">dumsla</span><span class="o">.</span><span class="n">mask</span><span class="p">]</span><span class="o">=</span><span class="n">dumsla</span><span class="o">.</span><span class="n">fill_value</span>
+    <span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">dumsla</span><span class="o">.</span><span class="n">mask</span><span class="o">.</span><span class="n">copy</span><span class="p">(),</span><span class="n">mask</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">sla</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span><span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">))</span>
+    <span class="n">dumsla</span><span class="o">.</span><span class="n">mask</span><span class="p">[:]</span><span class="o">=</span><span class="bp">False</span>
+    
+    <span class="c">#Get edges</span>
+    <span class="k">if</span> <span class="n">remove_edges</span> <span class="p">:</span> <span class="n">xid</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">nx</span><span class="p">),</span><span class="n">nt</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">nx</span><span class="p">,</span><span class="n">nt</span><span class="p">)</span><span class="o">.</span><span class="n">transpose</span><span class="p">(),</span><span class="n">mask</span><span class="o">=</span><span class="n">mask</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+    <span class="k">else</span> <span class="p">:</span> <span class="n">xid</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">nx</span><span class="p">),</span><span class="n">nt</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">nx</span><span class="p">,</span><span class="n">nt</span><span class="p">)</span><span class="o">.</span><span class="n">transpose</span><span class="p">(),</span><span class="n">mask</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">sla</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span><span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">))</span>
+    <span class="n">left</span><span class="o">=</span><span class="n">xid</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">right</span><span class="o">=</span><span class="n">xid</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    
+    <span class="c">#Shift towards end</span>
+    <span class="k">if</span> <span class="n">last</span> <span class="p">:</span>
+        <span class="n">st</span><span class="o">=</span><span class="p">(</span><span class="n">right</span><span class="o">-</span><span class="n">N</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span> <span class="o">+</span><span class="mi">1</span>
+        <span class="n">en</span><span class="o">=</span><span class="p">(</span><span class="n">right</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
+    <span class="k">elif</span> <span class="n">mid</span> <span class="p">:</span>
+        <span class="n">midpt</span><span class="o">=</span><span class="n">nx</span><span class="o">/</span><span class="mi">2</span>
+        <span class="n">rlag</span><span class="o">=</span><span class="n">right</span><span class="o">-</span><span class="n">midpt</span>
+        <span class="n">llag</span><span class="o">=</span><span class="n">midpt</span><span class="o">-</span><span class="n">left</span>
+        <span class="n">odd</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">int</span><span class="p">(</span><span class="n">N</span><span class="p">)</span><span class="o">&amp;</span><span class="mi">1</span> <span class="ow">and</span> <span class="bp">True</span> <span class="ow">or</span> <span class="bp">False</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">odd</span> <span class="p">:</span> <span class="n">nr</span><span class="o">=</span><span class="n">nl</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int</span><span class="p">(</span><span class="n">N</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span>
+        <span class="k">else</span> <span class="p">:</span>
+            <span class="n">nr</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int</span><span class="p">(</span><span class="n">N</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span> <span class="o">+</span> <span class="mi">1</span>
+            <span class="n">nl</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int</span><span class="p">(</span><span class="n">N</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span>
+<span class="c">#         for i,jk in enumerate(zip(*(llag,rlag))):</span>
+<span class="c">#             j,k=jk</span>
+<span class="c">#             st=0</span>
+        <span class="n">st</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">midpt</span><span class="o">-</span><span class="n">nl</span><span class="p">,</span><span class="n">nt</span><span class="p">)</span>
+        <span class="n">en</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">midpt</span><span class="o">+</span><span class="n">nr</span><span class="p">,</span><span class="n">nt</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">first</span> <span class="p">:</span>
+        <span class="n">st</span><span class="o">=</span><span class="p">(</span><span class="n">left</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+        <span class="n">en</span><span class="o">=</span><span class="p">(</span><span class="n">left</span><span class="o">+</span><span class="n">N</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+    
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">remove_edges</span> <span class="p">:</span>
+        <span class="n">st</span><span class="p">[</span><span class="n">st</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">en</span><span class="p">[</span><span class="n">en</span> <span class="o">&gt;</span> <span class="n">nx</span><span class="p">]</span> <span class="o">=</span> <span class="n">nx</span>
+    
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">nt</span><span class="p">)</span> <span class="p">:</span>
+        <span class="n">dumsla</span><span class="o">.</span><span class="n">mask</span><span class="p">[</span><span class="n">i</span><span class="p">,:</span><span class="n">st</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span><span class="o">=</span><span class="bp">True</span>
+        <span class="n">dumsla</span><span class="o">.</span><span class="n">mask</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="n">en</span><span class="p">[</span><span class="n">i</span><span class="p">]:]</span><span class="o">=</span><span class="bp">True</span>
+        <span class="n">mask</span><span class="o">.</span><span class="n">mask</span><span class="p">[</span><span class="n">i</span><span class="p">,:</span><span class="n">st</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span><span class="o">=</span><span class="bp">True</span>
+        <span class="n">mask</span><span class="o">.</span><span class="n">mask</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="n">en</span><span class="p">[</span><span class="n">i</span><span class="p">]:]</span><span class="o">=</span><span class="bp">True</span>
+    
+    <span class="c">#Update nt</span>
+    <span class="n">cycempty</span><span class="o">=</span><span class="n">dumsla</span><span class="o">.</span><span class="n">mask</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">==</span> <span class="n">N</span>
+    <span class="n">ind</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">nt</span><span class="p">)[</span><span class="o">~</span><span class="n">cycempty</span><span class="p">]</span>
+    <span class="n">nt</span><span class="o">=</span><span class="p">(</span><span class="o">~</span><span class="n">cycempty</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+    
+    <span class="c">#Reform stuff</span>
+    <span class="n">dumsla</span><span class="o">=</span><span class="n">dumsla</span><span class="o">.</span><span class="n">compressed</span><span class="p">()</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">nt</span><span class="p">,</span><span class="n">N</span><span class="p">)</span>
+    <span class="n">mask</span><span class="o">=</span><span class="n">mask</span><span class="o">.</span><span class="n">compressed</span><span class="p">()</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">nt</span><span class="p">,</span><span class="n">N</span><span class="p">)</span>
+    
+    <span class="k">if</span> <span class="n">truncate_if_continents</span> <span class="p">:</span>
+        <span class="n">empty</span><span class="o">=</span><span class="n">mask</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">==</span> <span class="n">nt</span>
+        <span class="k">if</span> <span class="n">empty</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="p">:</span>
+            <span class="n">dumsla</span><span class="o">=</span><span class="n">dumsla</span><span class="p">[:,</span><span class="o">~</span><span class="n">empty</span><span class="p">]</span>
+            <span class="n">mask</span><span class="o">=</span><span class="n">mask</span><span class="p">[:,</span><span class="o">~</span><span class="n">empty</span><span class="p">]</span>
+            <span class="k">print</span> <span class="s">&#39;[WARNING] Points over land mass - removed {} pts&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">empty</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+    
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">dumsla</span><span class="p">,</span><span class="n">mask</span><span class="o">=</span><span class="n">mask</span><span class="p">),</span> <span class="n">ind</span>
+</div>
+<div class="viewcode-block" id="get_slope"><a class="viewcode-back" href="../../../altimetry.tools.spectrum.html#altimetry.tools.spectrum.get_slope">[docs]</a><span class="k">def</span> <span class="nf">get_slope</span><span class="p">(</span><span class="n">fq</span><span class="p">,</span><span class="n">spec</span><span class="p">,</span><span class="n">degree</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span><span class="n">frange</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span><span class="n">threshold</span><span class="o">=</span><span class="mf">0.</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    </span>
+<span class="sd">    GET_SLOPE</span>
+<span class="sd">    :summary: This function returns the spectral slope of a spectrum using a least-square regression </span>
+<span class="sd">    </span>
+<span class="sd">    :parameter fq: frequency</span>
+<span class="sd">    :parameter spec: spectrum data</span>
+<span class="sd">    </span>
+<span class="sd">    :keyword degree: Degree of the least-square regression model </span>
+<span class="sd">    </span>
+<span class="sd">    :return:</span>
+<span class="sd">      * slope : spectral slope (or model coefficients for a higher order model)</span>
+<span class="sd">      * intercept : Energy at unit frequency (1 cpkm)</span>
+<span class="sd">    </span>
+<span class="sd">    :author: Renaud DUSSURGET (RD) - LER/PAC, Ifremer</span>
+<span class="sd">    :change: Created by RD, August 2012</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    
+    <span class="n">sh</span><span class="o">=</span><span class="n">spec</span><span class="o">.</span><span class="n">shape</span>
+    <span class="n">ndims</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">sh</span><span class="p">)</span>
+    
+    <span class="k">if</span> <span class="n">ndims</span> <span class="o">==</span> <span class="mi">1</span> <span class="p">:</span>
+        
+        <span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="n">fq</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="n">spec</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+        
+        
+        <span class="c">#1) Linear least-square regression</span>
+        <span class="k">if</span> <span class="n">degree</span> <span class="o">==</span> <span class="mi">1</span> <span class="p">:</span>
+            <span class="p">(</span><span class="n">slope</span><span class="p">,</span> <span class="n">intercept</span><span class="p">,</span> <span class="n">rval</span><span class="p">,</span> <span class="n">pval</span><span class="p">,</span> <span class="n">err</span><span class="p">)</span> <span class="o">=</span> <span class="n">stats</span><span class="o">.</span><span class="n">linregress</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="n">y</span><span class="p">)</span>
+    
+        <span class="c">#2) Least-square regression using a higher-order spectral model</span>
+        <span class="c"># -&gt; Gives the same results as </span>
+        <span class="c">#cf. http://pingswept.org/2009/01/24/least-squares-polynomial-fitting-in-python/                                                    </span>
+        <span class="k">else</span> <span class="p">:</span>
+            <span class="n">A</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vander</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">degree</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span> <span class="c"># form the Vandermonde matrix </span>
+            <span class="p">(</span><span class="n">coeffs</span><span class="p">,</span> <span class="n">residuals</span><span class="p">,</span> <span class="n">rank</span><span class="p">,</span> <span class="n">sing_vals</span><span class="p">)</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">lstsq</span><span class="p">(</span><span class="n">A</span><span class="p">,</span><span class="n">y</span><span class="p">)</span> <span class="c"># find the x that minimizes the norm of Ax-y</span>
+            <span class="p">(</span><span class="n">slope</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">intercept</span><span class="p">)</span> <span class="o">=</span> <span class="n">coeffs</span>
+        
+        <span class="k">return</span> <span class="n">slope</span><span class="p">,</span><span class="n">intercept</span>
+    <span class="k">else</span> <span class="p">:</span>
+        
+        <span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="n">fq</span><span class="p">[(</span><span class="n">fq</span> <span class="o">&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">frange</span><span class="p">))</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">fq</span> <span class="o">&lt;=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">frange</span><span class="p">))])</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="n">spec</span><span class="p">[(</span><span class="n">fq</span> <span class="o">&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">frange</span><span class="p">))</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">fq</span> <span class="o">&lt;=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">frange</span><span class="p">)),:])</span>
+        <span class="n">nx</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">nt</span> <span class="o">=</span> <span class="n">sh</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">degree</span> <span class="o">=</span> <span class="mi">1</span>
+        
+        <span class="n">out</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">nt</span><span class="p">):</span>
+            <span class="p">(</span><span class="n">slope</span><span class="p">,</span> <span class="n">intercept</span><span class="p">,</span> <span class="n">rval</span><span class="p">,</span> <span class="n">pval</span><span class="p">,</span> <span class="n">err</span><span class="p">)</span> <span class="o">=</span> <span class="n">stats</span><span class="o">.</span><span class="n">linregress</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="n">y</span><span class="p">[:,</span><span class="n">i</span><span class="p">])</span>
+            <span class="n">flag</span> <span class="o">=</span> <span class="p">(</span><span class="n">y</span><span class="o">.</span><span class="n">mask</span><span class="p">[:,</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span><span class="o">/</span><span class="n">nx</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">threshold</span>
+            <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="mi">0</span> <span class="p">:</span> <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">slope</span><span class="p">,</span><span class="n">intercept</span><span class="p">,</span><span class="n">flag</span><span class="p">))</span>
+            <span class="k">else</span> <span class="p">:</span> <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">slope</span><span class="p">,</span><span class="n">intercept</span><span class="p">,</span><span class="n">flag</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="n">out</span>
+</div>
+<div class="viewcode-block" id="yule_walker"><a class="viewcode-back" href="../../../altimetry.tools.spectrum.html#altimetry.tools.spectrum.yule_walker">[docs]</a><span class="k">def</span> <span class="nf">yule_walker</span><span class="p">(</span><span class="n">acf</span><span class="p">,</span> <span class="n">orden</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Program to solve Yule-Walker equations for AutoRegressive Models</span>
+<span class="sd">    </span>
+<span class="sd">    :author: XAVI LLORT (llort(at)grahi.upc.edu)</span>
+<span class="sd">    :created: MAY 2007</span>
+<span class="sd">    :changes: adapted to python by R.Dussurget</span>
+
+<span class="sd">    :parameter acf: AutoCorrelation Function</span>
+<span class="sd">    :parameter orden: Order of the AutoRegressive Model</span>
+<span class="sd">    :return:</span>
+<span class="sd">      * parameters : Parameters</span>
+<span class="sd">      * sigma_e : Standard deviation of the noise term</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">acf</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">&lt;=</span> <span class="n">orden</span> <span class="p">:</span> <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s">&#39;ACF too short for the solicited order!&#39;</span><span class="p">)</span>
+    
+    <span class="n">bb</span> <span class="o">=</span> <span class="n">acf</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="n">orden</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">aa</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">orden</span><span class="p">,</span> <span class="n">orden</span><span class="p">))</span>
+    
+    <span class="k">for</span> <span class="n">ii</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">orden</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">jj</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">orden</span><span class="p">):</span>
+            <span class="n">aa</span><span class="p">[</span><span class="n">ii</span><span class="p">,</span> <span class="n">jj</span><span class="p">]</span> <span class="o">=</span> <span class="n">acf</span><span class="p">[</span> <span class="n">np</span><span class="o">.</span><span class="n">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">ii</span> <span class="o">-</span> <span class="n">jj</span><span class="p">))</span> <span class="p">]</span>
+    
+    <span class="n">aa_1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="n">aa</span><span class="p">)</span>
+    
+    <span class="n">parameters</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">bb</span><span class="p">,</span><span class="n">aa_1</span><span class="p">)</span> <span class="c">#Compliant with IDL aa_1#bb</span>
+    
+    
+    <span class="n">sigma_e</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">acf</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">parameters</span> <span class="o">*</span> <span class="n">bb</span><span class="p">))</span>
+    
+    <span class="k">return</span> <span class="n">parameters</span><span class="p">,</span> <span class="n">sigma_e</span>
+
+    
+
+<span class="c">#+</span>
+<span class="c"># YULE_WALKER_REGRESSION : Estimation of an AR (autoregression) spectral model from data</span>
+<span class="c">#@todo: To be written</span>
+<span class="c">#-</span></div>
+<div class="viewcode-block" id="yule_walker_regression"><a class="viewcode-back" href="../../../altimetry.tools.spectrum.html#altimetry.tools.spectrum.yule_walker_regression">[docs]</a><span class="k">def</span> <span class="nf">yule_walker_regression</span><span class="p">(</span><span class="n">dx</span><span class="p">,</span> <span class="n">Y</span><span class="p">,</span> <span class="n">deg</span><span class="p">,</span> <span class="n">res</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    :parameter X: time vector (disabled)</span>
+<span class="sd">    :parameter Y: stationary time series</span>
+<span class="sd">    :parameter deg: AR model degree</span>
+<span class="sd">    :return:</span>
+<span class="sd">      * a : Yule Walker parameters</span>
+<span class="sd">      * sig : Standard deviation of the noise term</span>
+<span class="sd">      * aicc : corrected Akaike Information Criterion</span>
+<span class="sd">      * gamma : Autocorrelation function</span>
+<span class="sd">      * ar : Fitted function</span>
+<span class="sd">      * argamma : Fitted autocorrelation function</span>
+<span class="sd">      * arspec : Fitted spectral model</span>
+<span class="sd">      * F : Relative frequency</span>
+
+<span class="sd">    .. note:: To know more about yule-walker and autoregressive methods, see</span>
+<span class="sd">    </span>
+<span class="sd">      * `Example of AR(p) model auto-regression using yule-walker equations &lt;http://www-ssc.igpp.ucla.edu/personnel/russell/ESS265/Ch9/autoreg/node7.html&gt;`_</span>
+<span class="sd">      * `Other notes on the autoregressive method &lt;http://www.ee.lamar.edu/gleb/adsp/Lecture%2009%20-%20Parametric%20SE.pdf&gt;`_</span>
+
+<span class="sd">    :example: IDL example :</span>
+<span class="sd">       </span>
+<span class="sd">       .. code-block:: IDL</span>
+<span class="sd">      </span>
+<span class="sd">          #Define an n-element vector of time-series samples  </span>
+<span class="sd">          X = [6.63, 6.59, 6.46, 6.49, 6.45, 6.41, 6.38, 6.26, 6.09, 5.99, $  </span>
+<span class="sd">              5.92, 5.93, 5.83, 5.82, 5.95, 5.91, 5.81, 5.64, 5.51, 5.31, $  </span>
+<span class="sd">              5.36, 5.17, 5.07, 4.97, 5.00, 5.01, 4.85, 4.79, 4.73, 4.76]  </span>
+<span class="sd">          </span>
+<span class="sd">          #Compute auto_correlation function</span>
+<span class="sd">          acorr=A_CORRELATE(X,INDGEN(30))</span>
+<span class="sd">          </span>
+<span class="sd">          #Solve YW equation to get auto-regression coefficients for AR(2) model</span>
+<span class="sd">          YULE_WALKER, acorr, 2, a, sig</span>
+<span class="sd">          </span>
+<span class="sd">          #Process auto-regression model</span>
+<span class="sd">          ar=DBLARR(28)</span>
+<span class="sd">          FOR i = 2, 29 DO ar[i-2] = SQRT(a[0]*X[i-1]*X[i] + a[1]*x[i-2]*x[i]+sig*x[i])</span>
+<span class="sd">          </span>
+<span class="sd">          #Compute spectrum</span>
+<span class="sd">          spec=spectrogram(TRANSPOSE(X), INDGEN(N), WSIZE=N, OVERLAY=1.0, DISPLAY_IMAGE=0)</span>
+<span class="sd">          </span>
+<span class="sd">          #Compute AR(2) model spectrum</span>
+<span class="sd">          ar2=spectrogram(TRANSPOSE(ar), INDGEN(28), WSIZE=28, OVERLAY=1.0, DISPLAY_IMAGE=0)</span>
+<span class="sd">          </span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    
+    <span class="c">#Defaults</span>
+    <span class="n">a</span><span class="o">=</span><span class="mi">0</span>
+    <span class="n">sig</span><span class="o">=</span><span class="mi">0</span>
+    
+    <span class="c">#If DPRES (frequency resolution) is set,</span>
+    <span class="c">#then process spectrum on a regular WAVENUMBER array</span>
+    <span class="k">if</span> <span class="n">res</span> <span class="ow">is</span> <span class="bp">None</span> <span class="p">:</span> <span class="n">res</span><span class="o">=</span><span class="mf">1.0</span>
+    
+    <span class="c">#Demean first</span>
+    <span class="n">Y</span><span class="o">-=</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">Y</span><span class="p">)</span>
+    
+    <span class="n">N</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">Y</span><span class="p">)</span>
+    
+    <span class="c">#Get autocorr</span>
+    <span class="n">gamma</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">N</span><span class="p">)</span>
+    <span class="n">lag</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">N</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span><span class="n">l</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">lag</span><span class="p">)</span> <span class="p">:</span> <span class="n">gamma</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">corrcoef</span><span class="p">(</span><span class="n">Y</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">roll</span><span class="p">(</span><span class="n">Y</span><span class="p">,</span><span class="n">l</span><span class="p">))[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
+    
+    <span class="c">#Odd or even</span>
+    <span class="n">odd</span> <span class="o">=</span> <span class="n">N</span><span class="o">&amp;</span><span class="mi">1</span> <span class="ow">and</span> <span class="bp">True</span> <span class="ow">or</span> <span class="bp">False</span>
+    
+    <span class="c">#Get frequency &amp; wavenumber</span>
+<span class="c">#    fout=ft.fftfreq(N,d=dx)</span>
+<span class="c">#    NF = N/2.0 -0.5 + 1 if odd else N/2. + 1</span>
+<span class="c">#    F = np.arange(NF,dtype=float) / (N)*</span>
+    <span class="p">[</span><span class="n">F</span><span class="p">,</span><span class="n">L</span><span class="p">,</span><span class="n">imx</span><span class="p">]</span> <span class="o">=</span> <span class="n">get_kx</span><span class="p">(</span><span class="n">N</span><span class="p">,</span><span class="mi">1</span><span class="p">)</span>
+    <span class="p">[</span><span class="n">Fout</span><span class="p">,</span><span class="n">L</span><span class="p">,</span><span class="n">imx</span><span class="p">]</span> <span class="o">=</span> <span class="n">get_kx</span><span class="p">(</span><span class="n">N</span><span class="p">,</span><span class="n">dx</span><span class="p">)</span>
+    <span class="n">F</span><span class="o">=</span><span class="n">F</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="n">imx</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">Fout</span><span class="o">=</span><span class="n">Fout</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="n">imx</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">NF</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">F</span><span class="p">)</span>
+    
+    <span class="n">df</span><span class="o">=</span><span class="n">F</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">-</span><span class="n">F</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">dfout</span><span class="o">=</span><span class="n">Fout</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">-</span><span class="n">Fout</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    
+    <span class="c">#Solve Yule Walker Equation</span>
+    <span class="n">a</span><span class="p">,</span> <span class="n">sig</span> <span class="o">=</span> <span class="n">yule_walker</span><span class="p">(</span><span class="n">gamma</span><span class="p">,</span> <span class="n">deg</span><span class="p">)</span>
+    
+<span class="c">#    std=np.std(Y)</span>
+    
+    <span class="c">#Generate a normally distributed random noise</span>
+<span class="c">#    Z=np.random.normal(size=N,scale=std)</span>
+    
+    <span class="c">#Process auto-regression model</span>
+    
+    <span class="n">ar</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">masked_array</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">N</span><span class="p">),</span><span class="n">mask</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">N</span><span class="p">,</span><span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">))</span>
+    <span class="n">argamma</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">masked_array</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">N</span><span class="p">),</span><span class="n">mask</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">N</span><span class="p">,</span><span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">))</span>
+    <span class="n">arspec</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">masked_array</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">NF</span><span class="p">),</span><span class="n">mask</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">NF</span><span class="p">,</span><span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">))</span>
+    
+    <span class="n">ar</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">deg</span><span class="p">]</span><span class="o">.</span><span class="n">mask</span><span class="o">=</span><span class="bp">True</span>
+    <span class="n">argamma</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">deg</span><span class="p">]</span><span class="o">.</span><span class="n">mask</span><span class="o">=</span><span class="bp">True</span>
+    
+    <span class="n">p</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="n">deg</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span>
+    <span class="c">#Compute modeled time series</span>
+    <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">deg</span><span class="p">,</span><span class="n">N</span><span class="p">,</span><span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">):</span>
+        <span class="n">ar</span><span class="p">[</span><span class="n">t</span><span class="p">]</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">a</span><span class="o">*</span><span class="n">Y</span><span class="p">[</span><span class="n">t</span><span class="o">-</span><span class="n">p</span><span class="p">])</span> <span class="c">#cf. http://www-ssc.igpp.ucla.edu/personnel/russell/ESS265/Ch9/autoreg/node9.html</span>
+        <span class="n">argamma</span><span class="p">[</span><span class="n">t</span><span class="p">]</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">a</span><span class="o">*</span><span class="n">gamma</span><span class="p">[</span><span class="n">t</span><span class="o">-</span><span class="n">p</span><span class="p">])</span>
+<span class="c">#        for p in np.arange(1, deg+1):</span>
+<span class="c">#            ar[t]+=a[p-1]*Y[t-p] #cf. http://www-ssc.igpp.ucla.edu/personnel/russell/ESS265/Ch9/autoreg/node9.html</span>
+<span class="c">#            argamma[t]+=a[p-1]*gamma[t-p]</span>
+<span class="c">#    #ar+=Z #Add random noise</span>
+    
+    <span class="c">#Compute spectrum</span>
+    <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">NF</span><span class="p">,</span><span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span> <span class="p">:</span> <span class="n">arspec</span><span class="p">[</span><span class="n">t</span><span class="p">]</span> <span class="o">=</span> <span class="n">sig</span><span class="o">**</span><span class="mi">2</span> <span class="o">/</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="mf">1.</span><span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">a</span><span class="p">[</span><span class="n">p</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="mi">1</span><span class="n">j</span> <span class="o">*</span><span class="n">p</span><span class="o">*</span><span class="n">F</span><span class="p">[</span><span class="n">t</span><span class="p">])))</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+    
+    <span class="c">#positive frequencies : multiply by 2</span>
+    <span class="n">arspec</span><span class="o">=</span><span class="n">arspec</span> <span class="c">#Why 10?</span>
+<span class="c">#    arspec/=10</span>
+<span class="c">#    arspec/=N    </span>
+    
+    
+    
+       
+<span class="c">#    for t in np.arange(NF) :</span>
+<span class="c">#        for p in np.arange(1,deg+1):</span>
+<span class="c">#            arspec[t]-= a[p-1]*np.exp(-2.0 * np.pi * 1j *p*F[t])</span>
+
+<span class="c"># I am not sur of this section... Is removal of data necessary? Current testing with all data</span>
+<span class="c"># ###########################################################################################</span>
+<span class="c">#  ar[0:deg-1]=ar[deg]#!VALUES.D_NAN</span>
+<span class="c">#  argamma[0:deg-1]=argamma[deg]#!VALUES.D_NAN</span>
+<span class="c">#  arspec[0:deg-1]=!VALUES.D_NAN</span>
+
+<span class="c">#  dumspec=spectrogram(TRANSPOSE(ar), INDGEN(N), WSIZE=N, OVERLAY=1.0, DISPLAY_IMAGE=0)</span>
+
+<span class="c">#  sTOP</span>
+    
+    <span class="c">#arspec=sig^2d / arspec^2d</span>
+    <span class="c">#arspec=sig^2d / (arspec^2d * N)</span>
+    <span class="c">#arspec = N * sig / ABS(arspec)^2 </span>
+<span class="c">#    arspec=sig**2 / (np.abs(arspec)**2)</span>
+
+    <span class="c">#Normalize to conserve apropriate levels of energy</span>
+<span class="c">#    fac=F*np.sum(np.abs(arspec))/(np.sum(np.abs(Y)**2)*res)</span>
+    <span class="n">fac</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">F</span><span class="p">)</span><span class="o">/</span><span class="n">arspec</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+    <span class="n">arspec</span><span class="o">/=</span><span class="n">fac</span>
+
+    <span class="n">esd</span><span class="o">=</span><span class="n">arspec</span>
+    <span class="n">psd</span><span class="o">=</span><span class="n">arspec</span><span class="o">/</span><span class="n">dfout</span>
+
+
+    <span class="c">#We define the AIC (http://pages.stern.nyu.edu/~churvich/TimeSeries/Handouts/AICC.pdf) to define the optimal model</span>
+    <span class="n">aicc</span><span class="o">=</span><span class="n">N</span><span class="o">*</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">sig</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">+</span><span class="mi">2</span><span class="o">*</span><span class="p">(</span><span class="n">deg</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="p">(</span><span class="n">N</span><span class="o">/</span><span class="p">(</span><span class="n">N</span><span class="o">-</span><span class="n">deg</span><span class="o">-</span><span class="mi">2</span><span class="p">))</span>
+    <span class="n">aic</span><span class="o">=</span><span class="n">N</span><span class="o">*</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">sig</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">deg</span> <span class="c">#from http://www-ssc.igpp.ucla.edu/personnel/russell/ESS265/Ch9/autoreg/node15.html</span>
+    <span class="n">bic</span><span class="o">=</span><span class="n">N</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">sig</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">+</span><span class="n">deg</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">N</span><span class="p">)</span>
+    
+    <span class="nb">setattr</span><span class="p">(</span><span class="n">arspec</span><span class="p">,</span> <span class="s">&#39;model&#39;</span><span class="p">,{</span><span class="s">&#39;description&#39;</span><span class="p">:</span><span class="s">&#39;AR model parameters&#39;</span><span class="p">,</span><span class="s">&#39;parameters&#39;</span><span class="p">:</span><span class="n">a</span><span class="p">,</span><span class="s">&#39;sig&#39;</span><span class="p">:</span><span class="n">sig</span><span class="p">,</span><span class="s">&#39;deg&#39;</span><span class="p">:</span><span class="n">deg</span><span class="p">,</span><span class="s">&#39;n&#39;</span><span class="p">:</span><span class="n">N</span><span class="p">,</span><span class="s">&#39;aicc&#39;</span><span class="p">:</span><span class="n">aicc</span><span class="p">,</span><span class="s">&#39;aic&#39;</span><span class="p">:</span><span class="n">aic</span><span class="p">,</span><span class="s">&#39;bic&#39;</span><span class="p">:</span><span class="n">bic</span><span class="p">})</span>
+
+    <span class="n">outStr</span><span class="o">=</span><span class="p">{</span><span class="s">&#39;_dimensions&#39;</span><span class="p">:{</span><span class="s">&#39;_ndims&#39;</span><span class="p">:</span><span class="mi">3</span><span class="p">,</span><span class="s">&#39;N&#39;</span><span class="p">:</span><span class="n">N</span><span class="p">,</span><span class="s">&#39;NF&#39;</span><span class="p">:</span><span class="n">NF</span><span class="p">,</span><span class="s">&#39;P&#39;</span><span class="p">:</span><span class="n">deg</span><span class="p">},</span>
+<span class="c">#        &#39;X&#39;:{&#39;name&#39;:&#39;x&#39;,&#39;long_name&#39;:&#39;time series&#39;,&#39;data&#39;:X},</span>
+<span class="c">#        &#39;gamma&#39;:{&#39;name&#39;:&#39;gamma&#39;,&#39;long_name&#39;:&#39;autocorrelation function&#39;,&#39;data&#39;:gamma},</span>
+<span class="c">#        &#39;model&#39;:{&#39;name&#39;:&#39;model&#39;,&#39;long_name&#39;:&#39;AR model parameters&#39;,&#39;data&#39;:a,&#39;sig&#39;:sig,&#39;deg&#39;:deg,&#39;n&#39;:N,&#39;aicc&#39;:aicc,&#39;aic&#39;:aic},</span>
+        <span class="s">&#39;fq&#39;</span><span class="p">:</span><span class="n">Fout</span><span class="p">,</span>
+        <span class="s">&#39;ar&#39;</span><span class="p">:</span><span class="n">ar</span><span class="p">,</span><span class="c">#{&#39;name&#39;:&#39;ar&#39;,&#39;long_name&#39;:&#39;Fitted model&#39;,&#39;data&#39;:ar},</span>
+<span class="c">#        &#39;argamma&#39;:{&#39;name&#39;:&#39;argamma&#39;,&#39;long_name&#39;:&#39;Fitted autocorrelation function&#39;,&#39;data&#39;:argamma},</span>
+<span class="c">#        &#39;arspec&#39;:{&#39;name&#39;:&#39;arspec&#39;,&#39;long_name&#39;:&#39;Fitted spectral model&#39;,&#39;data&#39;:arspec},</span>
+        <span class="s">&#39;esd&#39;</span><span class="p">:</span><span class="n">esd</span><span class="p">,</span>
+        <span class="s">&#39;psd&#39;</span><span class="p">:</span><span class="n">psd</span><span class="p">}</span>
+    
+    <span class="k">return</span> <span class="n">outStr</span>
+</div>
+<div class="viewcode-block" id="optimal_AR_spectrum"><a class="viewcode-back" href="../../../altimetry.tools.spectrum.html#altimetry.tools.spectrum.optimal_AR_spectrum">[docs]</a><span class="k">def</span> <span class="nf">optimal_AR_spectrum</span><span class="p">(</span><span class="n">dx</span><span class="p">,</span> <span class="n">Y</span><span class="p">,</span> <span class="n">ndegrees</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span><span class="n">return_min</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Get the optimal order AR spectrum by minimizing the BIC.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    
+    <span class="k">if</span> <span class="n">ndegrees</span> <span class="ow">is</span> <span class="bp">None</span> <span class="p">:</span> <span class="n">ndegrees</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">Y</span><span class="p">)</span><span class="o">-</span><span class="n">ndegrees</span>
+    
+    <span class="n">aicc</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">ndegrees</span><span class="p">)</span>
+    <span class="n">aic</span><span class="o">=</span><span class="n">aicc</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">bic</span><span class="o">=</span><span class="n">aicc</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">tmpStr</span><span class="o">=</span><span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">ndegrees</span><span class="p">):</span>
+        <span class="n">dum</span><span class="o">=</span><span class="n">yule_walker_regression</span><span class="p">(</span><span class="n">dx</span><span class="p">,</span><span class="n">Y</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span>
+        <span class="n">tmpStr</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">dum</span><span class="p">)</span>
+        <span class="n">aicc</span><span class="p">[</span><span class="n">i</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">=</span><span class="p">(</span><span class="n">tmpStr</span><span class="p">[</span><span class="n">i</span><span class="o">-</span><span class="mi">1</span><span class="p">])[</span><span class="s">&#39;esd&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">model</span><span class="p">[</span><span class="s">&#39;aicc&#39;</span><span class="p">]</span>
+        <span class="n">aic</span><span class="p">[</span><span class="n">i</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">=</span><span class="p">(</span><span class="n">tmpStr</span><span class="p">[</span><span class="n">i</span><span class="o">-</span><span class="mi">1</span><span class="p">])[</span><span class="s">&#39;esd&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">model</span><span class="p">[</span><span class="s">&#39;aic&#39;</span><span class="p">]</span>
+        <span class="n">bic</span><span class="p">[</span><span class="n">i</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">=</span><span class="p">(</span><span class="n">tmpStr</span><span class="p">[</span><span class="n">i</span><span class="o">-</span><span class="mi">1</span><span class="p">])[</span><span class="s">&#39;esd&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">model</span><span class="p">[</span><span class="s">&#39;bic&#39;</span><span class="p">]</span>
+    
+    <span class="k">if</span> <span class="n">return_min</span> <span class="p">:</span> <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">argmin</span><span class="p">(</span><span class="n">bic</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span>
+    <span class="k">else</span> <span class="p">:</span> <span class="k">return</span> <span class="p">{</span><span class="s">&#39;aicc&#39;</span><span class="p">:</span><span class="n">aicc</span><span class="p">,</span><span class="s">&#39;aic&#39;</span><span class="p">:</span><span class="n">aic</span><span class="p">,</span><span class="s">&#39;bic&#39;</span><span class="p">:</span><span class="n">bic</span><span class="p">}</span>
+<span class="c">#    mn_aicc=np.argmin(bic)+1</span>
+<span class="c">#    return mn_aic</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">altimetry tools 0 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, Renaud Dussurget.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+    </div>
+  </body>
+</html>

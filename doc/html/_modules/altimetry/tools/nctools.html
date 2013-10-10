@@ -1,0 +1,1104 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>altimetry.tools.nctools &mdash; altimetry tools 0 documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/nature.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="top" title="altimetry tools 0 documentation" href="../../../index.html" />
+    <link rel="up" title="Module code" href="../../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">altimetry tools 0 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for altimetry.tools.nctools</h1><div class="highlight"><pre>
+<span class="c"># -*- coding: utf-8 -*-</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="kn">as</span> <span class="nn">plt</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pylab</span> <span class="kn">as</span> <span class="nn">pylab</span>
+
+<span class="c">#from grid.regridding import griddata, xy2xy</span>
+
+<span class="kn">from</span> <span class="nn">netCDF4</span> <span class="kn">import</span> <span class="n">Dataset</span> <span class="k">as</span> <span class="n">ncfile</span>
+<span class="kn">import</span> <span class="nn">glob</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">altimetry.tools</span> <span class="kn">import</span> <span class="n">recale</span><span class="p">,</span> <span class="n">in_limits</span><span class="p">,</span> <span class="n">where_list</span><span class="p">,</span> <span class="n">recale_limits</span><span class="p">,</span> <span class="n">get_caller</span>
+<span class="c">#import altimetry.data.alti_tools as atools</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">OrderedDict</span>
+<span class="kn">from</span> <span class="nn">warnings</span> <span class="kn">import</span> <span class="n">warn</span>
+
+<div class="viewcode-block" id="nc"><a class="viewcode-back" href="../../../altimetry.tools.nctools.html#altimetry.tools.nctools.nc">[docs]</a><span class="k">class</span> <span class="nc">nc</span> <span class="p">:</span>
+    
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    A class for easy-handling of NetCDF data based on :mod:`NetCDF4` package.</span>
+<span class="sd">    </span>
+<span class="sd">    :example: To load different sets of data, try these :</span>
+<span class="sd">    </span>
+<span class="sd">      * Simply load a NetCDF file</span>
+<span class="sd">         </span>
+<span class="sd">        * The file has standard dimensions (eg. called longitude &amp; latitude)</span>
+<span class="sd">        </span>
+<span class="sd">        .. code-block:: python</span>
+<span class="sd">         </span>
+<span class="sd">           ncr=nc()</span>
+<span class="sd">           data=ncr.read(file)</span>
+<span class="sd">         </span>
+<span class="sd">           lon=data.lon</span>
+<span class="sd">           lat=data.lat</span>
+<span class="sd">           Z=data.Z</span>
+<span class="sd">        </span>
+<span class="sd">        * We do not want to match for standard dimension names and keep original names</span>
+<span class="sd">        </span>
+<span class="sd">        .. code-block:: python</span>
+<span class="sd">           :emphasize-lines: 2,4-5</span>
+<span class="sd">         </span>
+<span class="sd">           ncr=nc()</span>
+<span class="sd">           data=ncr.read(file,use_local_dims=True)</span>
+<span class="sd">           </span>
+<span class="sd">           lon=data.longitude</span>
+<span class="sd">           lat=data.latitude</span>
+<span class="sd">           Z=data.Z</span>
+<span class="sd">        </span>
+<span class="sd">         </span>
+<span class="sd">        * We extract a region and depth range between 2 dates:</span>
+<span class="sd">        </span>
+<span class="sd">          * We extract between 30-40°N &amp; 15-20°E (limit).</span>
+<span class="sd">          * We extract between 100 &amp; 200 m deep (depth).</span>
+<span class="sd">          * We get data from 2010/01/01 to 2010/01/07 (time).</span>
+<span class="sd">          * File has standard dimensions called longitude, latitude, level and time</span>
+<span class="sd">        </span>
+<span class="sd">        .. code-block:: python</span>
+<span class="sd">           :emphasize-lines: 7-9</span>
+<span class="sd">         </span>
+<span class="sd">           ncr=nc()</span>
+<span class="sd">           limit=[30,15,40,20]</span>
+<span class="sd">           depth=[100,200]</span>
+<span class="sd">           time=[21915,21921]</span>
+<span class="sd">           </span>
+<span class="sd">           data=ncr.read(file,</span>
+<span class="sd">                         limit=limit,</span>
+<span class="sd">                         timerange=time,</span>
+<span class="sd">                         depthrange=depth)</span>
+<span class="sd">             </span>
+<span class="sd">           lon=data.lon</span>
+<span class="sd">           lat=data.lat</span>
+<span class="sd">           dep=data.depth</span>
+<span class="sd">           dat=data.time</span>
+<span class="sd">           Z=data.Z</span>
+<span class="sd">    </span>
+<span class="sd">    </span>
+<span class="sd">      * More sophisticated example using a file containing bathymetetry data</span>
+<span class="sd">        </span>
+<span class="sd">        * Load a file and extract a regions and subsample it to a lower resolution</span>
+<span class="sd">         </span>
+<span class="sd">          * The file has dimensions NbLongitudes &amp; NbLatitudes.</span>
+<span class="sd">          * We extract between 30-40°N &amp; 15-20°E (limit).</span>
+<span class="sd">          * We subsample every 3 points (stride).</span>
+<span class="sd">       </span>
+<span class="sd">        .. code-block:: python</span>
+<span class="sd">           :emphasize-lines: 5-6</span>
+<span class="sd">        </span>
+<span class="sd">           limit=[30,15,40,20]</span>
+<span class="sd">           stride = (3,)</span>
+<span class="sd">           ncr=nc(use_local_dims=True)</span>
+<span class="sd">           bathy=ncr.load(file,</span>
+<span class="sd">                          NbLongitudes=(limit[1],limit[3])+stride,</span>
+<span class="sd">                          NbLatitudes=(limit[0],limit[2])+stride)</span>
+<span class="sd">       </span>
+<span class="sd">        </span>
+<span class="sd">        * Then we save the data to another file (output).</span>
+<span class="sd">       </span>
+<span class="sd">        .. code-block:: python</span>
+<span class="sd">          </span>
+<span class="sd">           #save data</span>
+<span class="sd">           bathy.write_nc(output)</span>
+<span class="sd">        </span>
+<span class="sd">        * We update the **history** global attribute of data structure</span>
+<span class="sd">       </span>
+<span class="sd">        .. code-block:: python</span>
+<span class="sd">           :emphasize-lines: 9,12</span>
+<span class="sd">          </span>
+<span class="sd">           #Get attribute structure</span>
+<span class="sd">           attrStr=bathy.get(&#39;_attributes&#39;,{})</span>
+<span class="sd">            </span>
+<span class="sd">           #Get arguments called from the shell</span>
+<span class="sd">           cmd=[os.path.basename(sys.argv[0])]</span>
+<span class="sd">           for a in argv : cmd.append(a)</span>
+<span class="sd">            </span>
+<span class="sd">           #update attribute stucture (pop history and concatenate with current commands=.</span>
+<span class="sd">           attrStr.update({&#39;history&#39;:attrStr.pop(&#39;history&#39;,&#39;&#39;)+&#39; &#39;.join(cmd)+&#39;\\n&#39;})</span>
+<span class="sd">            </span>
+<span class="sd">           #update NetCDF data structure</span>
+<span class="sd">           bathy.update({&#39;_attributes&#39;:attrStr})</span>
+<span class="sd">          </span>
+<span class="sd">           #save data</span>
+<span class="sd">           bathy.write_nc(output)</span>
+<span class="sd">        </span>
+<span class="sd">        </span>
+<span class="sd">        * We now want to flag all values from variable Z above 0 by setting them to fill_value and append this modified variable to the output file</span>
+<span class="sd">      </span>
+<span class="sd">        .. code-block:: python</span>
+<span class="sd">          </span>
+<span class="sd">           #load variable</span>
+<span class="sd">           Z = bathy.Z</span>
+<span class="sd">         </span>
+<span class="sd">           #flag variable</span>
+<span class="sd">           Z.mask[Z &gt;= 0] = False</span>
+<span class="sd">         </span>
+<span class="sd">           #update attributes</span>
+<span class="sd">           Z[&#39;_attributes&#39;][&#39;long_name&#39;] = &#39;flagged bathymetry&#39;</span>
+<span class="sd">         </span>
+<span class="sd">           #append modified bathymetry to a variable named Z_2 in output file.</span>
+<span class="sd">           bathy.push(output,&#39;Z2&#39;,Z)</span>
+<span class="sd">           </span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="p">[</span><span class="o">-</span><span class="mf">90.</span><span class="p">,</span> <span class="mf">0.</span><span class="p">,</span> <span class="mf">90.</span><span class="p">,</span> <span class="mf">360.</span><span class="p">],</span> <span class="n">verbose</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">zero_2pi</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">transpose</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">use_local_dims</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Returns an :class:`altimetry.tools.nctools.nc` instance.</span>
+<span class="sd">        </span>
+<span class="sd">        :keyword limit: the limits of the domain to handle ([latmin,lonmin,latmax,lonmax]).</span>
+<span class="sd">        :keyword verbose: verbosity level on a scale of 0 (silent) to 4 (max verobsity)</span>
+<span class="sd">        :keyword zero_2pi: limits goes from 0 to 360 degrees (not -180/180).</span>
+<span class="sd">        :keyword use_local_dims: use file dimensions instead of trying to detect standard dimension names (cf. :attr:`altimetry.tools.nctools.nc.use_local_dims`)</span>
+<span class="sd">        </span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        
+        <span class="c">#Init system variables</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">zero_2pi</span> <span class="o">=</span> <span class="n">zero_2pi</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">limit</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">recale_limits</span><span class="p">(</span><span class="n">limit</span><span class="p">,</span> <span class="n">zero_2pi</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">zero_2pi</span><span class="p">))</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        limits of the domain : [latmin,lonmin,latmax,lonmax] (default = [-90.,0.,90.,360.])</span>
+<span class="sd">        </span>
+<span class="sd">        .. note:: limits are automatically reset using :func:`altimetry.tools.recale_limits`</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span> <span class="o">=</span> <span class="n">verbose</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        verbosity level on a scale of 0 (silent) to 4 (max verbosity)</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">fileid</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([])</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        array of file IDs</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">count</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        number of files loaded</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">size</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        length of the dataset</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">use_local_dims</span><span class="o">=</span><span class="n">use_local_dims</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        this option prevent from trying to detect standard CF dimensions such longitude, latitude, time in the file and keep the original dimensions of the file</span>
+<span class="sd">        </span>
+<span class="sd">        .. note:: Set this option to True when file is not standard (eg. not following CF conventions).</span>
+<span class="sd">        </span>
+<span class="sd">        .. note:: Normal behaviour is to match dimensions (ie. a dimension and the associated variable of the same name) with specific names. Resulting variables associated with these dimensions will be called :</span>
+<span class="sd">          * lon (longitudes) : matches dimensions starting with &#39;lon&#39;</span>
+<span class="sd">          * lat (latitudes) : matches dimensions starting with &#39;lat&#39;</span>
+<span class="sd">          * time (time) : matches dimensions starting with &#39;date&#39; or &#39;time&#39;</span>
+<span class="sd">          * depth (date) : matches dimensions starting with &#39;dep&#39; or &#39;lev&#39;</span>
+<span class="sd">          </span>
+<span class="sd">        &#39;&#39;&#39;</span>
+    
+<div class="viewcode-block" id="nc.push"><a class="viewcode-back" href="../../../altimetry.tools.nctools.html#altimetry.tools.nctools.nc.push">[docs]</a>    <span class="k">def</span> <span class="nf">push</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="o">*</span><span class="n">args</span><span class="p">,</span><span class="o">**</span><span class="n">kwargs</span><span class="p">):</span><span class="c">#file,varName,value,**kwargs):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        append a variable from a given data structure to the existing dataset.</span>
+<span class="sd">        </span>
+<span class="sd">        :parameter optional file:</span>
+<span class="sd">        :parameter name: variable name</span>
+<span class="sd">        :parameter value: data</span>
+<span class="sd">        </span>
+<span class="sd">        :keyword start: broadcast the data to a portion of the dataset. starting index.</span>
+<span class="sd">        :keyword counts: broadcast the data to a portion of the dataset. number of counts.</span>
+<span class="sd">        :keyword stride: broadcast the data to a portion of the dataset. stepping along dimension.</span>
+<span class="sd">        </span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        
+        <span class="nb">reload</span> <span class="o">=</span> <span class="bp">False</span>
+        
+        <span class="c">#Get arguments</span>
+        <span class="n">largs</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">largs</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="p">:</span>
+            <span class="nb">file</span> <span class="o">=</span> <span class="n">largs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_filename</span> <span class="o">=</span> <span class="nb">file</span>
+            <span class="nb">reload</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="n">largs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="n">largs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        
+        <span class="c">#Get keywords</span>
+        <span class="n">start</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;start&#39;</span><span class="p">,</span><span class="bp">None</span><span class="p">)</span>
+        <span class="n">counts</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;counts&#39;</span><span class="p">,</span><span class="bp">None</span><span class="p">)</span>
+        <span class="n">stride</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;stride&#39;</span><span class="p">,</span><span class="bp">None</span><span class="p">)</span>
+        
+        
+        <span class="nb">file</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_filename</span>
+        
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span> <span class="o">==</span> <span class="mi">1</span> <span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">message</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="s">&#39;Writing data into file {0}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="nb">file</span><span class="p">)))</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">message</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s">&#39;Writing data into file {0}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">file</span><span class="p">))</span>
+        <span class="n">ncf</span><span class="o">=</span><span class="n">ncfile</span><span class="p">(</span><span class="nb">file</span><span class="p">,</span> <span class="s">&#39;a&#39;</span><span class="p">,</span> <span class="n">format</span><span class="o">=</span><span class="s">&#39;NETCDF4&#39;</span><span class="p">,</span> <span class="n">clobber</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+     
+        <span class="c">#Get list of recorded parameters:</span>
+        <span class="n">par_list</span> <span class="o">=</span> <span class="n">ncf</span><span class="o">.</span><span class="n">variables</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+        
+        <span class="c">#Check if variable exists</span>
+        <span class="k">if</span> <span class="s">&#39;sla&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">par_list</span> <span class="p">:</span> <span class="n">createVariable</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="k">else</span> <span class="p">:</span> <span class="n">createVariable</span> <span class="o">=</span> <span class="bp">False</span>
+        
+        
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">createVariable</span> <span class="p">:</span>
+            <span class="n">var</span><span class="o">=</span><span class="n">ncf</span><span class="o">.</span><span class="n">variables</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
+            
+            <span class="c">#Get dimensions</span>
+            <span class="n">fileDims</span><span class="o">=</span><span class="n">OrderedDict</span><span class="p">({</span><span class="s">&#39;_ndims&#39;</span><span class="p">:</span><span class="nb">len</span><span class="p">(</span><span class="n">var</span><span class="o">.</span><span class="n">dimensions</span><span class="p">)})</span>
+            <span class="p">[</span><span class="n">fileDims</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="nb">str</span><span class="p">(</span><span class="n">d</span><span class="p">):</span><span class="nb">len</span><span class="p">(</span><span class="n">ncf</span><span class="o">.</span><span class="n">dimensions</span><span class="p">[</span><span class="n">d</span><span class="p">])})</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">var</span><span class="o">.</span><span class="n">dimensions</span><span class="p">]</span>
+            
+            <span class="k">if</span> <span class="n">start</span> <span class="ow">is</span> <span class="bp">None</span> <span class="p">:</span> <span class="n">start</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span> <span class="k">for</span> <span class="n">sh</span> <span class="ow">in</span> <span class="n">var</span><span class="o">.</span><span class="n">shape</span><span class="p">]</span>
+            <span class="k">else</span> <span class="p">:</span> <span class="n">start</span> <span class="o">=</span> <span class="n">start</span><span class="p">[::</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">counts</span> <span class="ow">is</span> <span class="bp">None</span> <span class="p">:</span> <span class="n">counts</span> <span class="o">=</span> <span class="p">[</span><span class="n">sh</span> <span class="k">for</span> <span class="n">sh</span> <span class="ow">in</span> <span class="n">var</span><span class="o">.</span><span class="n">shape</span><span class="p">]</span>
+            <span class="k">else</span> <span class="p">:</span> <span class="n">counts</span> <span class="o">=</span> <span class="n">counts</span><span class="p">[::</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">stride</span> <span class="ow">is</span> <span class="bp">None</span> <span class="p">:</span> <span class="n">stride</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span> <span class="k">for</span> <span class="n">sh</span> <span class="ow">in</span> <span class="n">var</span><span class="o">.</span><span class="n">shape</span><span class="p">]</span>
+            <span class="k">else</span> <span class="p">:</span> <span class="n">stride</span> <span class="o">=</span> <span class="n">stride</span><span class="p">[::</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            
+            <span class="c">#Transpose before write</span>
+            <span class="n">value</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+            <span class="n">strides</span><span class="o">=</span><span class="n">var</span><span class="p">[:]</span><span class="o">.</span><span class="n">strides</span>
+            
+            <span class="c">#Construct indices (cf.http://docs.scipy.org/doc/numpy-1.5.x/reference/arrays.indexing.html)</span>
+            <span class="n">ind</span><span class="o">=</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">start</span><span class="p">))</span> <span class="p">:</span> <span class="n">ind</span><span class="o">+=</span><span class="p">(</span><span class="nb">slice</span><span class="p">(</span><span class="n">start</span><span class="p">[</span><span class="n">i</span><span class="p">],</span><span class="n">start</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">+</span><span class="n">counts</span><span class="p">[</span><span class="n">i</span><span class="p">],</span><span class="n">strides</span><span class="p">[</span><span class="n">i</span><span class="p">]),)</span>
+            
+            <span class="c">#Push data into file</span>
+            <span class="k">try</span> <span class="p">:</span> <span class="n">var</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span><span class="o">=</span><span class="n">value</span><span class="p">[:]</span>
+            <span class="k">except</span> <span class="ne">ValueError</span> <span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">Error</span><span class="p">(</span><span class="s">&#39;Input variable {0} {1} cannot be broadcasted into {2}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">,</span><span class="n">value</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="nb">file</span><span class="p">)))</span>
+            
+            <span class="c">#Check if variable is in agreement with dimensions</span>
+<span class="c">#            dimStr=self._dimensions #Get dimensions  </span>
+            
+            <span class="n">ncf</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            
+            
+        <span class="k">else</span> <span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">Error</span><span class="p">(</span><span class="s">&#39;This option is not yet implemented&#39;</span><span class="p">)</span>
+        
+        
+        
+    </div>
+<div class="viewcode-block" id="nc.write"><a class="viewcode-back" href="../../../altimetry.tools.nctools.html#altimetry.tools.nctools.nc.write">[docs]</a>    <span class="k">def</span> <span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">outfile</span><span class="p">,</span> <span class="n">clobber</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span><span class="n">format</span><span class="o">=</span><span class="s">&#39;NETCDF4&#39;</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Write a netCDF file using a data structure.</span>
+<span class="sd">        </span>
+<span class="sd">        :parameter data: data structure</span>
+<span class="sd">        :parameter outfile: output file</span>
+<span class="sd">        :keyword clobber: erase file if it already exists</span>
+<span class="sd">        :keyword format: NetCDF file format.</span>
+<span class="sd">        </span>
+<span class="sd">        .. note :: the data structure requires a &quot;_dimensions&quot; field (dimension structure)</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        
+        <span class="c">#Open file</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span> <span class="o">==</span> <span class="mi">1</span> <span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">message</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="s">&#39;Writing data file {}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">outfile</span><span class="p">)))</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">message</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s">&#39;Writing data file {}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">outfile</span><span class="p">))</span>
+        <span class="n">root_grp</span><span class="o">=</span><span class="n">ncfile</span><span class="p">(</span><span class="n">outfile</span><span class="p">,</span> <span class="s">&#39;w&#39;</span><span class="p">,</span> <span class="n">format</span><span class="o">=</span><span class="n">format</span><span class="p">,</span> <span class="n">clobber</span><span class="o">=</span><span class="n">clobber</span><span class="p">)</span>
+<span class="c">#        root_grp.description = &#39;nctools.write() file&#39;</span>
+        
+        <span class="c">#Get attributes</span>
+        <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">has_key</span><span class="p">(</span><span class="s">&#39;_attributes&#39;</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">message</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s">&#39;Adding attributes data&#39;</span><span class="p">)</span>
+            <span class="n">attrStr</span><span class="o">=</span><span class="n">data</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s">&#39;_attributes&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">message</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="s">&#39;Attribute list (N={0}) :[{1}]&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">attrStr</span><span class="o">.</span><span class="n">keys</span><span class="p">()),</span> <span class="s">&#39;,&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">attrStr</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span> <span class="p">)</span>
+            <span class="n">root_grp</span><span class="o">.</span><span class="n">setncatts</span><span class="p">(</span><span class="n">attrStr</span><span class="p">)</span>
+        
+        <span class="c">#Get dimensions</span>
+        <span class="n">dimStr</span><span class="o">=</span><span class="n">data</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s">&#39;_dimensions&#39;</span><span class="p">)</span>
+        <span class="n">ndims</span><span class="o">=</span><span class="n">dimStr</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s">&#39;_ndims&#39;</span><span class="p">)</span>
+        <span class="n">dimlist</span> <span class="o">=</span> <span class="n">dimStr</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+        <span class="n">dimVal</span> <span class="o">=</span> <span class="n">dimStr</span><span class="o">.</span><span class="n">values</span><span class="p">()</span>
+        
+        <span class="c">#Get variables</span>
+        <span class="n">parlist</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+        
+        
+        <span class="c"># Set up dimensions</span>
+        
+        <span class="c">#Put dimensions</span>
+        <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">dimlist</span> <span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">message</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s">&#39;Adding D {0}={1}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">d</span><span class="p">,</span><span class="n">dimStr</span><span class="p">[</span><span class="n">d</span><span class="p">]))</span>
+            <span class="n">root_grp</span><span class="o">.</span><span class="n">createDimension</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">dimStr</span><span class="p">[</span><span class="n">d</span><span class="p">])</span>
+        
+<span class="c">#        if data.has_key(&#39;p&#39;)  : self.Error(&#39;Variable name \&#39;p\&#39; is not available for use as NetCDF variable name&#39;)</span>
+        
+        <span class="c">#Loop over variables</span>
+        <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">parlist</span> <span class="p">:</span>
+            
+            <span class="c">#Get dimensions for current variable</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">data</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">has_key</span><span class="p">(</span><span class="s">&#39;_dimensions&#39;</span><span class="p">)</span> <span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">Error</span><span class="p">(</span><span class="s">&#39;_dimension attribute is not set for variable&#39;</span><span class="o">+</span><span class="n">p</span><span class="p">)</span>
+            <span class="n">pardim</span><span class="o">=</span><span class="n">data</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s">&#39;_dimensions&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">pardim</span><span class="p">,</span><span class="nb">dict</span><span class="p">)</span> <span class="p">:</span><span class="n">pardim</span><span class="o">=</span><span class="nb">tuple</span><span class="p">(</span><span class="n">pardim</span><span class="o">.</span><span class="n">keys</span><span class="p">()[</span><span class="mi">1</span><span class="p">:])</span> <span class="k">if</span> <span class="n">pardim</span><span class="o">.</span><span class="n">has_key</span><span class="p">(</span><span class="s">&quot;_ndims&quot;</span><span class="p">)</span> <span class="k">else</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">pardim</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">pardim</span><span class="p">,</span><span class="nb">list</span><span class="p">)</span> <span class="p">:</span> <span class="n">pardim</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">pardim</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">pardim</span><span class="p">,</span><span class="nb">tuple</span><span class="p">)</span> <span class="p">:</span> <span class="k">pass</span>
+            <span class="k">else</span> <span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">Error</span><span class="p">(</span><span class="s">&#39;_dimensions must be dict, list or tuple - not {0}&#39;</span><span class="o">.</span><span class="n">type</span><span class="p">(</span><span class="n">pardim</span><span class="p">))</span> 
+            
+            <span class="c">#Convert to numpy array if scalar or non numpy</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">p</span><span class="p">][</span><span class="s">&#39;data&#39;</span><span class="p">],</span><span class="s">&#39;__iter__&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">p</span><span class="p">][</span><span class="s">&#39;data&#39;</span><span class="p">],</span> <span class="s">&#39;dtype&#39;</span><span class="p">):</span>  <span class="n">data</span><span class="p">[</span><span class="n">p</span><span class="p">][</span><span class="s">&#39;data&#39;</span><span class="p">]</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">p</span><span class="p">][</span><span class="s">&#39;data&#39;</span><span class="p">])</span>
+
+            <span class="c">#Get _FillValue if possible</span>
+<span class="c">#            if hasattr(data[p][&#39;data&#39;],&#39;fill_value&#39;) : data[p][&#39;_FillValue&#39;]=data[p][&#39;data&#39;].fill_value </span>
+
+<span class="c">#            if not (data[p][&#39;data&#39;].dtype == &#39;|S6&#39;) and not (data[p][&#39;data&#39;].dtype == &#39;|S2&#39;) :</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">message</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s">&#39;Adding V {0} (dims={{{1}}},attr={{{2}}})&#39;</span><span class="o">.</span>
+                         <span class="n">format</span><span class="p">(</span><span class="n">p</span><span class="p">,</span>
+                                <span class="s">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="s">&#39;</span><span class="se">\&#39;</span><span class="s">{0}</span><span class="se">\&#39;</span><span class="s">:{1}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">d</span><span class="p">,</span><span class="n">dimStr</span><span class="p">[</span><span class="n">d</span><span class="p">])</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">pardim</span><span class="p">]),</span>
+                                <span class="s">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="s">&#39;</span><span class="se">\&#39;</span><span class="s">{0}</span><span class="se">\&#39;</span><span class="s">:{1}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">d</span><span class="p">,</span><span class="n">data</span><span class="p">[</span><span class="n">p</span><span class="p">][</span><span class="n">d</span><span class="p">])</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">data</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span> <span class="k">if</span> <span class="p">(</span><span class="n">d</span> <span class="o">!=</span> <span class="s">&#39;_dimensions&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">d</span> <span class="o">!=</span> <span class="s">&#39;data&#39;</span><span class="p">)])</span> <span class="p">)</span>
+                         <span class="p">)</span>
+            
+            <span class="k">if</span> <span class="nb">locals</span><span class="p">()</span><span class="o">.</span><span class="n">has_key</span><span class="p">(</span><span class="n">p</span><span class="p">)</span> <span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">Error</span><span class="p">(</span><span class="s">&#39;Variable name </span><span class="se">\&#39;</span><span class="s">{0}</span><span class="se">\&#39;</span><span class="s"> is already declared - change variable name&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">p</span><span class="p">))</span>
+            
+            <span class="c">#Scale it back</span>
+            <span class="c">##############</span>
+            
+            <span class="c">#look at scaler factors and offsets in both attributes and data structure keys</span>
+            <span class="n">scale_factor</span><span class="o">=</span><span class="n">scale_factor</span><span class="o">=</span><span class="n">data</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;scale_factor&#39;</span><span class="p">,</span><span class="bp">None</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">scale_factor</span> <span class="ow">is</span> <span class="bp">None</span> <span class="p">:</span> <span class="n">scale_factor</span><span class="o">=</span><span class="n">data</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;scale&#39;</span><span class="p">,</span><span class="bp">None</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">scale_factor</span> <span class="ow">is</span> <span class="bp">None</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">p</span><span class="p">][</span><span class="s">&#39;data&#39;</span><span class="p">],</span><span class="s">&#39;__dict__&#39;</span><span class="p">)</span> <span class="p">:</span> <span class="n">scale_factor</span><span class="o">=</span><span class="n">data</span><span class="p">[</span><span class="n">p</span><span class="p">][</span><span class="s">&#39;data&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">__dict__</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;scale_factor&#39;</span><span class="p">,</span><span class="bp">None</span><span class="p">)</span>  
+            <span class="k">if</span> <span class="n">scale_factor</span> <span class="ow">is</span> <span class="bp">None</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">p</span><span class="p">][</span><span class="s">&#39;data&#39;</span><span class="p">],</span><span class="s">&#39;__dict__&#39;</span><span class="p">)</span> <span class="p">:</span> <span class="n">scale_factor</span><span class="o">=</span><span class="n">data</span><span class="p">[</span><span class="n">p</span><span class="p">][</span><span class="s">&#39;data&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">__dict__</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;scale&#39;</span><span class="p">,</span><span class="bp">None</span><span class="p">)</span> 
+            
+            
+            <span class="n">offset</span><span class="o">=</span><span class="n">data</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;add_offset&#39;</span><span class="p">,</span><span class="bp">None</span><span class="p">)</span> 
+            <span class="k">if</span> <span class="n">offset</span> <span class="ow">is</span> <span class="bp">None</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">p</span><span class="p">][</span><span class="s">&#39;data&#39;</span><span class="p">],</span><span class="s">&#39;__dict__&#39;</span><span class="p">)</span> <span class="p">:</span> <span class="n">offset</span><span class="o">=</span><span class="n">data</span><span class="p">[</span><span class="n">p</span><span class="p">][</span><span class="s">&#39;data&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">__dict__</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;add_offset&#39;</span><span class="p">,</span><span class="bp">None</span><span class="p">)</span>
+            
+            <span class="c">#Apply scaling and prepare message</span>
+            <span class="n">scale_msg</span><span class="o">=</span><span class="s">&#39;Apply scaling : {}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">scale_factor</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span> <span class="p">:</span>
+                <span class="n">data</span><span class="p">[</span><span class="n">p</span><span class="p">][</span><span class="s">&#39;data&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">p</span><span class="p">][</span><span class="s">&#39;data&#39;</span><span class="p">]</span> <span class="o">/</span> <span class="n">scale_factor</span>
+                <span class="n">scale_msg</span><span class="o">+=</span><span class="s">&#39; / {0}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">scale_factor</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">offset</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span> <span class="p">:</span>
+                <span class="n">data</span><span class="p">[</span><span class="n">p</span><span class="p">][</span><span class="s">&#39;data&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">p</span><span class="p">][</span><span class="s">&#39;data&#39;</span><span class="p">]</span> <span class="o">-</span> <span class="n">offset</span>
+                <span class="n">scale_msg</span><span class="o">+=</span><span class="s">&#39; - {0}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">offset</span><span class="p">)</span>
+            
+            <span class="c">#show message</span>
+            <span class="k">if</span> <span class="n">scale_factor</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span> <span class="ow">or</span> <span class="n">offset</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span> <span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">message</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="n">scale_msg</span><span class="p">)</span>
+            
+            <span class="c">#Apply fill_value as argument to createVariable function</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">p</span><span class="p">][</span><span class="s">&#39;data&#39;</span><span class="p">],</span><span class="s">&#39;fill_value&#39;</span><span class="p">)</span> <span class="p">:</span>
+                <span class="nb">locals</span><span class="p">()[</span><span class="n">p</span><span class="p">]</span> <span class="o">=</span> <span class="n">root_grp</span><span class="o">.</span><span class="n">createVariable</span><span class="p">(</span><span class="n">p</span><span class="p">,</span>
+                                               <span class="n">data</span><span class="p">[</span><span class="n">p</span><span class="p">][</span><span class="s">&#39;data&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">dtype</span> <span class="k">if</span> <span class="ow">not</span> <span class="nb">str</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">p</span><span class="p">][</span><span class="s">&#39;data&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&#39;|S&#39;</span><span class="p">)</span> <span class="k">else</span> <span class="s">&#39;S1&#39;</span><span class="p">,</span>
+                                               <span class="n">pardim</span><span class="p">,</span>
+                                               <span class="n">fill_value</span><span class="o">=</span><span class="n">data</span><span class="p">[</span><span class="n">p</span><span class="p">][</span><span class="s">&#39;data&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">fill_value</span><span class="p">)</span>
+            <span class="k">else</span> <span class="p">:</span>
+                <span class="nb">locals</span><span class="p">()[</span><span class="n">p</span><span class="p">]</span> <span class="o">=</span> <span class="n">root_grp</span><span class="o">.</span><span class="n">createVariable</span><span class="p">(</span><span class="n">p</span><span class="p">,</span>
+                                               <span class="n">data</span><span class="p">[</span><span class="n">p</span><span class="p">][</span><span class="s">&#39;data&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">dtype</span> <span class="k">if</span> <span class="ow">not</span> <span class="nb">str</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">p</span><span class="p">][</span><span class="s">&#39;data&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&#39;|S&#39;</span><span class="p">)</span> <span class="k">else</span> <span class="s">&#39;S1&#39;</span><span class="p">,</span>
+                                               <span class="n">pardim</span><span class="p">)</span>
+            
+            <span class="c">#Get data and compare to current dimensions</span>
+            <span class="n">dumVar</span><span class="o">=</span><span class="n">data</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s">&#39;data&#39;</span><span class="p">)</span>
+            <span class="n">ncsh</span><span class="o">=</span><span class="nb">tuple</span><span class="p">([</span><span class="nb">long</span><span class="p">(</span><span class="n">dimVal</span><span class="p">[</span><span class="n">dimlist</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">d</span><span class="p">)])</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">pardim</span> <span class="k">if</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">dimlist</span><span class="p">])</span>
+            <span class="n">ncdimname</span><span class="o">=</span><span class="nb">tuple</span><span class="p">([</span><span class="n">d</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">pardim</span> <span class="k">if</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">dimlist</span><span class="p">])</span>
+            
+            <span class="c">#Transposition is done if provided dimensions is not in phase with data dimensions (and if provided dimensions has no unlimited dimensions)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">ncsh</span> <span class="o">==</span> <span class="n">dumVar</span><span class="o">.</span><span class="n">shape</span> <span class="ow">and</span> <span class="n">ncsh</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="p">:</span>
+                <span class="n">dimOrder</span><span class="o">=</span><span class="nb">tuple</span><span class="p">([</span><span class="n">ncsh</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">dsh</span><span class="p">)</span> <span class="k">for</span> <span class="n">dsh</span> <span class="ow">in</span> <span class="n">dumVar</span><span class="o">.</span><span class="n">shape</span><span class="p">])</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">message</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s">&#39;Transposing data axes {0}{1}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">ncdimname</span><span class="p">,</span><span class="n">dimOrder</span><span class="p">))</span> <span class="c">#Make it a bit more explicit...</span>
+                <span class="n">dumVar</span><span class="o">=</span><span class="n">dumVar</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">dimOrder</span><span class="p">)</span>
+            
+            <span class="c">#Transpose data before writing it into file</span>
+            <span class="nb">locals</span><span class="p">()[</span><span class="n">p</span><span class="p">][:]</span><span class="o">=</span><span class="n">dumVar</span>
+            <span class="c">#.transpose(tuple(range(len(pardim))[::-1])) #old stuff</span>
+                
+            <span class="c">#Update with attribute list</span>
+            <span class="n">attrDict</span><span class="o">=</span><span class="nb">locals</span><span class="p">()[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">__dict__</span>
+            <span class="n">attrDict</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">p</span><span class="p">])</span>
+            <span class="p">[</span><span class="n">attrDict</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">k</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span>  <span class="nb">locals</span><span class="p">()[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">__dict__</span><span class="o">.</span><span class="n">keys</span><span class="p">()]</span>
+            
+            
+            <span class="c">#Get common attributes first</span>
+            <span class="n">attrDict</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s">&#39;_FillValue&#39;</span><span class="p">,</span><span class="bp">None</span><span class="p">)</span>
+            <span class="nb">locals</span><span class="p">()[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">setncatts</span><span class="p">(</span><span class="n">attrDict</span><span class="p">)</span>
+<span class="c">#            for a in attrDict :</span>
+<span class="c">#                if not hasattr(locals()[p],a) :</span>
+<span class="c">#                    locals()[p].setncattr(a,data[p][a])</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">message</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s">&#39;Closing file&#39;</span><span class="p">)</span>
+        <span class="n">root_grp</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="bp">True</span>
+        
+        
+    </div>
+<div class="viewcode-block" id="nc.read"><a class="viewcode-back" href="../../../altimetry.tools.nctools.html#altimetry.tools.nctools.nc.read">[docs]</a>    <span class="k">def</span> <span class="nf">read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">file_pattern</span><span class="p">,</span><span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Read data from a NetCDF file</span>
+<span class="sd">        </span>
+<span class="sd">        :parameter file_pattern: a file pattern to be globbed (:func:`glob.glob`) or a file list.</span>
+<span class="sd">        :keyword kwargs: additional keywords to be passed to :meth:`altimetry.tools.nctools.nc.load` (eg. extracting a subset of the file)</span>
+<span class="sd">        &#39;&#39;&#39;</span> 
+        
+        <span class="c">#Setup file list</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">file_pattern</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="p">:</span> <span class="n">ls</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">file_pattern</span><span class="p">)</span>
+        <span class="k">else</span> <span class="p">:</span>
+            <span class="n">ls</span> <span class="o">=</span> <span class="n">file_pattern</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+            <span class="n">file_pattern</span> <span class="o">=</span> <span class="n">file_pattern</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">ls</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">Error</span><span class="p">(</span><span class="s">&#39;File pattern not matched : &#39;</span> <span class="o">+</span> <span class="n">file_pattern</span><span class="p">)</span>
+                
+        <span class="bp">self</span><span class="o">.</span><span class="n">filelist</span> <span class="o">=</span> <span class="p">[</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">ls</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">filelist_count</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">filelist</span><span class="p">)</span>
+        <span class="n">enum</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">enumerate</span><span class="p">(</span><span class="n">ls</span><span class="p">))</span>
+        <span class="n">enum</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">enum</span><span class="p">)</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">fid_list</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">enum</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dirname</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">file_pattern</span><span class="p">)</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">par_list</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dim_list</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dimensions</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">({</span><span class="s">&#39;_ndims&#39;</span><span class="p">:</span><span class="mi">0</span><span class="p">})</span>
+         
+        <span class="c">#Loop over data files</span>
+        <span class="c">#####################</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fid_list</span><span class="p">))</span> <span class="p">:</span>
+            
+            <span class="c">#Read data file</span>
+            <span class="c">###############</span>
+            <span class="n">filename</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dirname</span><span class="o">+</span><span class="n">os</span><span class="o">.</span><span class="n">sep</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">filelist</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">message</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="s">&quot;Loading &quot;</span> <span class="o">+</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">filename</span><span class="p">))</span>
+            
+            <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="c">#read() function is specific of each class</span>
+<span class="c">#            self.update_dataset(res) #update class with loaded data</span>
+<span class="c">#            </span>
+<span class="c">#            self.check_variables()</span>
+        
+<span class="c">#        self.update()</span>
+
+        <span class="k">return</span><span class="p">(</span><span class="n">res</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="nc.load"><a class="viewcode-back" href="../../../altimetry.tools.nctools.html#altimetry.tools.nctools.nc.load">[docs]</a>    <span class="k">def</span> <span class="nf">load</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">depthrange</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">timerange</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">output_is_dict</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        NetCDF data loader</span>
+<span class="sd">        </span>
+<span class="sd">        :parameter filename: file name</span>
+<span class="sd">        :parameter params: a list of variables to load (default : load ALL variables).</span>
+<span class="sd">        </span>
+<span class="sd">        :parameter depthrange: if a depth dimension is found, subset along this dimension.</span>
+<span class="sd">        :parameter timerange: if a time dimension is found, subset along this dimension. </span>
+
+<span class="sd">        .. note:: using :attr:`altimetry.tools.nctools.limit` allows subsetting to a given region.</span>
+
+<span class="sd">        :parameter kwargs: additional arguments for subsetting along given dimensions.</span>
+<span class="sd">        </span>
+<span class="sd">        .. note:: You can index along any dimension by providing the name of the dimensions to subsample along. Values associated to the provided keywords should be a length 2 or 3 tuple (min,max,&lt;step&gt;) (cf. :func:`altimetry.data.nctools.load_ncVar`).</span>
+<span class="sd">        </span>
+<span class="sd">        :keyword output_is_dict: data structures are dictionnaries (eg. my_hydro_data.variable[&#39;data&#39;]). If false uses an object with attributes (eg. my_hydro_data.variable.data). </span>
+<span class="sd">        </span>
+<span class="sd">        :return  {type:dict} outStr: Output data structure containing all recorded parameters as specificied by NetCDF file PARAMETER list.</span>
+<span class="sd">        </span>
+<span class="sd">        :author: Renaud Dussurget</span>
+<span class="sd">        </span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        
+        <span class="k">if</span> <span class="p">(</span><span class="n">params</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">)</span> <span class="o">&amp;</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">params</span><span class="p">,</span><span class="nb">str</span><span class="p">):</span> <span class="n">params</span><span class="o">=</span><span class="p">[</span><span class="n">params</span><span class="p">]</span>
+        
+        <span class="c">#Open file</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_filename</span> <span class="o">=</span> <span class="n">filename</span>
+        <span class="n">ncf</span> <span class="o">=</span> <span class="n">ncfile</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_filename</span><span class="p">,</span> <span class="s">&quot;r&quot;</span><span class="p">)</span>
+        
+        <span class="c">#Load global attributes</span>
+        <span class="n">akeys</span> <span class="o">=</span> <span class="n">ncf</span><span class="o">.</span><span class="n">ncattrs</span><span class="p">()</span>
+        <span class="n">attrStr</span><span class="o">=</span><span class="n">OrderedDict</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">A</span> <span class="ow">in</span> <span class="n">akeys</span> <span class="p">:</span> <span class="n">attrStr</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">A</span><span class="p">:</span><span class="n">ncf</span><span class="o">.</span><span class="n">getncattr</span><span class="p">(</span><span class="n">A</span><span class="p">)})</span>
+     
+        <span class="c">#Get list of recorded parameters:</span>
+        <span class="n">dum</span> <span class="o">=</span> <span class="n">ncf</span><span class="o">.</span><span class="n">variables</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+        <span class="n">nparam</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">dum</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="c">#        par_list=np.array([&#39;&#39;.join(ncf.variables.keys()[0,i,:].compressed()) for i in np.arange(nparam)])</span>
+        <span class="n">par_list</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="s">&#39;{0}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">ncf</span><span class="o">.</span><span class="n">variables</span><span class="o">.</span><span class="n">keys</span><span class="p">()])</span>
+        
+        <span class="c">#remove empty items and update nparam</span>
+        <span class="n">par_list</span> <span class="o">=</span> <span class="n">par_list</span><span class="o">.</span><span class="n">compress</span><span class="p">([</span><span class="nb">len</span><span class="p">(</span><span class="n">par</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span> <span class="k">for</span> <span class="n">par</span> <span class="ow">in</span> <span class="n">par_list</span><span class="p">])</span>
+        <span class="n">nparam</span> <span class="o">=</span> <span class="n">par_list</span><span class="o">.</span><span class="n">size</span>
+        
+        <span class="k">if</span> <span class="n">nparam</span> <span class="o">==</span> <span class="mi">0</span> <span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">Error</span><span class="p">(</span><span class="s">&#39;File has no data ({0})&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_filename</span><span class="p">))</span>
+        
+        <span class="c">#Get dimensions</span>
+        <span class="n">ncdimlist</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="s">&#39;{0}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">d</span><span class="p">)</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">ncf</span><span class="o">.</span><span class="n">dimensions</span><span class="o">.</span><span class="n">keys</span><span class="p">()])</span>
+        <span class="n">ndims</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">ncdimlist</span><span class="p">)</span>
+        <span class="n">dimStr</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">()</span>
+        <span class="n">dimStr</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s">&#39;_ndims&#39;</span><span class="p">:</span><span class="n">ndims</span><span class="p">})</span>
+    
+        <span class="k">if</span> <span class="n">ndims</span> <span class="o">==</span> <span class="mi">0</span> <span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">Error</span><span class="p">(</span><span class="s">&#39;File has no dimensions ({0})&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_filename</span><span class="p">))</span>
+        
+        <span class="c">#Check for the presence of strategic dimensions</span>
+        <span class="n">checkedDims</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="s">&#39;lon&#39;</span><span class="p">,</span> <span class="s">&#39;lat&#39;</span><span class="p">,</span> <span class="s">&#39;time&#39;</span><span class="p">,</span> <span class="s">&#39;depth&#39;</span><span class="p">])</span>
+        <span class="n">existDim</span> <span class="o">=</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span><span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_local_dims</span> <span class="p">:</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span><span class="n">d</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">ncdimlist</span><span class="p">)</span> <span class="p">:</span>
+                <span class="k">if</span> <span class="p">(</span> <span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&#39;lon&#39;</span><span class="p">))</span> <span class="o">|</span> <span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s">&#39;longitude&#39;</span><span class="p">)</span> <span class="o">!=</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s">&#39;LatLon&#39;</span><span class="p">)</span> <span class="o">==-</span><span class="mi">1</span><span class="p">)</span> <span class="p">:</span> <span class="n">existDim</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">=</span><span class="n">i</span>
+                <span class="k">if</span> <span class="p">(</span> <span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&#39;lat&#39;</span><span class="p">))</span> <span class="o">|</span> <span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s">&#39;latitude&#39;</span><span class="p">)</span> <span class="o">!=</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s">&#39;LatLon&#39;</span><span class="p">)</span> <span class="o">==-</span><span class="mi">1</span><span class="p">):</span> <span class="n">existDim</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">=</span><span class="n">i</span>
+                <span class="k">if</span> <span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&#39;time&#39;</span><span class="p">))</span> <span class="o">|</span> <span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&#39;date&#39;</span><span class="p">))</span> <span class="p">:</span> <span class="n">existDim</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">=</span><span class="n">i</span>
+                <span class="k">if</span> <span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&#39;lev&#39;</span><span class="p">))</span> <span class="o">|</span> <span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&#39;dep&#39;</span><span class="p">))</span> <span class="p">:</span> <span class="n">existDim</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span><span class="o">=</span><span class="n">i</span>
+                    
+<span class="c">#            existDim[0] = np.where([d.lower().startswith(&#39;lon&#39;) | (d.lower().find(&#39;longitude&#39;) != -1) for d in ncdimlist])[0]</span>
+<span class="c">#            existDim[1] = np.where([d.lower().startswith(&#39;lat&#39;) | (d.lower().find(&#39;latitude&#39;) != -1) for d in ncdimlist])[0]</span>
+<span class="c">#            existDim[2] = np.where([(d.lower().startswith(&#39;time&#39;)) | (d.lower().startswith(&#39;date&#39;)) for d in ncdimlist])[0]</span>
+<span class="c">#            existDim[3] = np.where([(d.lower().startswith(&#39;lev&#39;)) | (d.lower().startswith(&#39;dep&#39;)) for d in ncdimlist])[0]</span>
+        
+        <span class="n">identified</span> <span class="o">=</span> <span class="n">existDim</span> <span class="o">&gt;</span> <span class="o">-</span><span class="mi">1</span>
+        
+<span class="c">#        checkedDims[identified]=checkedDims[identified][existDim.compress(identified).astype(int)]</span>
+<span class="c">#        checkedDims=checkedDims[identified]</span>
+        
+<span class="c">#        for cn, vn in enumerate(checkedDims) : dimStr.update({cn:len(ncf.dimensions[vn])})</span>
+        
+        <span class="c">#Update dimension structure with identified dimensions</span>
+        <span class="c">#Load dimensional variables</span>
+        <span class="c">#TODO : Add scaling here in case...</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span><span class="n">d</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">existDim</span><span class="p">)</span> <span class="p">:</span> 
+            <span class="k">if</span> <span class="n">identified</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="p">:</span>
+                <span class="n">dimStr</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">ncdimlist</span><span class="p">[</span><span class="n">d</span><span class="p">]:</span><span class="nb">len</span><span class="p">(</span><span class="n">ncf</span><span class="o">.</span><span class="n">dimensions</span><span class="p">[</span><span class="n">ncdimlist</span><span class="p">[</span><span class="n">d</span><span class="p">]])})</span> <span class="c">#Append dimension</span>
+                <span class="n">cmd</span> <span class="o">=</span>  <span class="s">&#39;load_ncVar(</span><span class="se">\&#39;</span><span class="s">&#39;</span> <span class="o">+</span> <span class="n">ncdimlist</span><span class="p">[</span><span class="n">d</span><span class="p">]</span> <span class="o">+</span> <span class="s">&#39;</span><span class="se">\&#39;</span><span class="s">,nc=ncf)&#39;</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">message</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="s">&#39;loading : {0}={1}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">checkedDims</span><span class="p">[</span><span class="n">i</span><span class="p">],</span><span class="n">cmd</span><span class="p">))</span>
+                <span class="nb">locals</span><span class="p">()[</span><span class="n">checkedDims</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span><span class="o">=</span><span class="n">load_ncVar</span><span class="p">(</span><span class="n">ncdimlist</span><span class="p">[</span><span class="n">d</span><span class="p">],</span> <span class="n">nc</span><span class="o">=</span><span class="n">ncf</span><span class="p">,</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="n">missdims</span><span class="o">=</span><span class="nb">set</span><span class="p">(</span><span class="n">ncdimlist</span><span class="p">)</span>
+        <span class="n">missdims</span><span class="o">.</span><span class="n">difference_update</span><span class="p">(</span><span class="n">ncdimlist</span><span class="p">[</span><span class="n">existDim</span><span class="p">[</span><span class="n">identified</span><span class="p">]])</span>
+        <span class="n">missdims</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="n">missdims</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span><span class="n">d</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">missdims</span><span class="p">)</span> <span class="p">:</span>
+            <span class="n">dimStr</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">d</span><span class="p">:</span><span class="nb">len</span><span class="p">(</span><span class="n">ncf</span><span class="o">.</span><span class="n">dimensions</span><span class="p">[</span><span class="n">d</span><span class="p">])})</span>
+            <span class="k">if</span> <span class="n">ncf</span><span class="o">.</span><span class="n">variables</span><span class="o">.</span><span class="n">has_key</span><span class="p">(</span><span class="n">d</span><span class="p">)</span> <span class="p">:</span>
+                <span class="n">cmd</span> <span class="o">=</span> <span class="s">&#39;load_ncVar(</span><span class="se">\&#39;</span><span class="s">&#39;</span> <span class="o">+</span> <span class="n">d</span> <span class="o">+</span> <span class="s">&#39;</span><span class="se">\&#39;</span><span class="s">,nc=ncf)&#39;</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">message</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="s">&#39;loading : {0}={1}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">d</span><span class="p">,</span><span class="n">cmd</span><span class="p">))</span>
+                <span class="nb">locals</span><span class="p">()[</span><span class="n">d</span><span class="p">]</span><span class="o">=</span><span class="n">load_ncVar</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">nc</span><span class="o">=</span><span class="n">ncf</span><span class="p">,</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+                        
+            <span class="c">#If the variable associated to the dimension do not exist, generate it</span>
+            <span class="k">else</span> <span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">message</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="s">&#39;[WARNING] Netcdf file not standard - creating data for {0} dimnsion&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">d</span><span class="p">))</span>
+                <span class="n">ndim</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">ncf</span><span class="o">.</span><span class="n">dimensions</span><span class="p">[</span><span class="n">d</span><span class="p">])</span>
+                <span class="n">cmd</span> <span class="o">=</span> <span class="s">&#39;=var&#39;</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">message</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="s">&#39;loading : {0}={1}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">d</span><span class="p">,</span><span class="n">cmd</span><span class="p">))</span>
+                <span class="nb">locals</span><span class="p">()[</span><span class="n">d</span><span class="p">]</span><span class="o">=</span><span class="p">{</span><span class="s">&#39;_dimensions&#39;</span><span class="p">:{</span><span class="s">&#39;_ndims&#39;</span><span class="p">:</span><span class="mi">1</span><span class="p">,</span><span class="n">d</span><span class="p">:</span><span class="n">ndim</span><span class="p">},</span> <span class="s">&#39;data&#39;</span><span class="p">:</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">ndim</span><span class="p">)}</span>
+        
+<span class="c">#        #Update dimension structure with identified dimensions</span>
+<span class="c">#        for cn, vn in zip(*(checkedDims[identified], ncdimlist[identified])) : dimStr.update({cn:len(ncf.dimensions[vn])})</span>
+<span class="c">#        for vn in ncdimlist[~identified] : dimStr.update({vn:len(ncf.dimensions[vn])})</span>
+        
+        
+        <span class="c">#Load dimensional variables</span>
+        <span class="c">#TODO : Add scaling here in case...</span>
+<span class="c">#        for cn, vn in zip(*(checkedDims[identified], ncdimlist[identified])) :</span>
+<span class="c">##            cmd = &#39;self.&#39;+cn+&#39;=ncf.variables[\&#39;&#39;+vn+&#39;\&#39;][:]&#39;</span>
+<span class="c">#            cmd = cn + &#39;=load_ncVar(\&#39;&#39; + vn + &#39;\&#39;,nc=ncf)&#39;</span>
+<span class="c">#            self.message(4, &#39;exec : &#39; + cmd)</span>
+<span class="c">#            exec(cmd)</span>
+<span class="c">#            </span>
+<span class="c">#        for vn in ncdimlist[~identified] :</span>
+<span class="c">##            cmd = &#39;self.&#39;+vn+&#39;=ncf.variables[\&#39;&#39;+vn+&#39;\&#39;][:]&#39;</span>
+<span class="c">#            cmd = vn + &#39;=load_ncVar(\&#39;&#39; + vn + &#39;\&#39;,nc=ncf)&#39;</span>
+<span class="c">#            self.message(4, &#39;exec : &#39; + cmd)</span>
+<span class="c">#            exec(cmd)</span>
+            
+        <span class="c">#Update dimlist with dimensions present in the object</span>
+<span class="c">#        dimlist = np.append(checkedDims[identified], ncdimlist[~identified])</span>
+
+        <span class="n">dimlist</span><span class="o">=</span><span class="n">ncdimlist</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+<span class="c">#        dimlist[existDim[identified]]=checkedDims[identified]</span>
+        <span class="k">if</span> <span class="n">identified</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="p">:</span> <span class="n">dimlist</span><span class="p">[</span><span class="n">existDim</span><span class="p">[</span><span class="n">identified</span><span class="p">]]</span><span class="o">=</span><span class="n">checkedDims</span><span class="p">[</span><span class="n">identified</span><span class="p">]</span>
+        <span class="k">else</span> <span class="p">:</span> <span class="n">dimlist</span> <span class="o">=</span> <span class="n">dimlist</span><span class="p">[[]]</span>
+        
+<span class="c">#        for d in ncdimlist[checkedDims[identified]] :</span>
+<span class="c">#            if not d.startswith(&#39;_&#39;) : dimlist = np.append(dimlist,d)</span>
+<span class="c">#        dimlist=[(d if not d.startswith(&#39;_&#39;) else None) for d in dimStr.keys()]</span>
+        
+        <span class="k">if</span> <span class="n">params</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span> <span class="p">:</span>
+            <span class="k">if</span> <span class="n">force</span> <span class="p">:</span> <span class="n">par_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">i</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">params</span><span class="p">]</span>
+            <span class="k">else</span> <span class="p">:</span><span class="n">par_list</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">params</span><span class="p">)</span><span class="o">.</span><span class="n">intersection</span><span class="p">(</span><span class="n">par_list</span><span class="p">))</span>
+        <span class="k">else</span> <span class="p">:</span> <span class="n">par_list</span> <span class="o">=</span> <span class="n">par_list</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+        
+        <span class="c">#remove dimensional  variable</span>
+        <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">ncdimlist</span><span class="p">[</span><span class="n">existDim</span><span class="p">[</span><span class="n">identified</span><span class="p">]]</span> <span class="p">:</span>
+            <span class="n">par_list</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">par_list</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">d</span><span class="p">))</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">message</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s">&#39;Recorded parameters : &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">nparam</span><span class="p">)</span> <span class="o">+</span> <span class="s">&#39; -&gt; &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">par_list</span><span class="p">))</span>
+     
+        
+        <span class="c">#Extract within limits</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">existDim</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&gt;</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">existDim</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;</span> <span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+            <span class="n">llind</span><span class="p">,</span> <span class="n">flag</span> <span class="o">=</span> <span class="n">in_limits</span><span class="p">(</span><span class="n">lon</span><span class="p">[</span><span class="s">&#39;data&#39;</span><span class="p">],</span><span class="n">lat</span><span class="p">[</span><span class="s">&#39;data&#39;</span><span class="p">],</span> <span class="n">limit</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">limit</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">flag</span><span class="p">,</span><span class="nb">tuple</span><span class="p">)</span> <span class="p">:</span>
+                <span class="n">lon</span><span class="p">[</span><span class="s">&#39;data&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">recale</span><span class="p">(</span><span class="n">lon</span><span class="p">[</span><span class="s">&#39;data&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">compress</span><span class="p">(</span><span class="n">flag</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span><span class="n">degrees</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+                <span class="n">lon</span><span class="p">[</span><span class="s">&#39;_dimensions&#39;</span><span class="p">][</span><span class="n">lon</span><span class="p">[</span><span class="s">&#39;_dimensions&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">()[</span><span class="mi">1</span><span class="p">]]</span> <span class="o">=</span> <span class="n">flag</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+                <span class="n">lat</span><span class="p">[</span><span class="s">&#39;data&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">lat</span><span class="p">[</span><span class="s">&#39;data&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">compress</span><span class="p">(</span><span class="n">flag</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+                <span class="n">lat</span><span class="p">[</span><span class="s">&#39;_dimensions&#39;</span><span class="p">][</span><span class="n">lat</span><span class="p">[</span><span class="s">&#39;_dimensions&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">()[</span><span class="mi">1</span><span class="p">]]</span> <span class="o">=</span> <span class="n">flag</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+            <span class="k">else</span> <span class="p">:</span>
+                <span class="n">lon</span><span class="p">[</span><span class="s">&#39;data&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">recale</span><span class="p">(</span><span class="n">lon</span><span class="p">[</span><span class="s">&#39;data&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">compress</span><span class="p">(</span><span class="n">flag</span><span class="p">),</span><span class="n">degrees</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+                <span class="n">lon</span><span class="p">[</span><span class="s">&#39;_dimensions&#39;</span><span class="p">][</span><span class="n">lon</span><span class="p">[</span><span class="s">&#39;_dimensions&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">()[</span><span class="mi">1</span><span class="p">]]</span> <span class="o">=</span> <span class="n">flag</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+                <span class="n">lat</span><span class="p">[</span><span class="s">&#39;data&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">lat</span><span class="p">[</span><span class="s">&#39;data&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">compress</span><span class="p">(</span><span class="n">flag</span><span class="p">)</span>
+                <span class="n">lat</span><span class="p">[</span><span class="s">&#39;_dimensions&#39;</span><span class="p">][</span><span class="n">lat</span><span class="p">[</span><span class="s">&#39;_dimensions&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">()[</span><span class="mi">1</span><span class="p">]]</span> <span class="o">=</span> <span class="n">flag</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+            
+            <span class="nb">locals</span><span class="p">()[</span><span class="n">ncdimlist</span><span class="p">[</span><span class="n">existDim</span><span class="p">[</span><span class="mi">0</span><span class="p">]]]</span><span class="o">=</span><span class="n">lon</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="nb">locals</span><span class="p">()[</span><span class="n">ncdimlist</span><span class="p">[</span><span class="n">existDim</span><span class="p">[</span><span class="mi">1</span><span class="p">]]]</span><span class="o">=</span><span class="n">lat</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            
+            <span class="n">dimStr</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">ncdimlist</span><span class="p">[</span><span class="n">existDim</span><span class="p">[</span><span class="mi">0</span><span class="p">]]:</span><span class="nb">len</span><span class="p">(</span><span class="n">lon</span><span class="p">[</span><span class="s">&#39;data&#39;</span><span class="p">])})</span>
+            <span class="n">dimStr</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">ncdimlist</span><span class="p">[</span><span class="n">existDim</span><span class="p">[</span><span class="mi">1</span><span class="p">]]:</span><span class="nb">len</span><span class="p">(</span><span class="n">lat</span><span class="p">[</span><span class="s">&#39;data&#39;</span><span class="p">])})</span>
+<span class="c">#            self.message(4, &#39;self.lon &amp; self.lat updated&#39;)</span>
+        
+        <span class="k">if</span> <span class="p">(</span><span class="n">existDim</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">&gt;</span> <span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">timerange</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">)</span> <span class="p">:</span> <span class="n">timeflag</span> <span class="o">=</span> <span class="p">(</span><span class="n">time</span><span class="p">[</span><span class="s">&#39;data&#39;</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">timerange</span><span class="p">))</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">time</span><span class="p">[</span><span class="s">&#39;data&#39;</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">timerange</span><span class="p">))</span>
+            <span class="k">else</span> <span class="p">:</span> <span class="n">timeflag</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">time</span><span class="p">[</span><span class="s">&#39;data&#39;</span><span class="p">]),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">timeflag</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span> <span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">Error</span><span class="p">(</span><span class="s">&#39;No data within specified depth range (min/max = {0}/{1})&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">time</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">time</span><span class="p">)))</span>
+            <span class="n">time</span><span class="p">[</span><span class="s">&#39;data&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">time</span><span class="p">[</span><span class="s">&#39;data&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">compress</span><span class="p">(</span><span class="n">timeflag</span><span class="p">)</span>
+            <span class="n">time</span><span class="p">[</span><span class="s">&#39;_dimensions&#39;</span><span class="p">][</span><span class="n">time</span><span class="p">[</span><span class="s">&#39;_dimensions&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">()[</span><span class="mi">1</span><span class="p">]]</span> <span class="o">=</span> <span class="n">timeflag</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+            <span class="nb">locals</span><span class="p">()[</span><span class="n">ncdimlist</span><span class="p">[</span><span class="n">existDim</span><span class="p">[</span><span class="mi">2</span><span class="p">]]]</span><span class="o">=</span><span class="n">time</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="n">dimStr</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">ncdimlist</span><span class="p">[</span><span class="n">existDim</span><span class="p">[</span><span class="mi">2</span><span class="p">]]:</span><span class="nb">len</span><span class="p">(</span><span class="n">time</span><span class="p">[</span><span class="s">&#39;data&#39;</span><span class="p">])})</span>
+<span class="c">#            self.message(4, &#39;self.lon &amp; self.lat updated&#39;)</span>
+        
+        <span class="c">#Extract within depth range</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">existDim</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="o">&gt;</span> <span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">depthrange</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">)</span> <span class="p">:</span> <span class="n">depthflag</span> <span class="o">=</span> <span class="p">(</span><span class="n">depth</span><span class="p">[</span><span class="s">&#39;data&#39;</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">depthrange</span><span class="p">))</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">depth</span><span class="p">[</span><span class="s">&#39;data&#39;</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">depthrange</span><span class="p">))</span>
+            <span class="k">else</span> <span class="p">:</span> <span class="n">depthflag</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">depth</span><span class="p">[</span><span class="s">&#39;data&#39;</span><span class="p">]),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">depthflag</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span> <span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">Error</span><span class="p">(</span><span class="s">&#39;No data within specified depth range (min/max = {0}/{1})&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">depth</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">depth</span><span class="p">)))</span>
+            <span class="n">depth</span><span class="p">[</span><span class="s">&#39;data&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">depth</span><span class="p">[</span><span class="s">&#39;data&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">compress</span><span class="p">(</span><span class="n">depthflag</span><span class="p">)</span>
+            <span class="n">depth</span><span class="p">[</span><span class="s">&#39;_dimensions&#39;</span><span class="p">][</span><span class="n">depth</span><span class="p">[</span><span class="s">&#39;_dimensions&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">()[</span><span class="mi">1</span><span class="p">]]</span> <span class="o">=</span> <span class="n">depthflag</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+            <span class="nb">locals</span><span class="p">()[</span><span class="n">ncdimlist</span><span class="p">[</span><span class="n">existDim</span><span class="p">[</span><span class="mi">3</span><span class="p">]]]</span><span class="o">=</span><span class="n">depth</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="n">dimStr</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">ncdimlist</span><span class="p">[</span><span class="n">existDim</span><span class="p">[</span><span class="mi">3</span><span class="p">]]:</span><span class="nb">len</span><span class="p">(</span><span class="n">depth</span><span class="p">[</span><span class="s">&#39;data&#39;</span><span class="p">])})</span>
+        
+        <span class="c">#Create output data structure</span>
+        <span class="n">outStr</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">()</span>
+        <span class="n">outStr</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s">&#39;_dimensions&#39;</span><span class="p">:</span><span class="n">dimStr</span><span class="p">})</span>
+        <span class="n">outStr</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s">&#39;_attributes&#39;</span><span class="p">:</span><span class="n">attrStr</span><span class="p">})</span>
+        
+        <span class="k">if</span> <span class="p">(</span><span class="n">existDim</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&gt;</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="p">:</span> <span class="n">outStr</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">ncdimlist</span><span class="p">[</span><span class="n">existDim</span><span class="p">[</span><span class="mi">0</span><span class="p">]]:</span><span class="n">lon</span><span class="p">})</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">existDim</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="p">:</span> <span class="n">outStr</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">ncdimlist</span><span class="p">[</span><span class="n">existDim</span><span class="p">[</span><span class="mi">1</span><span class="p">]]:</span><span class="n">lat</span><span class="p">})</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">existDim</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">&gt;</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="p">:</span> <span class="n">outStr</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">ncdimlist</span><span class="p">[</span><span class="n">existDim</span><span class="p">[</span><span class="mi">2</span><span class="p">]]:</span><span class="n">time</span><span class="p">})</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">existDim</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="o">&gt;</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="p">:</span> <span class="n">outStr</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">ncdimlist</span><span class="p">[</span><span class="n">existDim</span><span class="p">[</span><span class="mi">3</span><span class="p">]]:</span><span class="n">depth</span><span class="p">})</span>
+        
+        
+        <span class="c">#Update object with remaining variables</span>
+        <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">dimlist</span><span class="o">.</span><span class="n">compress</span><span class="p">([</span><span class="ow">not</span> <span class="n">outStr</span><span class="o">.</span><span class="n">has_key</span><span class="p">(</span><span class="n">f</span><span class="p">)</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">dimlist</span><span class="p">])</span> <span class="p">:</span>
+<span class="c">#            cmd = &#39;outStr.update({\&#39;&#39;+d+&#39;\&#39;:&#39;+d+&#39;[\&#39;data\&#39;]})&#39;</span>
+            <span class="n">cmd</span> <span class="o">=</span> <span class="s">&#39;outStr.update({</span><span class="se">\&#39;</span><span class="s">&#39;</span><span class="o">+</span><span class="n">d</span><span class="o">+</span><span class="s">&#39;</span><span class="se">\&#39;</span><span class="s">:&#39;</span><span class="o">+</span><span class="n">d</span><span class="o">+</span><span class="s">&#39;})&#39;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">message</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="s">&#39;exec : &#39;</span><span class="o">+</span><span class="n">cmd</span><span class="p">)</span>
+            <span class="k">exec</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+        
+        <span class="n">ncdimStr</span><span class="o">=</span><span class="n">outStr</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="c">#Get dimension lengths</span>
+        <span class="n">shape</span><span class="o">=</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">dimlist</span><span class="p">:</span> <span class="n">shape</span> <span class="o">+=</span> <span class="n">np</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="nb">locals</span><span class="p">()[</span><span class="n">d</span><span class="p">][</span><span class="s">&#39;data&#39;</span><span class="p">])</span>
+        
+        <span class="n">ndims</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span>
+     
+<span class="c">#        #Create dimension structure</span>
+<span class="c">#        curDim = [str(dimname) for dimname in dimStr.keys()[1:]] #[str(dimname) for dimname in ncf.variables[&#39;LONGITUDE&#39;].dimensions]</span>
+<span class="c">#        curDimval = [dimStr[dim] for dim in curDim] #[len(ncf.dimensions[dimname]) for dimname in curDim]</span>
+<span class="c">#   </span>
+<span class="c">#        outStr={&#39;_dimensions&#39;:{&#39;_ndims&#39;:ndims,&#39;nbpoints&#39;:sz[0]},&#39;lon&#39;:lon,&#39;lat&#39;:lat,&#39;date&#39;:date}</span>
+        
+<span class="c">#        for d in dimlist : outStr.update({d:self.__dict__[d]})</span>
+
+        <span class="c">#Sort NCDIMLIST to match DIMLIST</span>
+<span class="c">#        ncdimlist[np.sort(existDim.astype(np.int)[identified])]=ncdimlist[existDim[identified].tolist()]</span>
+
+        <span class="c">#Setup kwargs with current dimensionnal properties</span>
+        <span class="k">for</span> <span class="n">d</span><span class="p">,</span> <span class="n">ncd</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="p">(</span><span class="n">dimlist</span><span class="p">,</span><span class="n">ncdimlist</span><span class="p">)):</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">has_key</span><span class="p">(</span><span class="n">ncd</span><span class="p">)</span> <span class="p">:</span>
+                <span class="k">if</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">has_key</span><span class="p">(</span><span class="n">d</span><span class="p">)</span> <span class="p">:</span>
+                    
+                    <span class="n">kwargs</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">ncd</span><span class="p">:</span><span class="n">kwargs</span><span class="p">[</span><span class="n">d</span><span class="p">]})</span>
+                    <span class="k">del</span> <span class="n">kwargs</span><span class="p">[</span><span class="n">d</span><span class="p">]</span>
+                <span class="k">else</span> <span class="p">:</span>
+                    <span class="n">dvar</span><span class="o">=</span><span class="n">ncdimStr</span><span class="p">[</span><span class="n">d</span><span class="p">][</span><span class="s">&#39;data&#39;</span><span class="p">]</span>
+                    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">dvar</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">masked_array</span><span class="p">)</span> <span class="p">:</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">ncd</span><span class="p">:(</span><span class="n">np</span><span class="o">.</span><span class="n">nanmin</span><span class="p">(</span><span class="n">dvar</span><span class="o">.</span><span class="n">data</span><span class="p">),</span><span class="n">np</span><span class="o">.</span><span class="n">nanmax</span><span class="p">(</span><span class="n">dvar</span><span class="o">.</span><span class="n">data</span><span class="p">))})</span>
+                    <span class="k">else</span> <span class="p">:</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">ncd</span><span class="p">:(</span><span class="n">np</span><span class="o">.</span><span class="n">nanmin</span><span class="p">(</span><span class="n">dvar</span><span class="p">),</span><span class="n">np</span><span class="o">.</span><span class="n">nanmax</span><span class="p">(</span><span class="n">dvar</span><span class="p">))})</span>
+<span class="c">#            else :</span>
+<span class="c">#                outStr[&#39;NbLatitudes&#39;][&#39;data&#39;]        </span>
+        <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">par_list</span> <span class="p">:</span>
+<span class="c">#            dumVar = load_ncVar(param,  nc=ncf, lon=llind[0], lat=llind[1], time=np.arange(len(time[&#39;data&#39;])).compress(timeflag),**kwargs) #Load variables</span>
+<span class="c">#            dumVar = load_ncVar(param,  nc=ncf, longitude=(self.limit[1],self.limit[3]), latitude=(self.limit[0],self.limit[2]), time=(self.time.min(),self.time.max()),**kwargs) #Load variables</span>
+            
+            
+            <span class="n">dumVar</span> <span class="o">=</span> <span class="n">load_ncVar</span><span class="p">(</span><span class="n">param</span><span class="p">,</span>  <span class="n">nc</span><span class="o">=</span><span class="n">ncf</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="c">#Load variables</span>
+<span class="c">#            dimStr = dumVar[&#39;_dimensions&#39;]</span>
+            
+            <span class="c">#update dimensions</span>
+<span class="c">#            curDim = [str(dimname) for dimname in dimStr.keys()[1:]] #[str(dimname) for dimname in ncf.variables[&#39;LONGITUDE&#39;].dimensions]</span>
+<span class="c">#            curDimval = [dimStr[dim] for dim in curDim] #[len(ncf.dimensions[dimname]) for dimname in curDim]</span>
+            
+<span class="c">#            curDim = dimlist[where_list(curDim, ncdimlist.tolist())] #Convert to object dimension names</span>
+<span class="c">#            curDim = dimlist[where_list(curDim, dimlist.tolist())] #Convert to object dimension names (???)</span>
+            
+<span class="c">##            curDim = [str(dimname) for dimname in ncf.variables[param].dimensions]</span>
+<span class="c">##            curDimval = [len(ncf.dimensions[dimname]) for dimname in curDim]</span>
+<span class="c">#            flag = [(np.array(dimname) == outStr[&#39;_dimensions&#39;].keys()).sum() == 0 for dimname in curDim] #find dimensions to update</span>
+<span class="c">#            dimUpdate = np.array(curDim).compress(flag)</span>
+<span class="c">#            for enum in enumerate(dimUpdate) : </span>
+<span class="c">#                self.message(2, &#39;Appending dimensions {0}:{1} to dataStructure&#39;.format(enum[1], np.array(curDimval).compress(flag)[enum[0]]))</span>
+<span class="c">#                outStr[&#39;_dimensions&#39;].update({enum[1]:np.array(curDimval).compress(flag)[enum[0]]}) #Append new dimension</span>
+<span class="c">#                outStr[&#39;_dimensions&#39;][&#39;_ndims&#39;] += 1 #update dimension counts</span>
+            
+<span class="c">#            cmd = &#39;dumStr = {\&#39;&#39; + param + &#39;\&#39;:dumVar[\&#39;data\&#39;]}&#39;</span>
+
+
+            <span class="c">#Set list as variable with attributes</span>
+<span class="c">#            if (not output_is_dict):</span>
+<span class="c">#                var=dumVar.pop(&#39;data&#39;)</span>
+<span class="c">#                for k in dumVar.keys():</span>
+<span class="c">#                    setattr(var, k, dumVar.pop(k))</span>
+<span class="c">#                dumVar=var.copy()</span>
+            
+            <span class="n">cmd</span> <span class="o">=</span> <span class="s">&#39;dumStr = {</span><span class="se">\&#39;</span><span class="s">&#39;</span> <span class="o">+</span> <span class="n">param</span> <span class="o">+</span> <span class="s">&#39;</span><span class="se">\&#39;</span><span class="s">:dumVar}&#39;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">message</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="s">&#39;exec : &#39;</span> <span class="o">+</span> <span class="n">cmd</span><span class="p">)</span>
+            <span class="k">exec</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+            <span class="n">outStr</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">dumStr</span><span class="p">)</span>
+            
+            <span class="c">#Update output dimensions with extracted dimensions</span>
+            <span class="k">for</span> <span class="n">ddum</span> <span class="ow">in</span> <span class="n">dumStr</span><span class="p">[</span><span class="n">param</span><span class="p">][</span><span class="s">&#39;_dimensions&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">()[</span><span class="mi">1</span><span class="p">:]</span> <span class="p">:</span>
+                <span class="k">if</span> <span class="n">outStr</span><span class="p">[</span><span class="s">&#39;_dimensions&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">ddum</span><span class="p">)</span> <span class="o">!=</span> <span class="n">dumStr</span><span class="p">[</span><span class="n">param</span><span class="p">][</span><span class="s">&#39;_dimensions&#39;</span><span class="p">][</span><span class="n">ddum</span><span class="p">]</span> <span class="p">:</span> <span class="n">outStr</span><span class="p">[</span><span class="s">&#39;_dimensions&#39;</span><span class="p">][</span><span class="n">ddum</span><span class="p">]</span><span class="o">=</span><span class="n">dumStr</span><span class="p">[</span><span class="n">param</span><span class="p">][</span><span class="s">&#39;_dimensions&#39;</span><span class="p">][</span><span class="n">ddum</span><span class="p">]</span>
+            
+<span class="c">#            cmd = &#39;self.&#39;+param+&#39;=&#39;</span>
+        
+        <span class="n">ncf</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">outStr</span>
+    </div>
+<div class="viewcode-block" id="nc.message"><a class="viewcode-back" href="../../../altimetry.tools.nctools.html#altimetry.tools.nctools.nc.message">[docs]</a>    <span class="k">def</span> <span class="nf">message</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">MSG_LEVEL</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        print function wrapper. Print a message depending on the verbose level</span>
+<span class="sd">        </span>
+<span class="sd">        :param {in}{required}{type=int} MSG_LEVEL: level of the message to be compared with self.verbose</span>
+<span class="sd">        </span>
+<span class="sd">        :example: display a message</span>
+<span class="sd">           </span>
+<span class="sd">           .. code-block:: python</span>
+<span class="sd">           </span>
+<span class="sd">              self.log(0,&#39;This message will be shown for any verbose level&#39;)</span>
+<span class="sd">           </span>
+<span class="sd">        :author: Renaud DUSSURGET (RD), LER PAC/IFREMER</span>
+<span class="sd">        :change: Added a case for variables with missing dimensions</span>
+<span class="sd">         </span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">caller</span><span class="o">=</span><span class="n">get_caller</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">MSG_LEVEL</span> <span class="o">&lt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span> <span class="p">:</span> <span class="k">print</span><span class="p">(</span><span class="s">&#39;[{0}.{1}()] {2}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">__name__</span><span class="p">,</span><span class="n">caller</span><span class="o">.</span><span class="n">co_name</span><span class="p">,</span><span class="nb">str</span><span class="p">))</span>
+        </div>
+    <span class="k">def</span> <span class="nf">Error</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ErrorMsg</span><span class="p">):</span>    
+        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">ErrorMsg</span><span class="p">)</span>
+    
+<div class="viewcode-block" id="nc.attributes"><a class="viewcode-back" href="../../../altimetry.tools.nctools.html#altimetry.tools.nctools.nc.attributes">[docs]</a>    <span class="k">def</span> <span class="nf">attributes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get attributes of a NetCDF file</span>
+<span class="sd">        </span>
+<span class="sd">        :return {type:dict} outStr: Attribute structure.</span>
+<span class="sd">        :author: Renaud Dussurget</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        
+        <span class="c">#Open file</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_filename</span> <span class="o">=</span> <span class="n">filename</span>
+        <span class="n">ncf</span> <span class="o">=</span> <span class="n">ncfile</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_filename</span><span class="p">,</span> <span class="s">&quot;r&quot;</span><span class="p">)</span>
+     
+        <span class="c">#Get list of recorded parameters:</span>
+        <span class="n">keys</span> <span class="o">=</span> <span class="n">ncf</span><span class="o">.</span><span class="n">__dict__</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+        <span class="n">outStr</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">keys</span><span class="p">:</span> <span class="n">outStr</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">a</span><span class="p">:</span><span class="n">ncf</span><span class="o">.</span><span class="n">__getattr__</span><span class="p">(</span><span class="n">a</span><span class="p">)})</span>
+
+        <span class="k">return</span> <span class="n">outStr</span>
+        
+</div></div>
+<div class="viewcode-block" id="load_ncVar"><a class="viewcode-back" href="../../../altimetry.tools.nctools.html#altimetry.tools.nctools.load_ncVar">[docs]</a><span class="k">def</span> <span class="nf">load_ncVar</span><span class="p">(</span><span class="n">varName</span><span class="p">,</span> <span class="n">nc</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Loads a variable from the NetCDF file and saves it as a data structure.</span>
+<span class="sd">        </span>
+<span class="sd">        :parameter varName: variable name</span>
+<span class="sd">        :keywords kwargs: additional keyword arguments for slicing the dataset. Keywords should be named the name of the dimensions to subsample along and associated value should be a length 2 or 3 tuple (min,max,&lt;step&gt;).</span>
+<span class="sd">        </span>
+<span class="sd">        .. note: slices are provided in this interval : [min,max] (ie. including both extremities)</span>
+<span class="sd">        </span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        
+        <span class="k">if</span> <span class="p">(</span><span class="n">nc</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">)</span> <span class="p">:</span> <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s">&#39;No Netcdf file passed&#39;</span><span class="p">)</span>
+        
+        <span class="n">var</span> <span class="o">=</span> <span class="n">nc</span><span class="o">.</span><span class="n">variables</span><span class="p">[</span><span class="n">varName</span><span class="p">]</span>
+        
+        <span class="n">var</span><span class="o">.</span><span class="n">set_auto_maskandscale</span><span class="p">(</span><span class="bp">False</span><span class="p">)</span>
+        
+        <span class="c">#Load dimensions</span>
+        <span class="n">varDim</span> <span class="o">=</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">dim</span><span class="p">)</span> <span class="k">for</span> <span class="n">dim</span> <span class="ow">in</span> <span class="n">var</span><span class="o">.</span><span class="n">dimensions</span><span class="p">]</span>
+        <span class="n">missDim</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">varDim</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">missDim</span><span class="p">):</span> <span class="n">warn</span><span class="p">(</span><span class="s">&#39;No dimension found&#39;</span><span class="p">)</span>
+        <span class="k">else</span> <span class="p">:</span> <span class="n">varDimval</span> <span class="o">=</span> <span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">nc</span><span class="o">.</span><span class="n">dimensions</span><span class="p">[</span><span class="n">dimname</span><span class="p">])</span> <span class="k">for</span> <span class="n">dimname</span> <span class="ow">in</span> <span class="n">varDim</span><span class="p">]</span>
+        
+        <span class="c">#Load Attributes</span>
+        <span class="n">attrStr</span><span class="o">=</span><span class="n">var</span><span class="o">.</span><span class="n">__dict__</span>
+        
+        <span class="n">ind_list</span> <span class="o">=</span> <span class="p">[]</span> <span class="c">#Init index list</span>
+        <span class="n">dims</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">({</span><span class="s">&#39;_ndims&#39;</span><span class="p">:</span><span class="mi">0</span><span class="p">})</span> <span class="c">#Init dimensions</span>
+        
+        <span class="n">dstr</span><span class="o">=</span><span class="p">[]</span>
+        <span class="n">shape</span><span class="o">=</span><span class="p">()</span>
+
+        <span class="c">#Construct index list</span>
+        <span class="c">#looping on variable dimension list</span>
+        <span class="k">for</span> <span class="n">vid</span><span class="p">,</span><span class="n">vn</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">varDim</span><span class="p">)</span> <span class="p">:</span>
+            
+            <span class="c">#No indexation on current dimension</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">has_key</span><span class="p">(</span><span class="n">vn</span><span class="p">)</span> <span class="p">:</span>
+                <span class="n">dstr</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">dstr</span><span class="p">,</span><span class="s">&#39;:&#39;</span><span class="p">)</span>
+                <span class="n">sz</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">long</span><span class="p">(</span><span class="n">varDimval</span><span class="p">[</span><span class="n">vid</span><span class="p">])</span>
+<span class="c">#                ind_list.append(range(varDimval[vid])) # if no restriction in kargs then equivalent to [:]</span>
+<span class="c">#                dims.update({vn:varDimval[vid]})</span>
+            
+            <span class="c">#Data is indexed along current dimension</span>
+            <span class="k">else</span> <span class="p">:</span>
+                <span class="n">drange</span><span class="o">=</span><span class="n">kwargs</span><span class="p">[</span><span class="n">vn</span><span class="p">]</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">drange</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span> <span class="p">:</span> <span class="n">drange</span> <span class="o">=</span> <span class="n">drange</span> <span class="o">+</span> <span class="p">(</span><span class="mi">1</span><span class="p">,)</span>
+                <span class="k">if</span> <span class="n">nc</span><span class="o">.</span><span class="n">variables</span><span class="o">.</span><span class="n">has_key</span><span class="p">(</span><span class="n">vn</span><span class="p">)</span> <span class="p">:</span> <span class="c">#Check if current dimension exists</span>
+                    <span class="n">dumvar</span> <span class="o">=</span> <span class="n">nc</span><span class="o">.</span><span class="n">variables</span><span class="p">[</span><span class="n">vn</span><span class="p">][:]</span>
+                <span class="k">else</span> <span class="p">:</span>
+                    <span class="n">dumvar</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">nc</span><span class="o">.</span><span class="n">dimensions</span><span class="p">[</span><span class="n">vn</span><span class="p">]))</span>
+                <span class="k">if</span> <span class="n">vn</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&#39;lon&#39;</span><span class="p">)</span> <span class="p">:</span> <span class="n">dumvar</span><span class="o">=</span><span class="n">recale</span><span class="p">(</span><span class="n">dumvar</span><span class="p">,</span><span class="n">degrees</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+                <span class="n">fg</span><span class="o">=</span><span class="p">(</span><span class="n">dumvar</span> <span class="o">&gt;=</span> <span class="n">drange</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">dumvar</span> <span class="o">&lt;=</span> <span class="n">drange</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+                <span class="k">if</span> <span class="n">fg</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span> <span class="p">:</span>
+                    <span class="c">#retry switrhcing lon/lat</span>
+                    <span class="n">dumvar</span><span class="o">=</span><span class="n">recale</span><span class="p">(</span><span class="n">dumvar</span><span class="p">,</span><span class="n">degrees</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+                    <span class="n">drange</span><span class="o">=</span><span class="nb">tuple</span><span class="p">(</span><span class="n">recale</span><span class="p">(</span><span class="n">drange</span><span class="p">,</span><span class="n">degrees</span><span class="o">=</span><span class="bp">True</span><span class="p">))</span><span class="c">#.astype(np.long))</span>
+                    <span class="n">fg</span><span class="o">=</span><span class="p">(</span><span class="n">dumvar</span> <span class="o">&gt;=</span> <span class="n">drange</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">dumvar</span> <span class="o">&lt;=</span> <span class="n">drange</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+                <span class="k">if</span> <span class="n">fg</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span> <span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">IndexError</span><span class="p">(</span><span class="s">&#39;{0} {1} is not matching given dimensions {2}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">vn</span><span class="p">,(</span><span class="n">np</span><span class="o">.</span><span class="n">nanmin</span><span class="p">(</span><span class="n">nc</span><span class="o">.</span><span class="n">variables</span><span class="p">[</span><span class="n">vn</span><span class="p">][:]),</span><span class="n">np</span><span class="o">.</span><span class="n">nanmax</span><span class="p">(</span><span class="n">nc</span><span class="o">.</span><span class="n">variables</span><span class="p">[</span><span class="n">vn</span><span class="p">][:])),</span><span class="n">drange</span><span class="p">))</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">fg</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="p">:</span>
+                    <span class="n">dstr</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">dstr</span><span class="p">,</span><span class="s">&#39;:&#39;</span><span class="p">)</span>
+                    <span class="n">sz</span><span class="o">=</span><span class="il">1L</span>
+                <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">fg</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">sz</span><span class="o">=</span><span class="il">0L</span>
+                <span class="k">else</span> <span class="p">:</span>
+                    <span class="n">dumind</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">varDimval</span><span class="p">[</span><span class="n">vid</span><span class="p">],</span><span class="n">dtype</span><span class="o">=</span><span class="nb">long</span><span class="p">)</span><span class="o">.</span><span class="n">compress</span><span class="p">(</span><span class="n">fg</span><span class="p">)</span>
+                    <span class="n">bg</span><span class="o">=</span><span class="n">dumind</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="n">en</span><span class="o">=</span><span class="n">dumind</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">+</span><span class="mi">1</span>
+                    <span class="n">st</span><span class="o">=</span><span class="nb">long</span><span class="p">(</span><span class="n">drange</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+                    <span class="n">dstr</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">dstr</span><span class="p">,</span><span class="s">&#39;{0}:{1}:{2}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">bg</span><span class="p">,</span><span class="n">en</span><span class="p">,</span><span class="n">st</span><span class="p">))</span>
+                    <span class="n">sz</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">long</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mod</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float</span><span class="p">(</span><span class="n">en</span><span class="o">-</span><span class="n">bg</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">/</span><span class="n">st</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">float</span><span class="p">(</span><span class="n">en</span><span class="o">-</span><span class="n">bg</span><span class="p">))</span> <span class="o">+</span> <span class="mf">1.</span><span class="p">)</span>
+            
+            <span class="n">dims</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">vn</span><span class="p">:</span><span class="n">sz</span><span class="p">})</span>
+            <span class="n">shape</span> <span class="o">=</span> <span class="n">shape</span> <span class="o">+</span> <span class="p">(</span><span class="n">sz</span><span class="p">,)</span>
+<span class="c">#                if isinstance(dumind, np.ndarray) : dumind = dumind.tolist() #Rq: tolist() can take a very long time to run on large arrays</span>
+<span class="c">#                if type(dumind) is not list : dumind = [dumind] </span>
+<span class="c">#                ind_list.append(dumind)</span>
+<span class="c">#                dims.update({vn:len(dumind)})</span>
+        
+<span class="c">#        #check index list</span>
+<span class="c">#        sz = [np.size(i) for i in ind_list]</span>
+        
+        <span class="n">dstr</span><span class="o">=</span><span class="s">&#39;,&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">dstr</span><span class="p">)</span> <span class="c">#invert dimension list for numpy</span>
+<span class="c">#        dstr=&#39;,&#39;.join(dstr[::-1]) #invert dimension list for numpy</span>
+        <span class="k">if</span> <span class="n">missDim</span> <span class="p">:</span> <span class="n">cmd</span> <span class="o">=</span> <span class="s">&#39;varOut = var[:]&#39;</span>
+        <span class="k">else</span> <span class="p">:</span> <span class="n">cmd</span> <span class="o">=</span> <span class="s">&#39;varOut = var[{0}]&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">dstr</span><span class="p">)</span>
+        <span class="k">exec</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+        
+        <span class="c">#find empty variables</span>
+<span class="c">#        if not (atools.where_list([0], shape)[0] == -1) : varOut = var[[0]][[]]</span>
+<span class="c">#        else : varOut = var[ind_list]</span>
+        
+        <span class="c">#Mask it!</span>
+        <span class="k">if</span> <span class="n">var</span><span class="o">.</span><span class="n">__dict__</span><span class="o">.</span><span class="n">has_key</span><span class="p">(</span><span class="s">&#39;_FillValue&#39;</span><span class="p">)</span> <span class="p">:</span>
+            <span class="n">fill_value</span><span class="o">=</span><span class="n">var</span><span class="o">.</span><span class="n">_FillValue</span>
+            <span class="n">mask</span> <span class="o">=</span> <span class="n">varOut</span> <span class="o">==</span> <span class="n">var</span><span class="o">.</span><span class="n">_FillValue</span>
+        <span class="k">elif</span> <span class="n">var</span><span class="o">.</span><span class="n">__dict__</span><span class="o">.</span><span class="n">has_key</span><span class="p">(</span><span class="s">&#39;missing_value&#39;</span><span class="p">)</span> <span class="p">:</span>
+            <span class="n">fill_value</span><span class="o">=</span><span class="n">var</span><span class="o">.</span><span class="n">_FillValue</span>
+            <span class="n">mask</span> <span class="o">=</span> <span class="n">varOut</span> <span class="o">==</span> <span class="n">var</span><span class="o">.</span><span class="n">_FillValue</span>
+        <span class="k">else</span> <span class="p">:</span>
+            <span class="n">fill_value</span> <span class="o">=</span> <span class="bp">None</span>
+            <span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">varOut</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="s">&#39;bool&#39;</span><span class="p">)</span>
+        
+        <span class="c">#Scale it</span>
+        <span class="c">#note : we do not use the *= or += operators to force casting to scaling attribute types</span>
+        <span class="k">if</span> <span class="n">var</span><span class="o">.</span><span class="n">__dict__</span><span class="o">.</span><span class="n">has_key</span><span class="p">(</span><span class="s">&#39;scale&#39;</span><span class="p">)</span> <span class="p">:</span> <span class="n">varOut</span> <span class="o">=</span> <span class="n">varOut</span> <span class="o">*</span> <span class="n">var</span><span class="o">.</span><span class="n">scale</span>
+        <span class="k">elif</span> <span class="n">var</span><span class="o">.</span><span class="n">__dict__</span><span class="o">.</span><span class="n">has_key</span><span class="p">(</span><span class="s">&#39;scale_factor&#39;</span><span class="p">)</span> <span class="p">:</span> <span class="n">varOut</span> <span class="o">=</span> <span class="n">varOut</span> <span class="o">*</span> <span class="n">var</span><span class="o">.</span><span class="n">scale_factor</span>
+        <span class="k">if</span> <span class="n">var</span><span class="o">.</span><span class="n">__dict__</span><span class="o">.</span><span class="n">has_key</span><span class="p">(</span><span class="s">&#39;add_offset&#39;</span><span class="p">)</span> <span class="p">:</span> <span class="n">varOut</span> <span class="o">=</span> <span class="n">varOut</span> <span class="o">+</span> <span class="n">var</span><span class="o">.</span><span class="n">add_offset</span>
+        
+        <span class="c">#Set masks properly</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">varOut</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="p">:</span> <span class="n">varOut</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">masked_array</span><span class="p">(</span><span class="n">varOut</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="n">mask</span><span class="p">,</span><span class="n">dtype</span><span class="o">=</span><span class="n">varOut</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span><span class="n">fill_value</span><span class="o">=</span><span class="n">fill_value</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">varOut</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">masked_array</span><span class="p">)</span> <span class="p">:</span> <span class="n">var</span><span class="o">.</span><span class="n">mask</span> <span class="o">=</span> <span class="n">mask</span>
+        <span class="k">else</span> <span class="p">:</span> <span class="k">raise</span> <span class="s">&#39;This data type {} has not been defined - code it!&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">varOut</span><span class="p">))</span>
+        
+        <span class="c">#Update masked data properly</span>
+        <span class="n">varOut</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">varOut</span><span class="o">.</span><span class="n">mask</span><span class="p">]</span><span class="o">=</span><span class="n">varOut</span><span class="o">.</span><span class="n">fill_value</span>
+        
+        <span class="c">#Switch dimensions </span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">missDim</span> <span class="p">:</span> <span class="n">varOut</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">varOut</span><span class="p">,</span><span class="nb">tuple</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">dims</span><span class="o">.</span><span class="n">keys</span><span class="p">()[</span><span class="mi">1</span><span class="p">:]))[::</span><span class="o">-</span><span class="mi">1</span><span class="p">]))</span>
+        
+        <span class="c">#Build up output structure</span>
+        <span class="n">dims</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s">&#39;_ndims&#39;</span><span class="p">:</span><span class="nb">len</span><span class="p">(</span><span class="n">dims</span><span class="o">.</span><span class="n">keys</span><span class="p">()[</span><span class="mi">1</span><span class="p">:])})</span>
+        <span class="n">outStr</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;_dimensions&#39;</span><span class="p">:</span><span class="n">dims</span><span class="p">,</span> <span class="s">&#39;data&#39;</span><span class="p">:</span><span class="n">varOut</span><span class="p">}</span>
+        
+        <span class="c">#Add variable attributes</span>
+        <span class="k">for</span> <span class="n">A</span> <span class="ow">in</span> <span class="n">var</span><span class="o">.</span><span class="n">__dict__</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">outStr</span><span class="p">[</span><span class="n">A</span><span class="p">]</span><span class="o">=</span><span class="n">var</span><span class="o">.</span><span class="n">getncattr</span><span class="p">(</span><span class="n">A</span><span class="p">)</span>
+        
+        <span class="k">return</span> <span class="n">outStr</span>
+<span class="c">#            ind_list=[[]] </span>
+    
+<span class="c">#Additional functions</span></div>
+<span class="k">def</span> <span class="nf">load_ncVar_v2</span><span class="p">(</span><span class="n">varName</span><span class="p">,</span><span class="n">nc</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span><span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        
+        <span class="k">if</span> <span class="n">nc</span> <span class="ow">is</span> <span class="bp">None</span> <span class="p">:</span> <span class="k">raise</span> <span class="s">&#39;No Netcdf file passed&#39;</span>
+        
+        <span class="c">#Load variable</span>
+        <span class="n">var</span> <span class="o">=</span> <span class="n">nc</span><span class="o">.</span><span class="n">variables</span><span class="p">[</span><span class="n">varName</span><span class="p">]</span>
+        
+        <span class="n">var</span><span class="o">.</span><span class="n">set_auto_maskandscale</span><span class="p">(</span><span class="bp">False</span><span class="p">)</span>
+        
+        <span class="c">#Load dimensions</span>
+        <span class="n">varDim</span> <span class="o">=</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">dim</span><span class="p">)</span> <span class="k">for</span> <span class="n">dim</span> <span class="ow">in</span> <span class="n">var</span><span class="o">.</span><span class="n">dimensions</span><span class="p">]</span>
+        <span class="n">varDimval</span> <span class="o">=</span> <span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">nc</span><span class="o">.</span><span class="n">dimensions</span><span class="p">[</span><span class="n">dimname</span><span class="p">])</span> <span class="k">for</span> <span class="n">dimname</span> <span class="ow">in</span> <span class="n">varDim</span><span class="p">]</span>
+        
+        <span class="c">#Load Attributes</span>
+        <span class="n">attrStr</span><span class="o">=</span><span class="n">var</span><span class="o">.</span><span class="n">__dict__</span>
+        
+<span class="c">#        from collections import deque</span>
+        <span class="n">ind_list</span> <span class="o">=</span> <span class="p">[]</span> <span class="c">#deque() #Init index list</span>
+        <span class="n">dims</span><span class="o">=</span><span class="p">{</span><span class="s">&#39;_ndims&#39;</span><span class="p">:</span><span class="mi">0</span><span class="p">}</span> <span class="c">#Init dimensions</span>
+
+        <span class="c">#Construct index list</span>
+        <span class="c">#looping on variable dimension list</span>
+        <span class="k">for</span> <span class="n">enum</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">varDim</span><span class="p">)</span> <span class="p">:</span>
+            
+            <span class="c">#No indexation on current dimension</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">has_key</span><span class="p">(</span><span class="n">enum</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="p">:</span>
+<span class="c">#                ind_list+=tuple(xrange(varDimval[enum[0]]))</span>
+                <span class="n">ind_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">xrange</span><span class="p">(</span><span class="n">varDimval</span><span class="p">[</span><span class="n">enum</span><span class="p">[</span><span class="mi">0</span><span class="p">]]))</span>
+<span class="c">#                ind_list=(ind_list,xrange(varDimval[enum[0]])) if len(ind_list) != 0 else (xrange(varDimval[enum[0]]),)</span>
+<span class="c">#                .append(xrange(varDimval[enum[0]])) # if no restriction in kargs then equivalent to [:]</span>
+                <span class="n">dims</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">enum</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span><span class="n">varDimval</span><span class="p">[</span><span class="n">enum</span><span class="p">[</span><span class="mi">0</span><span class="p">]]})</span>
+            
+            <span class="c">#Data is indexed along current dimension</span>
+            <span class="k">else</span> <span class="p">:</span>
+                <span class="n">dumind</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="n">enum</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span>
+<span class="c">#                if not isinstance(dumind,list) : dumind=tuple(dumind)</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">dumind</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="p">:</span> <span class="n">dumind</span><span class="o">=</span><span class="n">dumind</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span> <span class="c">#Rq: tolist() can take a very long time to run on large arrays</span>
+                <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">dumind</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="nb">list</span> <span class="p">:</span> <span class="n">dumind</span><span class="o">=</span><span class="p">[</span><span class="n">dumind</span><span class="p">]</span> 
+                <span class="n">ind_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">dumind</span><span class="p">)</span>
+<span class="c">#                ind_list=(ind_list,dumind)  if len(ind_list) != 0 else (dumind,)</span>
+                <span class="n">dims</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">enum</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span><span class="nb">len</span><span class="p">(</span><span class="n">dumind</span><span class="p">)})</span>
+        
+        <span class="c">#check index list</span>
+        <span class="n">sz</span><span class="o">=</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">ind_list</span><span class="p">]</span>
+        
+        <span class="c">#find empty dimensions</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">where_list</span><span class="p">([</span><span class="mi">0</span><span class="p">],</span><span class="n">sz</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span> <span class="p">)</span> <span class="p">:</span> <span class="n">varOut</span><span class="o">=</span><span class="n">var</span><span class="p">[[</span><span class="mi">0</span><span class="p">]][[]]</span> <span class="c">#np.array(where_list(sz,[0])) == -1</span>
+        <span class="k">else</span> <span class="p">:</span>
+            <span class="n">varOut</span><span class="o">=</span><span class="n">var</span><span class="p">[</span><span class="n">ind_list</span><span class="p">]</span><span class="c">#.copy() #THIS IS LONG!!</span>
+            <span class="k">if</span> <span class="n">var</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">)</span> <span class="p">:</span> <span class="n">varOut</span><span class="o">=</span><span class="n">varOut</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">var</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+        
+        <span class="c">#Mask it!</span>
+        <span class="k">if</span> <span class="n">var</span><span class="o">.</span><span class="n">__dict__</span><span class="o">.</span><span class="n">has_key</span><span class="p">(</span><span class="s">&#39;_FillValue&#39;</span><span class="p">)</span> <span class="p">:</span> <span class="n">mask</span><span class="o">=</span><span class="n">varOut</span> <span class="o">==</span> <span class="n">var</span><span class="o">.</span><span class="n">_FillValue</span>
+        <span class="k">elif</span> <span class="n">var</span><span class="o">.</span><span class="n">__dict__</span><span class="o">.</span><span class="n">has_key</span><span class="p">(</span><span class="s">&#39;missing_value&#39;</span><span class="p">)</span> <span class="p">:</span> <span class="n">mask</span><span class="o">=</span><span class="n">varOut</span> <span class="o">==</span> <span class="n">var</span><span class="o">.</span><span class="n">missing_value</span>
+        <span class="k">else</span> <span class="p">:</span> <span class="n">mask</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">varOut</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span><span class="n">dtype</span><span class="o">=</span><span class="s">&#39;bool&#39;</span><span class="p">)</span>
+        
+        <span class="c">#Scale it</span>
+        <span class="c">#note : we do not use the *= or += operators to force casting to scaling attribute types</span>
+        <span class="k">if</span> <span class="n">var</span><span class="o">.</span><span class="n">__dict__</span><span class="o">.</span><span class="n">has_key</span><span class="p">(</span><span class="s">&#39;scale&#39;</span><span class="p">)</span> <span class="p">:</span> <span class="n">varOut</span> <span class="o">=</span><span class="n">varOut</span> <span class="o">*</span> <span class="n">var</span><span class="o">.</span><span class="n">scale</span>
+        <span class="k">elif</span> <span class="n">var</span><span class="o">.</span><span class="n">__dict__</span><span class="o">.</span><span class="n">has_key</span><span class="p">(</span><span class="s">&#39;scale_factor&#39;</span><span class="p">)</span> <span class="p">:</span> <span class="n">varOut</span> <span class="o">=</span> <span class="n">varOut</span> <span class="o">*</span> <span class="n">var</span><span class="o">.</span><span class="n">scale_factor</span>
+        <span class="k">if</span> <span class="n">var</span><span class="o">.</span><span class="n">__dict__</span><span class="o">.</span><span class="n">has_key</span><span class="p">(</span><span class="s">&#39;add_offset&#39;</span><span class="p">)</span> <span class="p">:</span> <span class="n">varOut</span> <span class="o">=</span> <span class="n">varOut</span> <span class="o">+</span> <span class="n">var</span><span class="o">.</span><span class="n">add_offset</span>
+        
+        <span class="c">#Set masks properly</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">varOut</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="p">:</span> <span class="n">varOut</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">masked_array</span><span class="p">(</span><span class="n">varOut</span><span class="p">,</span><span class="n">mask</span><span class="o">=</span><span class="n">mask</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">varOut</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">masked_array</span><span class="p">)</span> <span class="p">:</span> <span class="n">var</span><span class="o">.</span><span class="n">mask</span><span class="o">=</span><span class="n">mask</span>
+        <span class="k">else</span> <span class="p">:</span> <span class="k">raise</span> <span class="s">&#39;This data type {} has not been defined - code it!&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">varOut</span><span class="p">))</span>
+        
+        <span class="c">#Get attributes</span>
+        <span class="n">attrStr</span><span class="o">=</span><span class="n">var</span><span class="o">.</span><span class="n">__dict__</span>
+        <span class="n">attrStr</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s">&#39;_FillValue&#39;</span><span class="p">,</span><span class="bp">None</span><span class="p">)</span> <span class="c">#Remove this attributed as it is overidden</span>
+        
+        <span class="c">#Append attributes to varOut</span>
+        <span class="n">varOut</span><span class="o">.</span><span class="n">__dict__</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">attrStr</span><span class="p">)</span>
+        
+        <span class="c">#Build up output structure</span>
+        <span class="n">outStr</span><span class="o">=</span><span class="p">{</span><span class="s">&#39;_dimensions&#39;</span><span class="p">:</span><span class="n">dims</span><span class="p">,</span><span class="s">&#39;data&#39;</span><span class="p">:</span><span class="n">varOut</span><span class="p">}</span>
+        <span class="n">dims</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s">&#39;_ndims&#39;</span><span class="p">:</span><span class="nb">len</span><span class="p">(</span><span class="n">dims</span><span class="o">.</span><span class="n">keys</span><span class="p">()[</span><span class="mi">1</span><span class="p">:])})</span>
+        
+        <span class="k">return</span> <span class="n">outStr</span>
+<span class="c">##            ind_list=[[]] </span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">altimetry tools 0 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, Renaud Dussurget.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+    </div>
+  </body>
+</html>

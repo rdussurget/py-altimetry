@@ -1,0 +1,1690 @@
+.TH "ALTIMETRYTOOLS" "1" "October 10, 2013" "0.1" "altimetry tools"
+.SH NAME
+altimetrytools \- altimetry tools Documentation
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.\" Man page generated from reStructeredText.
+.
+.SH DESCRIPTION
+.sp
+py\-altimetry is a python module made to easily handle and process altimetry data.
+It can furthermore handle a wider variety of data (in\-situ or imagery data), and also has a number of tools, eg. spectral analysis, filtering data, interpolating, plotting maps, handle date vectors, handle positional data ...
+.sp
+This is module can be used as is, and is not aimed (nor designed) for operationnal constraints.
+.SH CONTENTS
+.SS Description of the modules
+.sp
+You can find here the documentation about all modules.
+.SS Contents:
+.SS altimetry.data Module
+.sp
+This module contains special classes and tools to handle oceanographic data.
+.INDENT 0.0
+.INDENT 2.0
+.IP \(bu 2
+.INDENT 2.0
+.TP
+.B \fIclass\fP
+.INDENT 7.0
+.IP \(bu 2
+\fIalti_data\fP
+.IP \(bu 2
+\fIhydro_data\fP
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS Data objects:
+.SS alti_data class \- handles altimetry data:
+.INDENT 0.0
+.TP
+.B class altimetry.data.alti_data(file_pattern, time_range=None, output_is_dict=True, **kwargs)
+An \fBaltimetry.data.hydro_data\fP object dedicated to handling along\-track altimetry data.
+.INDENT 7.0
+.TP
+.B Example 
+To load different sets of data, try these :
+.INDENT 7.0
+.IP \(bu 2
+Concatenate a set of \fBAVISO\(aqs MFSTEP NRT along\-track data\fP and plot a 2D hovmoller matrix:
+.UNINDENT
+.sp
+.nf
+.ft C
+#Define parameters 
+trange_str = [\(aq24/09/2012\(aq,\(aq05/09/2013\(aq]
+trange,tdatetime=AT.cnes_convert(trange_str) #convert time range
+alti_pattern = \(aq/path/to/nrt/mfstep/nrt_mfstep_j2_sla_vfec_*.nc\(aq
+
+#Load data
+alti=alti_data(alti_pattern,verbose=verbose,datatype=\(aqDT\(aq,time_range=trange,slaext=True) #Load data
+
+#2D reordering of the data
+alti.reorder()
+
+#Plot results
+pcolormesh(data.lat,data.cycle,data.sla); show() #plot the hovmoller
+.ft P
+.fi
+.INDENT 7.0
+.IP \(bu 2
+Loads a set of \fBPISTACH L3 5Hz\fP files and create a new SLA variable and slice the object using a given time range :
+.UNINDENT
+.sp
+.nf
+.ft C
+#Load data
+alti_pattern = \(aq/path/to/data/PISTACH_L3_Product_NWMED_MLE4_tr*_5hz.nc\(aq
+alti=alti_data(alti_pattern,limit=limit,verbose=verbose)
+ 
+alti.create_Variable(\(aqsla\(aq,                             #new variable name
+                     alti.ssh_mss_filtree_21pts,        #data
+                     {\(aqtime\(aq:alti._dimensions[\(aqtime\(aq]}, #set dimensions
+                     extend=False)                      #extend option
+
+#get daily updates of the object
+for date in xrange(21300,21320):
+   
+    #get a deep copy of the object, not to erase the whole dataset
+    subset=alti.copy(deep=True)
+       
+    #update the object with the proper slice
+    fg=subset.slice(\(aqdate\(aq, [date,date+1])
+    subset.update(fg)
+    
+    do_something(subset)
+.ft P
+.fi
+.INDENT 7.0
+.IP \(bu 2
+Loads a set of \fBPISTACH hydro\fP files :
+.UNINDENT
+.sp
+.nf
+.ft C
+data=AD.alti_data(\(aq%s/*_2PTP*_*.nc\(aq % RepData,verbose=opts.verbose,datatype=\(aqRAW\(aq,remove_existing=False)
+.ft P
+.fi
+.INDENT 7.0
+.IP \(bu 2
+Load any \fBNetCDF file\fP using \fBaltimetry.tools.nctools.nc\fP :
+.UNINDENT
+.sp
+.nf
+.ft C
+data=AD.alti_data(fout,verbose=opts.verbose,datatype=\(aqRAW\(aq,transpose=False)
+.ft P
+.fi
+.UNINDENT
+.INDENT 7.0
+.TP
+.B __init__(file_pattern, time_range=None, output_is_dict=True, **kwargs)
+returns a dataset from a single file or multiple concatenated files. cf. \fBaltimetry.data.hydro_data\fP for further informations
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBtime_range\fP \-\- get start dates from file names (cf. notes on file names when using this option)
+.IP \(bu 2
+\fBkwargs\fP \-\- additionnal keywords to be passed to \fBaltimetry.data.hydro_data.__init__()\fP
+.UNINDENT
+.UNINDENT
+.IP Note
+Naming convetion should respect AVISO formatting
+.INDENT 7.0
+.IP \(bu 2
+start dates should be the 3rd field from the end
+.IP \(bu 2
+satellite name should be the 3rd from the start
+.IP \(bu 2
+eg. my_file_sat_20010101_20010108_20010109.nc
+.UNINDENT
+.RE
+.UNINDENT
+.INDENT 7.0
+.TP
+.B cycle_list(*args)
+return the list of cycles contained if the dataset
+.UNINDENT
+.INDENT 7.0
+.TP
+.B pass_time()
+Compute the central time for each passes.
+.IP Note
+this must be called AFTER having called \fBaltimetry.data.alti_data.reorder()\fP as it looks for the CYCLE and RECORD dimensions.
+.RE
+.IP Note
+The methodology to compute the central time is to interpolate the time along the track at missing points, and then reading the value at point N/2.
+.RE
+.UNINDENT
+.INDENT 7.0
+.TP
+.B read(filename, datatype=None, slaext=False, **kwargs)
+reader method.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBfilename\fP \-\- name of the file to load.
+.IP \(bu 2
+\fBdatatype\fP \-\- 
+.sp
+choose between DT/NRT/PISTACH/CTOH or other formats to call the corresponding reader. If datatype is :
+.INDENT 2.0
+.IP \(bu 2
+DT or NRT or PISTACH : calls \fBaltimetry.data.alti_data.read_sla()\fP or \fBaltimetry.data.alti_data.read_slaext()\fP
+.IP \(bu 2
+CTOH : calls \fBaltimetry.data.alti_data.read_CTOH()\fP
+.IP \(bu 2
+else : calls \fBaltimetry.data.alti_data.read_nc()\fP, based on \fBaltimetry.tools.nctools.nc\fP object.
+.UNINDENT
+
+.IP \(bu 2
+\fBslaext\fP \-\- force using \fBaltimetry.data.alti_data.read_slaext()\fP
+.UNINDENT
+.UNINDENT
+.IP Note
+This method is call from \fBaltimetry.data.hydro_data.__init__()\fP and returns a data structure to be handled by \fBaltimetry.data.hydro_data.update_dataset()\fP
+.RE
+.UNINDENT
+.INDENT 7.0
+.TP
+.B read_CTOH(filename, params=None, force=False, timerange=None, datatype=None, **kwargs)
+Read AVISO Along\-Track SLA regional products
+.INDENT 7.0
+.TP
+.B Return outStr
+Output data structure containing all recorded parameters as specificied by NetCDF file PARAMETER list.
+.TP
+.B Author 
+Renaud Dussurget
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B read_nc(filename, **kwargs)
+data reader based on \fBaltimetry.tools.nctools.nc\fP object.
+.IP Note
+THIS can be VERY powerful!
+.RE
+.UNINDENT
+.INDENT 7.0
+.TP
+.B read_sla(filename, params=None, force=False, timerange=None, datatype=None, **kwargs)
+Read AVISO Along\-Track products
+.INDENT 7.0
+.TP
+.B Return outStr
+Output data structure containing all recorded parameters as specificied by NetCDF file PARAMETER list.
+.TP
+.B Author 
+Renaud Dussurget
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B read_slaext(filename, params=None, force=False, timerange=None, datatype=None, **kwargs)
+Read AVISO Along\-Track SLAEXT regional products
+.INDENT 7.0
+.TP
+.B Return outStr
+Output data structure containing all recorded parameters as specificied by NetCDF file PARAMETER list.
+.TP
+.B Author 
+Renaud Dussurget
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B reorder(*args, **kwargs)
+Reorders data vectors in 2D (ie. with dimensions (CYCLE,RECORD)). This is useful to get a hovmoller\-type matrix of each variable.
+.INDENT 7.0
+.TP
+.B Example 
+To plot a hovmoller for a given variable, do
+.sp
+.nf
+.ft C
+\&.. code\-block:: pyhton
+.ft P
+.fi
+.INDENT 7.0
+.INDENT 3.5
+data=alti_data(\(aq/my/dir/my_files_pattern*.nc\(aq) #concatenate the files
+data.reorder() #reorder data
+pcolormesh(data.lat,data.cycle,data.sla); show() #plot the hovmoller
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.IP Note
+This only works for data reprojected along a nominal track.
+.RE
+.UNINDENT
+.INDENT 7.0
+.TP
+.B set_sats()
+set satellite name using (cf. notes on file names in \fIaltimetry.data.alti_data.__init__\fP)
+.UNINDENT
+.INDENT 7.0
+.TP
+.B track_list(*args)
+return the list of tracks contained if the dataset
+.UNINDENT
+.UNINDENT
+.SS hydro_data class \- handles oceanographic (in\-situ or remotely sensed) data:
+.INDENT 0.0
+.TP
+.B class altimetry.data.hydro_data(file_pattern, limit=None, verbose=1, round=True, zero_2pi=True, output_is_dict=True, **kwargs)
+A base object dedicated to handle oceanographic data (in\-situ or remote sensing) with upper level processing methods.
+.IP Note
+This object SHOULD NOT be called directly but through a subclass heritating of it (eg. \fBaltimetry.data.alti_data\fP)
+.RE
+.INDENT 7.0
+.TP
+.B Error(ErrorMsg)
+raises an exception
+.UNINDENT
+.INDENT 7.0
+.TP
+.B __init__(file_pattern, limit=None, verbose=1, round=True, zero_2pi=True, output_is_dict=True, **kwargs)
+Returns the object filled with the data loaded from a single file or a concatenated set of files
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBfile_pattern\fP \-\- a pattern of files to be globbed (\fI\%glob.glob()\fP) or a list of file names.
+.IP \(bu 2
+\fBlimit\fP \-\- the limits of the domain to handle ([latmin,lonmin,latmax,lonmax]).
+.IP \(bu 2
+\fBverbose\fP \-\- verbosity level on a scale of 0 (silent) to 4 (max verobsity)
+.IP \(bu 2
+\fBround\fP \-\- round limits (cf. \fBaltimetry.tools.in_limits()\fP)
+.IP \(bu 2
+\fBzero_2pi\fP \-\- limits goes from 0 to 360 degrees (not \-180/180).
+.IP \(bu 2
+\fBoutput_is_dict\fP \-\- data structures are dictionnaries (eg. my_hydro_data.variable[\(aqdata\(aq]). If false uses an object with attributes (eg. my_hydro_data.variable.data).
+.UNINDENT
+.UNINDENT
+.IP Note
+This methodes init all the attributes, then loads the data from files (\fBaltimetry.data.hydro_data.read()\fP) and appends it to the object (\fBaltimetry.data.hydro_data.update_dataset()\fP) before checking its content (\fBaltimetry.data.hydro_data.check_variables()\fP).
+.RE
+.IP Note
+The method \fBaltimetry.data.hydro_data.read()\fP MUST be defined (typically by overloading it). This method must return a data structure.
+.RE
+.UNINDENT
+.INDENT 7.0
+.TP
+.B __weakref__
+list of weak references to the object (if defined)
+.UNINDENT
+.INDENT 7.0
+.TP
+.B check_variables()
+Forces variables to respect dimensions
+.UNINDENT
+.INDENT 7.0
+.TP
+.B contour_transect(x, z, var, xrange=None, zrange=None, xstep=1, zstep=10, vmin=None, vmax=None, marker=\(aq.k\(aq, **kwargs)
+shows a 2d space\-depth section by interpolating the data along the section.
+.IP Note
+This method interpolates using \fBscipy.interpolate.griddata()\fP and plots using \fBmatplotlib.pyplot.meshcolorgrid()\fP
+.RE
+.UNINDENT
+.INDENT 7.0
+.TP
+.B copy(deep=True)
+Returns a copy of the current data object
+.INDENT 7.0
+.TP
+.B Parameters
+\fBdeep\fP \-\- deep copies the object (object data will be copied as well).
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B count = None
+number of files loaded
+.UNINDENT
+.INDENT 7.0
+.TP
+.B create_Dim(name, value)
+Adds a dimension to class.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBname\fP \-\- dimension name
+.IP \(bu 2
+\fBvalue\fP \-\- dimension value
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B create_Variable(name, value, dimensions, toCreate=None, createDim=None, extend=True)
+create_Variable : This function adds data to \fBaltimetry.data.hydro_data\fP
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBname\fP \-\- name of the parameter to create
+.IP \(bu 2
+\fBvalue\fP \-\- values associated to the variable. Must be a numpy masked_array or a data structure.
+.IP \(bu 2
+\fBdimensions\fP \-\- dimensional structure (cf. notes).
+.UNINDENT
+.UNINDENT
+.IP Note
+altimetry tools package handles the NetCDF data using specific structures.
+.sp
+NetCDF data is structured this way:
+.sp
+.nf
+.ft C
+NetCDF_data = {\(aq_dimensions\(aq:dimension_structure,  #File dimensions  (COMPULSORY)
+               \(aq_attributes\(aq:attribute_structure,  #Global attributes
+               \(aqdimension_1\(aq:data_structure,       #Data associated to the dimensions. (COMPULSORY)
+               ...,
+               \(aqvariable_1\(aq:data_structure,        #Variables
+               ...
+              }
+.ft P
+.fi
+.sp
+In standard NetCDF files, dimensions are always associated to a variable.
+If it is not the case, an array of indices the length of the dimension is generated and a warning is issued.
+.sp
+Moreover, dimensions MUST be defined to be accepted by \fBaltimetry.tools.nctools.nc\fP (empty NetCDF files would fail).
+.INDENT 7.0
+.IP \(bu 2
+a dimensional structure should be of the form :
+.UNINDENT
+.sp
+.nf
+.ft C
+dimension_structure = {\(aq_ndims\(aq:N,        #Attribute setting the number of dimensions.
+
+                       \(aqdims\(aq:{\(aqdim_A\(aq:A, #Structure containing the name
+                               \(aqdim_B\(aq:B, #of the dimensions and their size. 
+                               ...,
+                               \(aqdim_N\(aq:N
+                              }
+                      }
+.ft P
+.fi
+.INDENT 7.0
+.IP \(bu 2
+an attribute structure is a very simple structure containing the attribute names and values:
+.UNINDENT
+.sp
+.nf
+.ft C
+data_structure = {\(aqattribute_1\(aq:attribute_1,
+                  ...,
+                  \(aqattribute_N\(aq:attribute_N}
+.ft P
+.fi
+.INDENT 7.0
+.IP \(bu 2
+a data structure should be of the form :
+.UNINDENT
+.sp
+.nf
+.ft C
+data_structure = {\(aq_dimensions\(aq:dimension_structure, #dimensions of hte variable (COMPULSORY)
+                  \(aqdata\(aq:data,                       #data associated to the variable (COMPULSORY)
+                  
+                  \(aqlong_name\(aq:long_name,             #Variable attributes
+                  \(aqunits\(aq:units,
+                  ...
+                 }
+.ft P
+.fi
+.sp
+DATA and _DIMENSIONS fields are compulsory.
+Other fields are optional and will be treated as attributes.
+.sp
+Furthermore, code will have a special look at \fBscale\fP, \fBscale_factor\fP and \fBadd_offset\fP while reading and writing data and to \fB_FillValue\fP and missing_value while reading (_FillValue being automatically filled by \fBNetCDF4.Dataset\fP when writing)
+.RE
+.UNINDENT
+.INDENT 7.0
+.TP
+.B delete_Variable(name)
+pops a variable from class and delete it from parameter list
+.INDENT 7.0
+.TP
+.B Parameters
+\fBname\fP \-\- name of the parameter to delete
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B dim_list = None
+array containing the dimensions of each parameter
+.UNINDENT
+.INDENT 7.0
+.TP
+.B dirname = None
+Directory name of the file pattern being globbed (\fI\%glob.glob()\fP)
+.UNINDENT
+.INDENT 7.0
+.TP
+.B extension(flag=None, round=True)
+returns the limits of the dataset.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBflag\fP \-\- an indexation flag array
+.IP \(bu 2
+\fBround\fP \-\- round the limits to the south\-west and north\-east.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B fileid = None
+array of file IDs
+.UNINDENT
+.INDENT 7.0
+.TP
+.B filelist = None
+list of files being loaded
+.UNINDENT
+.INDENT 7.0
+.TP
+.B filelist_count = None
+number of counted values by files
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get(name)
+retunrs a variable
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_currentDim()
+returns the current dimensions of the object
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_file(pattern)
+returns a flag array of the data loaded from a given file pattern
+.INDENT 7.0
+.TP
+.B Parameters
+\fBpattern\fP \-\- pattern to match in the file list.
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_object_stats()
+get some statistics about the whole dataset.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_platform_stats(id)
+get statistics based on \fIaltimetry.data.hydro_data.id\fP
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_stats(flag)
+get some statistics about a part of the dataset
+.UNINDENT
+.INDENT 7.0
+.TP
+.B in_limits(limit=None)
+wrapper to \fBaltimetry.tools.in_limits()\fP based on dataset limits.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B limit = None
+limits of the domain : [latmin,lonmin,latmax,lonmax] (default = [\-90.,0.,90.,360.])/
+.IP Note
+limits are automatically reset using \fBaltimetry.tools.recale_limits()\fP
+.RE
+.UNINDENT
+.INDENT 7.0
+.TP
+.B map(flag=None, fname=None, zoom=False, pmap=None, show=True, **kwargs)
+display (or not) a map based on a \fBaltimetry.tools.plot_map\fP object.
+.INDENT 7.0
+.TP
+.B Parameters
+\fBshow\fP \-\- set to False not to show (and neither apply \fBaltimetry.tools.plot_map.setup_map()\fP)
+.UNINDENT
+.IP Note
+This function creates a \fBaltimetry.tools.plot_map\fP instance, plot a partion of the dataset using \fBaltimetry.data.hydro_data.plot_track()\fP and displays it if asked to.
+.RE
+.UNINDENT
+.INDENT 7.0
+.TP
+.B message(MSG_LEVEL, str)
+print function wrapper. Print a message depending on the verbose level
+.INDENT 7.0
+.TP
+.B Parameters
+\fBMSG_LEVEL\fP (\fI{in}{required}{type=int}\fP) \-\- level of the message to be compared with self.verbose
+.TP
+.B Example 
+To write a message
+.sp
+.nf
+.ft C
+self.message(0,\(aqThis message will be shown for any verbose level\(aq)
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B ncstruct()
+returns a data structure (dict) of the dataset.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B par_list = None
+array of parameters
+.UNINDENT
+.INDENT 7.0
+.TP
+.B platform_summary(id, col=\(aq.k\(aq)
+outputs a summary of the statistics for a given platform
+.UNINDENT
+.INDENT 7.0
+.TP
+.B plot_track(pmap, flag=None, col=\(aq.k\(aq, endpoint=\(aq*r\(aq, endpoint_size=None, title=None, fontsize=8, textcolor=\(aqb\(aq, ms=5, linewidth=1, **kwargs)
+plot trajectories based on platform IDs
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBpmap\fP \-\- a \fBaltimetry.tools.plot_map\fP instance
+.IP \(bu 2
+\fBcol\fP \-\- color to be used along the trajectory. If this is an array of values, calls \fBaltimetry.tools.plot_map.scatter()\fP instead of \fBaltimetry.tools.plot_map.plot()\fP
+.UNINDENT
+.UNINDENT
+.IP Note
+This method loops on data IDs. Then it calls \fBaltimetry.tools.plot_map.plot()\fP or \fBaltimetry.tools.plot_map.scatter()\fP to plot the trajectory and then labels the trajectory using \fBaltimetry.tools.plot_map.text()\fP
+.RE
+.UNINDENT
+.INDENT 7.0
+.TP
+.B plot_track_old(*args, **kwargs)
+plot a surface map of sampling track
+.IP Warning
+DEPRECATED method!
+.RE
+.UNINDENT
+.INDENT 7.0
+.TP
+.B plot_transect(x, z, var, xrange=None, zrange=None, vmin=None, vmax=None, xstep=1, zstep=10, s=10, edgecolor=\(aqnone\(aq, **kwargs)
+shows a 2d space\-depth section plotting point (using \fBaltimetry.tools.plot_map.scatter()\fP)
+.INDENT 7.0
+.TP
+.B Example 
+plot a temperature section along a glider transect
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B pop(*args, **kwargs)
+This is a wrapper to \fBaltimetry.data.hydro_data.delete_Variable()\fP
+.UNINDENT
+.INDENT 7.0
+.TP
+.B push_nc(*args, **kwargs)
+append a data structure to an exisiting netcdf file
+.UNINDENT
+.INDENT 7.0
+.TP
+.B read_ArgoNC(filename, params=None, force=False, dephrange=None, timerange=None, **kwargs)
+An Argo network NetCDF reader
+.INDENT 7.0
+.TP
+.B Return outStr
+Output data stricture (dict) containing all recorded parameters as specificied by NetCDF file PARAMETER list.
+.TP
+.B Author 
+Renaud Dussurget
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B size = None
+length of the dataset
+.UNINDENT
+.INDENT 7.0
+.TP
+.B slice(param, range, surf=False)
+get a flag for indexing based on values (ange of fixed values).
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBparam\fP \-\- variable name
+.IP \(bu 2
+\fBrange\fP \-\- 
+.sp
+numpy array defining the range of the values. If size(range) == 2 :
+.INDENT 2.0
+.IP \(bu 2
+flag is computed between min and max values of range
+.IP \(bu 2
+flag is computed based on equality to range value.
+.UNINDENT
+
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B summary(all=False, fig=None, col=\(aq.k\(aq, legend=None, **kwargs)
+outputs a summary of the whole current dataset
+.UNINDENT
+.INDENT 7.0
+.TP
+.B time_range(flag=None)
+time range of the current dataset
+.INDENT 7.0
+.TP
+.B Parameters
+\fBflag\fP \-\- use a flag array to know the time range of an indexed slice of the object
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B time_slice(timerange, surf=False)
+slice object given a time range
+.INDENT 7.0
+.TP
+.B Parameters
+\fBtimerange\fP \-\- rime range to be used.
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B update(*args, **kwargs)
+Wrapper to \fBaltimetry.data.hydro_data.update_with_slice()\fP.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B update_Dim(name, value)
+update a dimension by appending the number of added elements to the dimensions
+.sp
+.nf
+.ft C
+<upddated dimension> = <old dimension> + <number of added elements along this dimension>
+.ft P
+.fi
+.UNINDENT
+.INDENT 7.0
+.TP
+.B update_dataset(dataStr, flatten=False)
+update class with a data structure.
+.INDENT 7.0
+.TP
+.B Parameters
+\fBflatten\fP \-\- use this to automatically flatten variables (squeeze dimensions)
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B update_fid_list(filename, N)
+update file indices attribute \fIaltimetry.data.hydro_data.fileid\fP
+.UNINDENT
+.INDENT 7.0
+.TP
+.B update_with_slice(flag)
+update object with a given time slice flag
+.INDENT 7.0
+.TP
+.B Parameters
+\fBarray) flag\fP (\fI(boolean\fP) \-\- a flag for indexing data along the \(aq\(aqtime\(aq\(aq dimension
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B verbose = None
+verbosity level on a scale of 0 (silent) to 4 (max verbosity)
+.UNINDENT
+.INDENT 7.0
+.TP
+.B warning(MSG_LEVEL, str)
+Wrapper to \fBwarning.warn()\fP. Returns a warning when verbose level is not 0.
+.INDENT 7.0
+.TP
+.B Parameters
+\fBMSG_LEVEL\fP \-\- level of the message to be compared with self.verbose
+.TP
+.B Example 
+To issued a warning
+.sp
+.nf
+.ft C
+self.warning(1,\(aqWarning being issued)
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B write_nc(filename, clobber=False, **kwargs)
+write a NetCDF file from current dataset
+.INDENT 7.0
+.TP
+.B Parameters
+\fBkwargs\fP \-\- additional arguments are passed to \fBaltimetry.tools.nctools.nc.write()\fP
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS altimetry.tools Module
+.sp
+This module contain a number of tools for processing the data.
+.sp
+These are :
+.SS Spectral analysis
+.sp
+The \fBaltimetry.tools.spectrum\fP module contains tools dedicated to spectral analysis.
+.SS About spectral analysis
+.sp
+Spectral analysis of along\-track data is a common thing. There are 2 main steps when computing a spectrum:
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+\fBpreprocess the data\fP
+.sp
+It consists in detecting gaps, interpolating over short gaps and rejecting longer gaps, subsampling the data into subsegments of valid data of a given length.
+.sp
+This step is performed using \fBaltimetry.tools.spectrum.preprocess()\fP
+.IP \(bu 2
+\fBcompute the spectrum\fP
+.sp
+This step is made through a transform of the signal to the spectral domain (eg. FFT). Then frequency, energy and power spectral densities are computed and averaged. It is also possible to use \fBspectral tapers\fP to lower the noise of the spectrum.
+.INDENT 2.0
+.INDENT 3.5
+This step is performed using \fBaltimetry.tools.spectrum.spectral_analysis()\fP (and \fBaltimetry.tools.spectrum.get_spec()\fP at lower level)
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS Notes on spectral tapering
+.sp
+Tapering and padding are mathematical manipulations sometimes performed on the time series before periodogram analysis to improve the statistical properties of the spectral estimates or to speed up the computations.
+.INDENT 0.0
+.TP
+.B \fBTapering can be applied:\fP
+.INDENT 7.0
+.IP \(bu 2
+to reduce the noise level by oversampling the data in overlapping subsegments (eg. when we don\(aqt have enough samples)
+.IP \(bu 2
+to better localise spectral peaks and changes in the spectral slope.
+.UNINDENT
+.TP
+.B \fBHowever, you should be aware that\fP:
+.INDENT 7.0
+.IP \(bu 2
+tapering may induce a loss of overall energy, resulting the tapered spectrum to be under (though less noisy) the original spectrum.
+.IP \(bu 2
+oversampling the data will result in removing a part of the lower frequencies because of the shorter subsegments.
+.UNINDENT
+.UNINDENT
+.sp
+\fBaltimetry.tools.spectrum.preprocess()\fP allows using tapers through its \fBtapering\fP keyword.
+.IP Warning
+though it is taken into account in \fBaltimetry.tools.spectrum.spectral_analysis()\fP, energy loss caused by the tapering may not be properly resolved.
+.sp
+It may be therefore necessary to correct this loss by multiplying the tapered spectrum by the ratio of energies of both spectra \frac{E_{original}}{E_{tapered}}
+.RE
+.SS Notes on AR spectrum (auto\-regression methods)
+.sp
+AR (auto\-regressive methods) can be used to model a spectrum from the signal.
+.INDENT 0.0
+.TP
+.B Such method, as the \fBYule\-Walker equations\fP, can be used to model the spectrum, and therefore:
+.INDENT 7.0
+.IP \(bu 2
+clean the spectrum (by having an auto\-regression approach)
+.IP \(bu 2
+compute the energy (or power) at any frequency (ie. not being dependant on the length of input array).
+.UNINDENT
+.UNINDENT
+.sp
+This approach is made possible through the \fBARspec\fP keyword of \fBaltimetry.tools.spectrum.spectral_analysis()\fP (itself calling \fBaltimetry.tools.spectrum.yule_walker_regression()\fP).
+.SS List of useful functions
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+\fBaltimetry.tools.spectrum.spectral_analysis()\fP : Compute the average spectrum over a set of data
+.IP \(bu 2
+\fBaltimetry.tools.spectrum.preprocess()\fP : Preprocess the data to be admissible to spectral analysis
+.IP \(bu 2
+\fBaltimetry.tools.spectrum.get_slope()\fP : Compute the spectral slope
+.IP \(bu 2
+\fBaltimetry.tools.spectrum.optimal_AR_spectrum()\fP : Get the order of the optimal AR spectrum
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS Functions
+.INDENT 0.0
+.TP
+.B altimetry.tools.spectrum.spectral_analysis(dx, Ain, tapering=None, overlap=None, wsize=None, alpha=3.0, detrend=False, normalise=False, integration=True, average=True, ARspec=None)
+Spectral_Analysis :
+This function performs a spatial spectral analysis with different options on a time series of SLA profiles.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBdx\fP \-\- sampling distance
+.IP \(bu 2
+\fBAin\fP \-\- 2D table of sla data with time along 2nd axis (NXxNT with NX the spatial length and NT the time length)
+.IP \(bu 2
+\fBtapering\fP \-\- 
+.sp
+apply tapering to the data
+.INDENT 2.0
+.IP \(bu 2
+If this keyword is of type bool : apply hamming window.
+.IP \(bu 2
+If this keyword is a string : apply a hamming (\(aqhamm\(aq), hann (\(aqhann\(aq), kaiser\-bessel (\(aqkaiser\(aq), kaiser\-bessel (\(aqblackman\(aq) or no (\(aqnone\(aq) tapering function.
+.IP \(bu 2
+If this keyword is an \fBnumpy.array\fP object : apply this array as taper.
+.UNINDENT
+
+.IP \(bu 2
+\fBoverlap\fP \-\- overlap coefficient of the windows (0.75 means 75% overlap).
+.IP \(bu 2
+\fBwsize\fP \-\- size of the sub\-segments.
+.IP \(bu 2
+\fBnormalise\fP \-\- If True, normalise the spectrum by its overall energy content.
+.IP \(bu 2
+\fBdetrend\fP \-\- If True, removes a linear trend to the segmented signal (if tapered) or to the whole signal (if not tapered).
+.IP \(bu 2
+\fBintegration\fP \-\- If True, integrate the spectrum between 2 frequencies.
+.IP \(bu 2
+\fBsla\fP \-\- data
+.UNINDENT
+.TP
+.B Returns
+a spectrum structure
+.sp
+.nf
+.ft C
+{\(aqesd\(aq:esd,       #Energy Spectral Density
+ \(aqpsd\(aq:psd,       #Power Spectral Density
+ \(aqfq\(aq:fq,         #frequency
+ \(aqp\(aq:p,           #wavelength
+ \(aqparams\(aq:params} #tapering parameters.
+.ft P
+.fi
+
+.TP
+.B Author 
+Renaud DUSSURGET (RD) \- LER/PAC, Ifremer
+.TP
+.B Change 
+Created by RD, December 2012
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B altimetry.tools.spectrum.preprocess(lat, lon, sla, N_min=None, per_min=15.0, max_gap=None, leave_gaps=False, remove_edges=True, interp_over_continents=False, truncate_if_continents=True, discard_continental_gaps=True, flag_interp=False, return_lonlat=False, return_interpolated=False, last=True, mid=None, first=None, verbose=1)
+.INDENT 7.0
+.TP
+.B Preprocessing of the SLA data ::
+.INDENT 7.0
+.IP \(bu 2
+.INDENT 2.0
+.TP
+.B process positions :
+.INDENT 7.0
+.IP \(bu 2
+interpolate over gaps
+.IP \(bu 2
+find continents (extend the positions over continents to get the discontinuity)
+.IP \(bu 2
+find track edges
+.IP \(bu 2
+find gap lengths
+.UNINDENT
+.UNINDENT
+.IP \(bu 2
+.INDENT 2.0
+.TP
+.B clean SLA data::
+.INDENT 7.0
+.IP \(bu 2
+Remove gaps greater than maximum allowed length over which interpolate is OK.
+.IP \(bu 2
+Remove time steps with not enough coverage
+.IP \(bu 2
+get sub\-segments of valid data of a given length
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBlon\fP \-\- longitude
+.IP \(bu 2
+\fBlat\fP \-\- longitude
+.IP \(bu 2
+\fBsla\fP \-\- data
+.IP \(bu 2
+\fBN_min\fP \-\- Length of subsegments (cf \fBaltimetry.tools.spectrum.get_segments()\fP)
+.IP \(bu 2
+\fBper_min\fP \-\- Minimum percentage of valid data to allow.
+.IP \(bu 2
+\fBmax_gap\fP \-\- Maximum gap length to interpolate over (interpolation is done 1st, THEN long gaps are eliminated)
+.IP \(bu 2
+\fBleave_gaps\fP \-\- Leave gaps (equivalent to setting max_gap to number of points in track).
+.IP \(bu 2
+\fBremove_edges\fP \-\- discard data at track edges.
+.IP \(bu 2
+\fBtruncate_if_continents\fP \-\- Force truncating data if a continent is found within a segment of data.
+.IP \(bu 2
+\fBlast\fP \-\- Get segments of data sticked to the last point in track (cf \fBaltimetry.tools.spectrum.get_segments()\fP)
+.IP \(bu 2
+\fBfirst\fP \-\- Get segments of data sticked to the first point in track (cf \fBaltimetry.tools.spectrum.get_segments()\fP)
+.IP \(bu 2
+\fBmid\fP \-\- Get segments of data sticked to the middle point in track (cf \fBaltimetry.tools.spectrum.get_segments()\fP)
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B altimetry.tools.spectrum.get_kx(N, dx)
+GET_KX
+:summary: Returns the frequencies to be used with FFT analysis
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBN\fP \-\- number of samples in data
+.IP \(bu 2
+\fBdx\fP \-\- sampling step
+.UNINDENT
+.TP
+.B Returns
+Returns
+* k: frequency
+* L: length
+* imx: index of maximum frequency (for separating positive and negative frequencies)
+.TP
+.B Author 
+Renaud DUSSURGET (RD) \- LER/PAC, Ifremer
+.TP
+.B Change 
+Created by RD, July 2012
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B altimetry.tools.spectrum.get_spec(dx, Vin, verbose=False, gain=1.0, integration=True)
+GET_SPEC
+:summary: Returns the spectrum of a regularly sampled dataset
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBdq\fP \-\- sampling interval (1D)
+.IP \(bu 2
+\fBV\fP \-\- data to analyse (1D).
+.UNINDENT
+.TP
+.B Note 
+NaN can not be used.
+.TP
+.B Returns
+.INDENT 7.0
+.IP \(bu 2
+psd: Power Spectral Density
+.IP \(bu 2
+esd: Energy Spectral Density
+.IP \(bu 2
+fq: frequency
+.IP \(bu 2
+p: wavelength (period)
+.UNINDENT
+
+.TP
+.B Author 
+Renaud DUSSURGET (RD) \- LER/PAC, Ifremer
+.TP
+.B Change 
+Created by RD, July 2012. Changes
+* 29/08/2012 : Changed the computation of frequencies and the spectral integration (spectrum is averaged at mid\-width frequencies)
+* 30/11/2012 : Outstanding changes : corrected the spectral integration for computing psd and corrected the normalisation
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B altimetry.tools.spectrum.get_segment(sla, N, last=True, mid=None, first=None, remove_edges=True, truncate_if_continents=True)
+Intelligent segmentation of data.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBremove_edges\fP \-\- discard data at track edges.
+.IP \(bu 2
+\fBtruncate_if_continents\fP \-\- Force truncating data if a continent is found within a segment of data.
+.IP \(bu 2
+\fBlast\fP \-\- Get segments of data sticked to the last point in track
+.IP \(bu 2
+\fBfirst\fP \-\- Get segments of data sticked to the first point in track
+.IP \(bu 2
+\fBmid\fP \-\- Get segments of data sticked to the middle point in track
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B altimetry.tools.spectrum.get_slope(fq, spec, degree=1, frange=None, threshold=0.0)
+GET_SLOPE
+:summary: This function returns the spectral slope of a spectrum using a least\-square regression
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBfq\fP \-\- frequency
+.IP \(bu 2
+\fBspec\fP \-\- spectrum data
+.IP \(bu 2
+\fBdegree\fP \-\- Degree of the least\-square regression model
+.UNINDENT
+.TP
+.B Returns
+.INDENT 7.0
+.IP \(bu 2
+slope : spectral slope (or model coefficients for a higher order model)
+.IP \(bu 2
+intercept : Energy at unit frequency (1 cpkm)
+.UNINDENT
+
+.TP
+.B Author 
+Renaud DUSSURGET (RD) \- LER/PAC, Ifremer
+.TP
+.B Change 
+Created by RD, August 2012
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B altimetry.tools.spectrum.yule_walker(acf, orden)
+Program to solve Yule\-Walker equations for AutoRegressive Models
+.INDENT 7.0
+.TP
+.B Author 
+XAVI LLORT (llort(at)grahi.upc.edu)
+.TP
+.B Created 
+MAY 2007
+.TP
+.B Changes 
+adapted to python by R.Dussurget
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBacf\fP \-\- AutoCorrelation Function
+.IP \(bu 2
+\fBorden\fP \-\- Order of the AutoRegressive Model
+.UNINDENT
+.TP
+.B Returns
+.INDENT 7.0
+.IP \(bu 2
+parameters : Parameters
+.IP \(bu 2
+sigma_e : Standard deviation of the noise term
+.UNINDENT
+
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B altimetry.tools.spectrum.yule_walker_regression(dx, Y, deg, res=None)
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBX\fP \-\- time vector (disabled)
+.IP \(bu 2
+\fBY\fP \-\- stationary time series
+.IP \(bu 2
+\fBdeg\fP \-\- AR model degree
+.UNINDENT
+.TP
+.B Returns
+.INDENT 7.0
+.IP \(bu 2
+a : Yule Walker parameters
+.IP \(bu 2
+sig : Standard deviation of the noise term
+.IP \(bu 2
+aicc : corrected Akaike Information Criterion
+.IP \(bu 2
+gamma : Autocorrelation function
+.IP \(bu 2
+ar : Fitted function
+.IP \(bu 2
+argamma : Fitted autocorrelation function
+.IP \(bu 2
+arspec : Fitted spectral model
+.IP \(bu 2
+F : Relative frequency
+.UNINDENT
+
+.UNINDENT
+.IP Note
+To know more about yule\-walker and autoregressive methods, see
+.INDENT 7.0
+.IP \(bu 2
+\fI\%Example of AR(p) model auto-regression using yule-walker equations\fP
+.IP \(bu 2
+\fI\%Other notes on the autoregressive method\fP
+.UNINDENT
+.RE
+.INDENT 7.0
+.TP
+.B Example 
+IDL example :
+.sp
+.nf
+.ft C
+#Define an n\-element vector of time\-series samples  
+X = [6.63, 6.59, 6.46, 6.49, 6.45, 6.41, 6.38, 6.26, 6.09, 5.99, $  
+    5.92, 5.93, 5.83, 5.82, 5.95, 5.91, 5.81, 5.64, 5.51, 5.31, $  
+    5.36, 5.17, 5.07, 4.97, 5.00, 5.01, 4.85, 4.79, 4.73, 4.76]  
+
+#Compute auto_correlation function
+acorr=A_CORRELATE(X,INDGEN(30))
+
+#Solve YW equation to get auto\-regression coefficients for AR(2) model
+YULE_WALKER, acorr, 2, a, sig
+
+#Process auto\-regression model
+ar=DBLARR(28)
+FOR i = 2, 29 DO ar[i\-2] = SQRT(a[0]*X[i\-1]*X[i] + a[1]*x[i\-2]*x[i]+sig*x[i])
+
+#Compute spectrum
+spec=spectrogram(TRANSPOSE(X), INDGEN(N), WSIZE=N, OVERLAY=1.0, DISPLAY_IMAGE=0)
+
+#Compute AR(2) model spectrum
+ar2=spectrogram(TRANSPOSE(ar), INDGEN(28), WSIZE=28, OVERLAY=1.0, DISPLAY_IMAGE=0)
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B altimetry.tools.spectrum.optimal_AR_spectrum(dx, Y, ndegrees=None, return_min=True)
+Get the optimal order AR spectrum by minimizing the BIC.
+.UNINDENT
+.SS NetCDF tools
+.sp
+The \fBaltimetry.tools.nctools\fP module contains tools dedicated to easily handle NetCDF data.
+.INDENT 0.0
+.INDENT 2.0
+.IP \(bu 2
+\fInc\fP
+.IP \(bu 2
+\fIload_ncVar\fP
+.UNINDENT
+.UNINDENT
+.SS An easy to use wrapper to NetCDF4 package \- altimetry.tools.nctools.nc
+.INDENT 0.0
+.TP
+.B class altimetry.tools.nctools.nc(limit=[\-90.0, 0.0, 90.0, 360.0], verbose=0, zero_2pi=False, transpose=False, use_local_dims=False, **kwargs)
+A class for easy\-handling of NetCDF data based on \fBNetCDF4\fP package.
+.INDENT 7.0
+.TP
+.B Example 
+To load different sets of data, try these :
+.INDENT 7.0
+.IP \(bu 2
+Simply load a NetCDF file
+.INDENT 2.0
+.IP \(bu 2
+The file has standard dimensions (eg. called longitude & latitude)
+.UNINDENT
+.sp
+.nf
+.ft C
+ncr=nc()
+data=ncr.read(file)
+
+lon=data.lon
+lat=data.lat
+Z=data.Z
+.ft P
+.fi
+.INDENT 2.0
+.IP \(bu 2
+We do not want to match for standard dimension names and keep original names
+.UNINDENT
+.sp
+.nf
+.ft C
+ncr=nc()
+data=ncr.read(file,use_local_dims=True)
+
+lon=data.longitude
+lat=data.latitude
+Z=data.Z
+.ft P
+.fi
+.INDENT 2.0
+.IP \(bu 2
+We extract a region and depth range between 2 dates:
+.INDENT 2.0
+.IP \(bu 2
+We extract between 30\-40°N & 15\-20°E (limit).
+.IP \(bu 2
+We extract between 100 & 200 m deep (depth).
+.IP \(bu 2
+We get data from 2010/01/01 to 2010/01/07 (time).
+.IP \(bu 2
+File has standard dimensions called longitude, latitude, level and time
+.UNINDENT
+.UNINDENT
+.sp
+.nf
+.ft C
+ncr=nc()
+limit=[30,15,40,20]
+depth=[100,200]
+time=[21915,21921]
+
+data=ncr.read(file,
+              limit=limit,
+              timerange=time,
+              depthrange=depth)
+  
+lon=data.lon
+lat=data.lat
+dep=data.depth
+dat=data.time
+Z=data.Z
+.ft P
+.fi
+.IP \(bu 2
+More sophisticated example using a file containing bathymetetry data
+.INDENT 2.0
+.IP \(bu 2
+Load a file and extract a regions and subsample it to a lower resolution
+.INDENT 2.0
+.IP \(bu 2
+The file has dimensions NbLongitudes & NbLatitudes.
+.IP \(bu 2
+We extract between 30\-40°N & 15\-20°E (limit).
+.IP \(bu 2
+We subsample every 3 points (stride).
+.UNINDENT
+.UNINDENT
+.sp
+.nf
+.ft C
+limit=[30,15,40,20]
+stride = (3,)
+ncr=nc(use_local_dims=True)
+bathy=ncr.load(file,
+               NbLongitudes=(limit[1],limit[3])+stride,
+               NbLatitudes=(limit[0],limit[2])+stride)
+.ft P
+.fi
+.INDENT 2.0
+.IP \(bu 2
+Then we save the data to another file (output).
+.UNINDENT
+.sp
+.nf
+.ft C
+#save data
+bathy.write_nc(output)
+.ft P
+.fi
+.INDENT 2.0
+.IP \(bu 2
+We update the \fBhistory\fP global attribute of data structure
+.UNINDENT
+.sp
+.nf
+.ft C
+#Get attribute structure
+attrStr=bathy.get(\(aq_attributes\(aq,{})
+ 
+#Get arguments called from the shell
+cmd=[os.path.basename(sys.argv[0])]
+for a in argv : cmd.append(a)
+ 
+#update attribute stucture (pop history and concatenate with current commands=.
+attrStr.update({\(aqhistory\(aq:attrStr.pop(\(aqhistory\(aq,\(aq\(aq)+\(aq \(aq.join(cmd)+\(aq\en\(aq})
+ 
+#update NetCDF data structure
+bathy.update({\(aq_attributes\(aq:attrStr})
+
+#save data
+bathy.write_nc(output)
+.ft P
+.fi
+.INDENT 2.0
+.IP \(bu 2
+We now want to flag all values from variable Z above 0 by setting them to fill_value and append this modified variable to the output file
+.UNINDENT
+.sp
+.nf
+.ft C
+#load variable
+Z = bathy.Z
+
+#flag variable
+Z.mask[Z >= 0] = False
+
+#update attributes
+Z[\(aq_attributes\(aq][\(aqlong_name\(aq] = \(aqflagged bathymetry\(aq
+
+#append modified bathymetry to a variable named Z_2 in output file.
+bathy.push(output,\(aqZ2\(aq,Z)
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B attributes(filename, **kwargs)
+Get attributes of a NetCDF file
+.sp
+:return {type:dict} outStr: Attribute structure.
+:author: Renaud Dussurget
+.UNINDENT
+.INDENT 7.0
+.TP
+.B count = None
+number of files loaded
+.UNINDENT
+.INDENT 7.0
+.TP
+.B fileid = None
+array of file IDs
+.UNINDENT
+.INDENT 7.0
+.TP
+.B limit = None
+limits of the domain : [latmin,lonmin,latmax,lonmax] (default = [\-90.,0.,90.,360.])
+.IP Note
+limits are automatically reset using \fBaltimetry.tools.recale_limits()\fP
+.RE
+.UNINDENT
+.INDENT 7.0
+.TP
+.B load(filename, params=None, force=False, depthrange=None, timerange=None, output_is_dict=True, **kwargs)
+NetCDF data loader
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBfilename\fP \-\- file name
+.IP \(bu 2
+\fBparams\fP \-\- a list of variables to load (default : load ALL variables).
+.IP \(bu 2
+\fBdepthrange\fP \-\- if a depth dimension is found, subset along this dimension.
+.IP \(bu 2
+\fBtimerange\fP \-\- if a time dimension is found, subset along this dimension.
+.UNINDENT
+.UNINDENT
+.IP Note
+using \fBaltimetry.tools.nctools.limit\fP allows subsetting to a given region.
+.RE
+.INDENT 7.0
+.TP
+.B Parameters
+\fBkwargs\fP \-\- additional arguments for subsetting along given dimensions.
+.UNINDENT
+.IP Note
+You can index along any dimension by providing the name of the dimensions to subsample along. Values associated to the provided keywords should be a length 2 or 3 tuple (min,max,<step>) (cf. \fBaltimetry.data.nctools.load_ncVar()\fP).
+.RE
+.INDENT 7.0
+.TP
+.B Parameters
+\fBoutput_is_dict\fP \-\- data structures are dictionnaries (eg. my_hydro_data.variable[\(aqdata\(aq]). If false uses an object with attributes (eg. my_hydro_data.variable.data).
+.UNINDENT
+.sp
+:return  {type:dict} outStr: Output data structure containing all recorded parameters as specificied by NetCDF file PARAMETER list.
+.INDENT 7.0
+.TP
+.B Author 
+Renaud Dussurget
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B message(MSG_LEVEL, str)
+print function wrapper. Print a message depending on the verbose level
+.INDENT 7.0
+.TP
+.B Parameters
+\fBMSG_LEVEL\fP (\fI{in}{required}{type=int}\fP) \-\- level of the message to be compared with self.verbose
+.TP
+.B Example 
+display a message
+.sp
+.nf
+.ft C
+self.log(0,\(aqThis message will be shown for any verbose level\(aq)
+.ft P
+.fi
+.TP
+.B Author 
+Renaud DUSSURGET (RD), LER PAC/IFREMER
+.TP
+.B Change 
+Added a case for variables with missing dimensions
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B push(*args, **kwargs)
+append a variable from a given data structure to the existing dataset.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBfile\fP (\fIoptional\fP) \-\- 
+.IP \(bu 2
+\fBname\fP \-\- variable name
+.IP \(bu 2
+\fBvalue\fP \-\- data
+.IP \(bu 2
+\fBstart\fP \-\- broadcast the data to a portion of the dataset. starting index.
+.IP \(bu 2
+\fBcounts\fP \-\- broadcast the data to a portion of the dataset. number of counts.
+.IP \(bu 2
+\fBstride\fP \-\- broadcast the data to a portion of the dataset. stepping along dimension.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B read(file_pattern, **kwargs)
+Read data from a NetCDF file
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBfile_pattern\fP \-\- a file pattern to be globbed (\fI\%glob.glob()\fP) or a file list.
+.IP \(bu 2
+\fBkwargs\fP \-\- additional keywords to be passed to \fBaltimetry.tools.nctools.nc.load()\fP (eg. extracting a subset of the file)
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B size = None
+length of the dataset
+.UNINDENT
+.INDENT 7.0
+.TP
+.B use_local_dims = None
+this option prevent from trying to detect standard CF dimensions such longitude, latitude, time in the file and keep the original dimensions of the file
+.IP Note
+Set this option to True when file is not standard (eg. not following CF conventions).
+.RE
+.IP Note
+Normal behaviour is to match dimensions (ie. a dimension and the associated variable of the same name) with specific names. Resulting variables associated with these dimensions will be called :
+* lon (longitudes) : matches dimensions starting with \(aqlon\(aq
+* lat (latitudes) : matches dimensions starting with \(aqlat\(aq
+* time (time) : matches dimensions starting with \(aqdate\(aq or \(aqtime\(aq
+* depth (date) : matches dimensions starting with \(aqdep\(aq or \(aqlev\(aq
+.RE
+.UNINDENT
+.INDENT 7.0
+.TP
+.B verbose = None
+verbosity level on a scale of 0 (silent) to 4 (max verbosity)
+.UNINDENT
+.INDENT 7.0
+.TP
+.B write(data, outfile, clobber=False, format=\(aqNETCDF4\(aq)
+Write a netCDF file using a data structure.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBdata\fP \-\- data structure
+.IP \(bu 2
+\fBoutfile\fP \-\- output file
+.IP \(bu 2
+\fBclobber\fP \-\- erase file if it already exists
+.IP \(bu 2
+\fBformat\fP \-\- NetCDF file format.
+.UNINDENT
+.UNINDENT
+.IP Note
+the data structure requires a "_dimensions" field (dimension structure)
+.RE
+.UNINDENT
+.UNINDENT
+.SS Addionnal function
+.INDENT 0.0
+.TP
+.B altimetry.tools.nctools.load_ncVar(varName, nc=None, **kwargs)
+Loads a variable from the NetCDF file and saves it as a data structure.
+.INDENT 7.0
+.TP
+.B Parameters
+\fBvarName\fP \-\- variable name
+.TP
+.B Keywords kwargs
+additional keyword arguments for slicing the dataset. Keywords should be named the name of the dimensions to subsample along and associated value should be a length 2 or 3 tuple (min,max,<step>).
+.UNINDENT
+.UNINDENT
+.SS Some examples to illustrate py\-altimetry functionalities
+.INDENT 0.0
+.INDENT 2.0
+.IP \(bu 2
+\fIdata\fP
+.IP \(bu 2
+\fIothers\fP
+.UNINDENT
+.UNINDENT
+.SS Handle data
+.sp
+altimetry tools have a number of classes and function to handle data, mainly based on :mod:NetCDF4 package.
+.sp
+You can find examples of :
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+\fILoading NetCDF files\fP
+.IP \(bu 2
+\fIHandle altimetry data using altimetry.data.alti_data object\fP
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.IP Note
+Handling data may require knowlegde about how the NetCDF data is structured. You should therefore have a look at:
+.INDENT 0.0
+.IP \(bu 2
+\fIinformations about data structures\fP
+.UNINDENT
+.RE
+.SS Others
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+\fISpectral analysis tools for altimetry data\fP
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS Install, configure & modify
+.sp
+Not available yet!
+.SS Contents:
+.INDENT 0.0
+.IP \(bu 2
+\fIgenindex\fP
+.IP \(bu 2
+\fImodindex\fP
+.IP \(bu 2
+\fIsearch\fP
+.UNINDENT
+.SH AUTHOR
+Renaud Dussurget
+.SH COPYRIGHT
+2013, Renaud Dussurget
+.\" Generated by docutils manpage writer.
+.\" 
+.
