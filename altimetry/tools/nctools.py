@@ -1,10 +1,4 @@
-'''
-NCTOOLS
-@summary: Netcdf data object, to help loading and writing data
-@change Created on 7 sept. 2012
-@author: rdussurg
-'''
-
+# -*- coding: utf-8 -*-
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.pylab as pylab
@@ -21,23 +15,198 @@ from warnings import warn
 
 class nc :
     
+    '''
+    A class for easy-handling of NetCDF data based on :mod:`NetCDF4` package.
+    
+    :example: To load different sets of data, try these :
+    
+      * Simply load a NetCDF file
+         
+        * The file has standard dimensions (eg. called longitude & latitude)
+        
+        .. code-block:: python
+         
+           ncr=nc()
+           data=ncr.read(file)
+         
+           lon=data.lon
+           lat=data.lat
+           Z=data.Z
+        
+        * We do not want to match for standard dimension names and keep original names
+        
+        .. code-block:: python
+           :emphasize-lines: 2,4-5
+         
+           ncr=nc()
+           data=ncr.read(file,use_local_dims=True)
+           
+           lon=data.longitude
+           lat=data.latitude
+           Z=data.Z
+        
+         
+        * We extract a region and depth range between 2 dates:
+        
+          * We extract between 30-40°N & 15-20°E (limit).
+          * We extract between 100 & 200 m deep (depth).
+          * We get data from 2010/01/01 to 2010/01/07 (time).
+          * File has standard dimensions called longitude, latitude, level and time
+        
+        .. code-block:: python
+           :emphasize-lines: 7-9
+         
+           ncr=nc()
+           limit=[30,15,40,20]
+           depth=[100,200]
+           time=[21915,21921]
+           
+           data=ncr.read(file,
+                         limit=limit,
+                         timerange=time,
+                         depthrange=depth)
+             
+           lon=data.lon
+           lat=data.lat
+           dep=data.depth
+           dat=data.time
+           Z=data.Z
+    
+    
+      * More sophisticated example using a file containing bathymetetry data
+        
+        * Load a file and extract a regions and subsample it to a lower resolution
+         
+          * The file has dimensions NbLongitudes & NbLatitudes.
+          * We extract between 30-40°N & 15-20°E (limit).
+          * We subsample every 3 points (stride).
+       
+        .. code-block:: python
+           :emphasize-lines: 5-6
+        
+           limit=[30,15,40,20]
+           stride = (3,)
+           ncr=nc(use_local_dims=True)
+           bathy=ncr.load(file,
+                          NbLongitudes=(limit[1],limit[3])+stride,
+                          NbLatitudes=(limit[0],limit[2])+stride)
+       
+        
+        * Then we save the data to another file (output).
+       
+        .. code-block:: python
+          
+           #save data
+           bathy.write_nc(output)
+        
+        * We update the **history** global attribute of data structure
+       
+        .. code-block:: python
+           :emphasize-lines: 9,12
+          
+           #Get attribute structure
+           attrStr=bathy.get('_attributes',{})
+            
+           #Get arguments called from the shell
+           cmd=[os.path.basename(sys.argv[0])]
+           for a in argv : cmd.append(a)
+            
+           #update attribute stucture (pop history and concatenate with current commands=.
+           attrStr.update({'history':attrStr.pop('history','')+' '.join(cmd)+'\\n'})
+            
+           #update NetCDF data structure
+           bathy.update({'_attributes':attrStr})
+          
+           #save data
+           bathy.write_nc(output)
+        
+        
+        * We now want to flag all values from variable Z above 0 by setting them to fill_value and append this modified variable to the output file
+      
+        .. code-block:: python
+          
+           #load variable
+           Z = bathy.Z
+         
+           #flag variable
+           Z.mask[Z >= 0] = False
+         
+           #update attributes
+           Z['_attributes']['long_name'] = 'flagged bathymetry'
+         
+           #append modified bathymetry to a variable named Z_2 in output file.
+           bathy.push(output,'Z2',Z)
+           
+    '''
+    
     def __init__(self, limit=[-90., 0., 90., 360.], verbose=0, zero_2pi=False, transpose=False, use_local_dims=False, **kwargs):
+        '''
+        Returns an :class:`altimetry.tools.nctools.nc` instance.
+        
+        :keyword limit: the limits of the domain to handle ([latmin,lonmin,latmax,lonmax]).
+        :keyword verbose: verbosity level on a scale of 0 (silent) to 4 (max verobsity)
+        :keyword zero_2pi: limits goes from 0 to 360 degrees (not -180/180).
+        :keyword use_local_dims: use file dimensions instead of trying to detect standard dimension names (cf. :attr:`altimetry.tools.nctools.nc.use_local_dims`)
+        
+        '''
         
         #Init system variables
-#        if limit is None : limit=[-90.,0.,90.,360.]
         self.zero_2pi = zero_2pi
-        self.limit = np.array(recale_limits(limit, zero_2pi=self.zero_2pi))
-        self.verbose = verbose
-        self.fileid = np.array([])
-
-        self.count = 0
-        self.size = 0
         
-#        self.transpose=False
+        self.limit = np.array(recale_limits(limit, zero_2pi=self.zero_2pi))
+        '''
+        limits of the domain : [latmin,lonmin,latmax,lonmax] (default = [-90.,0.,90.,360.])
+        
+        .. note:: limits are automatically reset using :func:`altimetry.tools.recale_limits`
+        '''
+        
+        self.verbose = verbose
+        '''
+        verbosity level on a scale of 0 (silent) to 4 (max verbosity)
+        '''
+        
+        self.fileid = np.array([])
+        '''
+        array of file IDs
+        '''
+        
+        self.count = 0
+        '''
+        number of files loaded
+        '''
+        
+        self.size = 0
+        '''
+        length of the dataset
+        '''
 
         self.use_local_dims=use_local_dims
+        '''
+        this option prevent from trying to detect standard CF dimensions such longitude, latitude, time in the file and keep the original dimensions of the file
+        
+        .. note:: Set this option to True when file is not standard (eg. not following CF conventions).
+        
+        .. note:: Normal behaviour is to match dimensions (ie. a dimension and the associated variable of the same name) with specific names. Resulting variables associated with these dimensions will be called :
+          * lon (longitudes) : matches dimensions starting with 'lon'
+          * lat (latitudes) : matches dimensions starting with 'lat'
+          * time (time) : matches dimensions starting with 'date' or 'time'
+          * depth (date) : matches dimensions starting with 'dep' or 'lev'
+          
+        '''
     
     def push(self,*args,**kwargs):#file,varName,value,**kwargs):
+        '''
+        append a variable from a given data structure to the existing dataset.
+        
+        :parameter optional file:
+        :parameter name: variable name
+        :parameter value: data
+        
+        :keyword start: broadcast the data to a portion of the dataset. starting index.
+        :keyword counts: broadcast the data to a portion of the dataset. number of counts.
+        :keyword stride: broadcast the data to a portion of the dataset. stepping along dimension.
+        
+        '''
         
         reload = False
         
@@ -90,7 +259,7 @@ class nc :
             
             #Construct indices (cf.http://docs.scipy.org/doc/numpy-1.5.x/reference/arrays.indexing.html)
             ind=()
-            for i in np.arange(len(start)) : ind+=(slice(start[i],start[i]+counts[i],stride[i]),)
+            for i in np.arange(len(start)) : ind+=(slice(start[i],start[i]+counts[i],strides[i]),)
             
             #Push data into file
             try : var[ind]=value[:]
@@ -109,6 +278,16 @@ class nc :
         
     
     def write(self, data, outfile, clobber=False,format='NETCDF4'):
+        '''
+        Write a netCDF file using a data structure.
+        
+        :parameter data: data structure
+        :parameter outfile: output file
+        :keyword clobber: erase file if it already exists
+        :keyword format: NetCDF file format.
+        
+        .. note :: the data structure requires a "_dimensions" field (dimension structure)
+        '''
         
         #Open file
         if self.verbose == 1 : self.message(1, 'Writing data file {}'.format(os.path.basename(outfile)))
@@ -178,8 +357,8 @@ class nc :
             if scale_factor is None and hasattr(data[p]['data'],'__dict__') : scale_factor=data[p]['data'].__dict__.get('scale',None) 
             
             
-            offset=data[p].get('add_ofset',None) 
-            if offset is None and hasattr(data[p]['data'],'__dict__') : offset=data[p]['data'].__dict__.get('add_ofset',None)
+            offset=data[p].get('add_offset',None) 
+            if offset is None and hasattr(data[p]['data'],'__dict__') : offset=data[p]['data'].__dict__.get('add_offset',None)
             
             #Apply scaling and prepare message
             scale_msg='Apply scaling : {}'.format(p)
@@ -240,7 +419,13 @@ class nc :
         
         
     
-    def read(self,file_pattern,**kwargs): 
+    def read(self,file_pattern,**kwargs):
+        '''
+        Read data from a NetCDF file
+        
+        :parameter file_pattern: a file pattern to be globbed (:func:`glob.glob`) or a file list.
+        :keyword kwargs: additional keywords to be passed to :meth:`altimetry.tools.nctools.nc.load` (eg. extracting a subset of the file)
+        ''' 
         
         #Setup file list
         if isinstance(file_pattern, str) : ls = glob.glob(file_pattern)
@@ -283,10 +468,27 @@ class nc :
 
     def load(self, filename, params=None, force=False, depthrange=None, timerange=None, output_is_dict=True, **kwargs):
         """
-        READ_ARGONC : Argo NetCDF reader
+        NetCDF data loader
         
-        @return: outStr {type:dict} Output data structure containing all recorded parameters as specificied by NetCDF file PARAMETER list.
-        @author: Renaud Dussurget
+        :parameter filename: file name
+        :parameter params: a list of variables to load (default : load ALL variables).
+        
+        :parameter depthrange: if a depth dimension is found, subset along this dimension.
+        :parameter timerange: if a time dimension is found, subset along this dimension. 
+
+        .. note:: using :attr:`altimetry.tools.nctools.limit` allows subsetting to a given region.
+
+        :parameter kwargs: additional arguments for subsetting along given dimensions.
+        
+        .. note:: You can index along any dimension by providing the name of the dimensions to subsample along. Values associated to the provided keywords should be a length 2 or 3 tuple (min,max,<step>) (cf. :func:`altimetry.data.nctools.load_ncVar`).
+        
+        :keyword output_is_dict: data structures are dictionnaries (eg. my_hydro_data.variable['data']). If false uses an object with attributes (eg. my_hydro_data.variable.data). 
+        
+        :return  {type:dict} outStr: Output data structure containing all recorded parameters as specificied by NetCDF file PARAMETER list.
+        
+        :author: Renaud Dussurget
+        
+
         """
         
         if (params is not None) & isinstance(params,str): params=[params]
@@ -554,13 +756,18 @@ class nc :
     
     def message(self, MSG_LEVEL, str):
         """
-         MESSAGE : print function wrapper. Print a message depending on the verbose level
-         
-         @param MSG_LEVEL {in}{required}{type=int} level of the message to be compared with self.verbose
-         
-         @example self.log(0,'This message will be shown for any verbose level')
-         @author: Renaud DUSSURGET (RD), LER PAC/IFREMER
-         @change: Added a case for variables with missing dimensions
+        print function wrapper. Print a message depending on the verbose level
+        
+        :param {in}{required}{type=int} MSG_LEVEL: level of the message to be compared with self.verbose
+        
+        :example: display a message
+           
+           .. code-block:: python
+           
+              self.log(0,'This message will be shown for any verbose level')
+           
+        :author: Renaud DUSSURGET (RD), LER PAC/IFREMER
+        :change: Added a case for variables with missing dimensions
          
         """
         caller=get_caller()
@@ -571,10 +778,10 @@ class nc :
     
     def attributes(self, filename, **kwargs):
         """
-        ATTRIBUTRES: Get attributes of a NetCDF file
+        Get attributes of a NetCDF file
         
-        @return: outStr {type:dict} Attribute structure.
-        @author: Renaud Dussurget
+        :return {type:dict} outStr: Attribute structure.
+        :author: Renaud Dussurget
         """
         
         #Open file
@@ -590,6 +797,15 @@ class nc :
         
 
 def load_ncVar(varName, nc=None, **kwargs):
+        '''
+        Loads a variable from the NetCDF file and saves it as a data structure.
+        
+        :parameter varName: variable name
+        :keywords kwargs: additional keyword arguments for slicing the dataset. Keywords should be named the name of the dimensions to subsample along and associated value should be a length 2 or 3 tuple (min,max,<step>).
+        
+        .. note: slices are provided in this interval : [min,max] (ie. including both extremities)
+        
+        '''
         
         if (nc is None) : raise Exception('No Netcdf file passed')
         

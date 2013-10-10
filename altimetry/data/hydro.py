@@ -1,23 +1,26 @@
+# -*- coding: utf-8 -*-
 import os
 import glob
 import inspect
 import fnmatch
+
+from warnings import warn
 
 import numpy as np
 import matplotlib.pyplot as plt
 from netCDF4 import Dataset as ncfile
 import copy
 
-from altimetry.tools.nctools import load_ncVar, load_ncVar_v2
+from altimetry.tools.nctools import load_ncVar, load_ncVar_v2, nc as ncobj
 try:
-    import seawater.gibbs as gsw
     import seawater.csiro as csw
 except ImportError:
+    warn("Module seawater doesn't exists. not loading it")
     pass # module doesn't exist, deal with it.
 
 #import alti_tools as atools
 from scipy import interpolate
-from warnings import warn
+
 from altimetry.tools import recale_limits, in_limits, cumulative_distance, calcul_distance, \
     where_list, \
     cnes_convert, \
@@ -27,8 +30,26 @@ from collections import OrderedDict
 
 
 class hydro_data(object):
+    '''
+    A base object dedicated to handle oceanographic data (in-situ or remote sensing) with upper level processing methods.
+    
+    .. note:: This object SHOULD NOT be called directly but through a subclass heritating of it (eg. :class:`altimetry.data.alti_data`) 
+    '''
     
     def __init__(self,file_pattern,limit=None,verbose=1,round=True,zero_2pi=True,output_is_dict=True,**kwargs):
+        '''
+        Returns the object filled with the data loaded from a single file or a concatenated set of files
+        
+        :parameter file_pattern: a pattern of files to be globbed (:func:`glob.glob`) or a list of file names.
+        :keyword limit: the limits of the domain to handle ([latmin,lonmin,latmax,lonmax]).
+        :keyword verbose: verbosity level on a scale of 0 (silent) to 4 (max verobsity)
+        :keyword round: round limits (cf. :func:`altimetry.tools.in_limits`)
+        :keyword zero_2pi: limits goes from 0 to 360 degrees (not -180/180).
+        :keyword output_is_dict: data structures are dictionnaries (eg. my_hydro_data.variable['data']). If false uses an object with attributes (eg. my_hydro_data.variable.data).
+        
+        .. note:: This methodes init all the attributes, then loads the data from files (:meth:`altimetry.data.hydro_data.read`) and appends it to the object (:meth:`altimetry.data.hydro_data.update_dataset`) before checking its content (:meth:`altimetry.data.hydro_data.check_variables`).
+        .. note:: The method :meth:`altimetry.data.hydro_data.read` MUST be defined (typically by overloading it). This method must return a data structure.
+        '''
         
         #Init system variables
 #        if limit is None : limit=[-90.,0.,90.,360.]
@@ -40,12 +61,33 @@ class hydro_data(object):
         else : self.limit_set = True
         
         self.limit = np.array(recale_limits(limit, zero_2pi=self.zero_2pi)) 
+        '''
+        limits of the domain : [latmin,lonmin,latmax,lonmax] (default = [-90.,0.,90.,360.])/
+        
+        .. note:: limits are automatically reset using :func:`altimetry.tools.recale_limits`
+        
+        '''
             
         self.verbose = verbose
+        '''
+        verbosity level on a scale of 0 (silent) to 4 (max verbosity)
+        '''
+        
         self.fileid = np.array([])
+        '''
+        array of file IDs
+        '''
 
         self.count=0
+        '''
+        number of files loaded
+        '''
+        
         self.size=0
+        '''
+        length of the dataset
+        '''
+        
 
 
         #Setup file list
@@ -58,16 +100,39 @@ class hydro_data(object):
             self.Error('File pattern not matched : '+file_pattern)
                 
         self.filelist=[os.path.basename(j) for i,j in enumerate(ls)]
+        '''
+        list of files being loaded
+        '''
+        
         self.filelist_count = [0]*len(self.filelist)
-        enum=list(enumerate(ls))
+        '''
+        number of counted values by files
+        '''
+        
+        enum = list(enumerate(ls))
         enum = zip(*enum)
         
         self.fid_list=np.array(enum[0])
+        
         self.dirname=os.path.dirname(file_pattern)
+        '''
+        Directory name of the file pattern being globbed (:func:`glob.glob`)
+        '''
         
         self.par_list=np.array([])
+        '''
+        array of parameters
+        '''
+        
         self.dim_list=np.array([])
+        '''
+        array containing the dimensions of each parameter
+        '''
+        
         self._dimensions={'_ndims':0}
+        '''
+        dimensional strucutre
+        '''
         
         #Loop over data files
         #####################
@@ -89,6 +154,11 @@ class hydro_data(object):
 #        self.update()
 
     def update_dataset(self,dataStr,flatten=False):
+        '''
+        update class with a data structure.
+        
+        :keyword flatten: use this to automatically flatten variables (squeeze dimensions)
+        '''
 
         #Load keys and dimensions
         #########################
@@ -248,7 +318,7 @@ class hydro_data(object):
     
     def check_variables(self):
         """
-        CHECK_VARIABLES : Forces variables to respect dimensions
+        Forces variables to respect dimensions
         """
         
         self.count = len(self.fileid)
@@ -279,6 +349,12 @@ class hydro_data(object):
                                                                     mask=np.append(self.__dict__[enum[1][0]].mask,np.ones(dimSize[n] - varSize,dtype='bool')) )
     
     def create_Dim(self, name,value):
+        '''
+        Adds a dimension to class.
+        
+        :parameter name: dimension name
+        :parameter value: dimension value
+        '''
         if not self._dimensions.has_key(name) :
             self.message(3, 'Create dimension {0}:{1}'.format(name,value))
             self._dimensions[name]=value
@@ -287,24 +363,105 @@ class hydro_data(object):
             self.message(3, 'Dimension {0} already exists'.format(name))
         
     def update_Dim(self,name,value):
+        '''
+        update a dimension by appending the number of added elements to the dimensions ::
+        
+          <upddated dimension> = <old dimension> + <number of added elements along this dimension>
+           
+        '''
         oldVal=self._dimensions[name]
         self._dimensions[name] += value
         self.message(2, 'Updating dimension {0} (from {1} to {2})'.format(name,oldVal,self._dimensions[name]))
     
     def update_fid_list(self,filename,N):
+        '''
+        update file indices attribute `altimetry.data.hydro_data.fileid`
+        '''
         self.filelist_count[self.filelist.index(filename)] = N
         fid=self.fid_list.compress([enum[1][0] == os.path.basename(filename) for enum in enumerate(zip(*(self.filelist,self.fid_list)))])
         self.__dict__.update({'fileid' :np.append(self.fileid,np.repeat(fid,N))})
     
     def delete_Variable(self,name):
+        '''
+        pops a variable from class and delete it from parameter list
+        
+        :parameter name: name of the parameter to delete
+        '''
         self.message(1,'Deleting variable {0}'.format(name))
-        self.__dict__.pop(name)
         self.par_list=self.par_list[self.par_list != name]
+        return self.__dict__.pop(name)
         
     
     def create_Variable(self,name,value,dimensions,toCreate=None,createDim=None,extend=True):
         """
-        create_Variable : This function adds a variable to the current data object
+        create_Variable : This function adds data to :class:`altimetry.data.hydro_data`
+        
+        :parameter name: name of the parameter to create
+        :parameter value: values associated to the variable. Must be a numpy masked_array or a data structure.
+        :parameter dimensions: dimensional structure (cf. notes).
+        
+        .. _structures:
+        
+        .. note:: altimetry tools package handles the NetCDF data using specific structures.
+        
+          NetCDF data is structured this way:
+          
+          .. code-block:: python
+             :emphasize-lines: 1,3
+           
+             NetCDF_data = {'_dimensions':dimension_structure,  #File dimensions  (COMPULSORY)
+                            '_attributes':attribute_structure,  #Global attributes
+                            'dimension_1':data_structure,       #Data associated to the dimensions. (COMPULSORY)
+                            ...,
+                            'variable_1':data_structure,        #Variables
+                            ...
+                           }
+          
+          In standard NetCDF files, dimensions are always associated to a variable.
+          If it is not the case, an array of indices the length of the dimension is generated and a warning is issued.
+          
+          Moreover, dimensions MUST be defined to be accepted by :class:`altimetry.tools.nctools.nc` (empty NetCDF files would fail).        
+        
+          * a dimensional structure should be of the form :
+          
+          .. code-block:: python
+             
+             dimension_structure = {'_ndims':N,        #Attribute setting the number of dimensions.
+             
+                                    'dims':{'dim_A':A, #Structure containing the name
+                                            'dim_B':B, #of the dimensions and their size. 
+                                            ...,
+                                            'dim_N':N
+                                           }
+                                   }
+          
+          * an attribute structure is a very simple structure containing the attribute names and values:
+        
+          .. code-block:: python
+              
+              data_structure = {'attribute_1':attribute_1,
+                                ...,
+                                'attribute_N':attribute_N}
+           
+          * a data structure should be of the form :
+        
+          .. code-block:: python
+              :emphasize-lines: 1-2
+          
+              data_structure = {'_dimensions':dimension_structure, #dimensions of hte variable (COMPULSORY)
+                                'data':data,                       #data associated to the variable (COMPULSORY)
+                                
+                                'long_name':long_name,             #Variable attributes
+                                'units':units,
+                                ...
+                               }
+           
+          
+          DATA and _DIMENSIONS fields are compulsory.
+          Other fields are optional and will be treated as attributes.
+          
+          Furthermore, code will have a special look at **scale**, **scale_factor** and **add_offset** while reading and writing data and to **_FillValue** and missing_value while reading (_FillValue being automatically filled by :class:`NetCDF4.Dataset` when writing)   
+           
         """
         
         #Check variable name
@@ -417,11 +574,6 @@ class hydro_data(object):
             #Impossible case ?
             self.Error('Impossible case : create dimensions and variable {0} already existing'.format(name))
         
-#        self.message(4,'exec : '+cmd)
-        
-        if name == 'nsct' :
-            pass
-        
         #Append dimensions to variable
         if not dimensions.has_key('_ndims') :
             dumDim={'_ndims':len(dimensions.keys())}
@@ -467,6 +619,9 @@ class hydro_data(object):
             
     
     def get_currentDim(self):
+        '''
+        returns the current dimensions of the object
+        '''
         selfDim = self._dimensions.copy()
         if selfDim.has_key('_ndims') : nself = selfDim.pop('_ndims')
         else : 
@@ -475,25 +630,25 @@ class hydro_data(object):
         curDim = [[key for key in selfDim.keys()],[selfDim[key] for key in selfDim.keys()]]
         return curDim, nself
     
-    def update(self):
-        self.message(0, "DEPRECATED function : -> hydro_data.update() called by "+inspect.stack()[2][3])
-        
-#        #Compute density if all variable exist
-#        if hasattr(self,'psal') &  hasattr(self,'temp') & hasattr(self,'pres') : 
-#            self.rho= gsw.rho(self.psal,self.temp,self.pres)
-        
-#        keys=self.__dict__.keys()
-#        
-#        for key in keys:
-#            count=[np.size(0)]
+    def update(self,*args,**kwargs):
+        '''
+        Wrapper to :func:`altimetry.data.hydro_data.update_with_slice`.
+        '''
+        self.update_with_slice(self,*args,**kwargs)
 
     def message(self,MSG_LEVEL,str):
         """
-         MESSAGE : print function wrapper. Print a message depending on the verbose level
+        print function wrapper. Print a message depending on the verbose level
          
-         @param MSG_LEVEL {in}{required}{type=int} level of the message to be compared with self.verbose
-         
-         @example self.message(0,'This message will be shown for any verbose level') 
+        :parameter {in}{required}{type=int} MSG_LEVEL: level of the message to be compared with self.verbose
+        
+        :example: To write a message 
+           
+           .. code-block:: python
+           
+              self.message(0,'This message will be shown for any verbose level')
+        
+        
         """
         
         caller=get_caller()
@@ -501,22 +656,46 @@ class hydro_data(object):
     
     def warning(self,MSG_LEVEL,str):
         """
-         WARNING : Wrapper to the warning function. Returns a warning when verbose level is not 0. 
-         
-         @param MSG_LEVEL {in}{required}{type=int} level of the message to be compared with self.verbose
-         
-         @example self.waring(1,'Warning being issued) 
+        Wrapper to :func:`warning.warn`. Returns a warning when verbose level is not 0. 
+        
+        :param MSG_LEVEL: level of the message to be compared with self.verbose
+        
+        :example: To issued a warning
+        
+           .. code-block:: python
+        
+              self.warning(1,'Warning being issued)
+        
+        
         """
         
         if self.verbose <= 1 : warn(str)
     
-    def Error(self,ErrorMsg):    
+    def Error(self,ErrorMsg):
+        '''
+        raises an exception
+        '''
         raise Exception(ErrorMsg)
     
     def copy(self,deep=True):
+        '''
+        Returns a copy of the current data object
+        
+        :keyword deep: deep copies the object (object data will be copied as well).
+        '''
         return copy.deepcopy(self) if deep else copy.copy(self)
     
-    def slice(self,param,range,surf=False,dimension=None):
+    def slice(self,param,range,surf=False):
+        '''
+        get a flag for indexing based on values (ange of fixed values).
+        
+        :parameter param: variable name
+        :parameter range: numpy array defining the range of the values. If size(range) == 2 :
+        
+           * flag is computed between min and max values of range
+           * flag is computed based on equality to range value.
+              
+        '''
         if np.size(range) == 2 :
             if not surf : fg = (self.__dict__[param] >= np.min(range)) & (self.__dict__[param] < np.max(range))
             else : fg = (self.__dict__[param+'_surf'] >= np.min(range)) & (self.__dict__[param+'_surf'] < np.max(range))
@@ -527,11 +706,21 @@ class hydro_data(object):
         return fg
 
     def time_slice(self,timerange,surf=False):
+        '''
+        slice object given a time range
+        
+        :parameter timerange: rime range to be used.
+        '''
         return self.slice('date',timerange,surf=surf)
 #        if not surf : return (self.date >= timerange[0]) & (self.date < timerange[1])
 #        else : return (self.date_surf >= timerange[0]) & (self.date_surf < timerange[1])
 
     def update_with_slice(self,flag):
+        '''
+        update object with a given time slice flag
+        
+        :parameter (boolean array) flag: a flag for indexing data along the ''time'' dimension 
+        '''
         
         N=flag.sum()
         
@@ -546,6 +735,11 @@ class hydro_data(object):
             if (hasattr(self.__dict__[par], '_dimensions')) : self.__dict__[par]._dimensions['time']=self._dimensions['time']
 
     def get_file(self,pattern):
+        '''
+        returns a flag array of the data loaded from a given file pattern
+        
+        :parameter pattern: pattern to match in the file list. 
+        '''
         flag=[fnmatch.fnmatch(l,pattern) for l in self.filelist]
         id=self.fid_list.compress(flag)
         flag = self.fileid == id
@@ -555,10 +749,21 @@ class hydro_data(object):
 #        return self.id == id
     
     def time_range(self,flag=None):
+        '''
+        time range of the current dataset
+        
+        :keyword flag: use a flag array to know the time range of an indexed slice of the object
+        '''
         if flag is None : return cnes_convert([self.date.min(),self.date.max()])
         else : return cnes_convert([self.date.compress(flag).min(),self.date.compress(flag).max()])
     
     def extension(self,flag=None,round=True):
+        '''
+        returns the limits of the dataset.
+        
+        :keyword flag: an indexation flag array
+        :keyword round: round the limits to the south-west and north-east.
+        '''
         if flag is None : limit = [self.lat.min(),self.lon.min(),self.lat.max(),self.lon.max()]
         else : limit = [self.lat.compress(flag).min(),self.lon.compress(flag).min(),self.lat.compress(flag).max(),self.lon.compress(flag).max()]
         if round :
@@ -572,7 +777,22 @@ class hydro_data(object):
         if flag is None : return np.unique(self.id)
         else : return np.unique(self.id.compress(flag))
     
+    def get(self,name):
+        '''
+        retunrs a variable
+        '''
+        return self.__dict__[name]
+    
+    def pop(self,*args,**kwargs):
+        '''
+        This is a wrapper to :meth:`altimetry.data.hydro_data.delete_Variable`
+        '''
+        return self.delete_Variable(*args,**kwargs)
+    
     def get_stats(self,flag):
+        '''
+        get some statistics about a part of the dataset
+        '''
         par_list=self.par_list.compress([(not par.endswith('_surf')) & ( par != 'id') for par in self.par_list])
         valid= np.array([len(self.__dict__[par].compress(flag).compressed()) for par in par_list])
         per_valid = (100.0* valid) /float(np.sum(flag))
@@ -587,13 +807,22 @@ class hydro_data(object):
         return par_list, valid, per_valid, fname, trange, extent, N, avail_par, avail_par_per
     
     def get_platform_stats(self,id):
+        '''
+        get statistics based on `altimetry.data.hydro_data.id`
+        '''
         par_list, valid, per_valid, fname, trange, extent, N, avail_par, avail_par_per = self.get_stats(self.id == id)
         return (fname,trange,extent,N,avail_par,avail_par_per)
 
     def get_object_stats(self):
+        '''
+        get some statistics about the whole dataset.
+        '''
         return self.get_stats(np.ones(self.count,dtype='bool'))
         
     def platform_summary(self,id,col='.k'):
+        '''
+        outputs a summary of the statistics for a given platform
+        '''
         stats = self.get_platform_stats(id)
         self.message(0, '\tPlatform {0} : '.format(id))
         self.message(0, '\t-> file : {0}'.format(stats[0]))
@@ -603,7 +832,14 @@ class hydro_data(object):
         self.message(0, '\t-> variables :'+', '.join(['{0}({1:.0f} %)'.format(i[0],i[1]) for i in zip(*(stats[4],stats[5]))])+']')
         
     def map(self, flag=None,  fname=None, zoom=False, pmap=None, show=True, **kwargs):
-                
+        '''
+        display (or not) a map based on a :class:`altimetry.tools.plot_map` object.
+        
+        :keyword show: set to False not to show (and neither apply :meth:`altimetry.tools.plot_map.setup_map`)
+        
+        .. note:: This function creates a :class:`altimetry.tools.plot_map` instance, plot a partion of the dataset using :meth:`altimetry.data.hydro_data.plot_track` and displays it if asked to.
+        
+        '''
         if zoom : limit = self.extension(flag)
         else : limit = self.limit
         
@@ -618,7 +854,7 @@ class hydro_data(object):
 
     def summary(self,all=False,fig=None,col='.k',legend=None,**kwargs):
         """
-        SUMMARY : Returns a summary of all the data contained in the current object
+        outputs a summary of the whole current dataset
         """
         
         par_list, valid, per_valid, fname, trange, extent, N, avail_par, avail_par_per = self.get_object_stats()
@@ -682,12 +918,22 @@ class hydro_data(object):
 #            per_valid.compress(per_valid > 0)
         
     def in_limits(self,limit=None):
+        '''
+        wrapper to :func:`altimetry.tools.in_limits` based on dataset limits. 
+        '''
         if limit is None : limit = self.limit
         flag=in_limits(self.lon, self.lat, limit)
         return flag
 
     def plot_track(self,pmap,flag=None,col='.k',endpoint='*r',endpoint_size=None,title=None,fontsize=8,textcolor='b',ms=5,linewidth=1,**kwargs):
+        '''
+        plot trajectories based on platform IDs
         
+        :parameter pmap: a :class:`altimetry.tools.plot_map` instance
+        :parameter col: color to be used along the trajectory. If this is an array of values, calls :func:`altimetry.tools.plot_map.scatter` instead of :func:`altimetry.tools.plot_map.plot`
+         
+        .. note:: This method loops on data IDs. Then it calls :func:`altimetry.tools.plot_map.plot` or :func:`altimetry.tools.plot_map.scatter` to plot the trajectory and then labels the trajectory using :func:`altimetry.tools.plot_map.text`  
+        '''
         
         if self.__dict__.has_key('lon_surf') :
             if flag is None : flag=np.ones(self.lon_surf.size,dtype='bool')
@@ -704,7 +950,7 @@ class hydro_data(object):
         
         if endpoint_size is None : endpoint_size=2*ms
         
-        id_list=np.unique(id)
+        id_list=np.unique(id) 
         cnt=np.size(id_list)
         
 #        #Go to next iteration when no data
@@ -730,24 +976,13 @@ class hydro_data(object):
 #                 pmap.show()
             
         try : return p
-        finally : return pmap.plot(-100,-370,'')
+        finally : return pmap.plot(-100,-370,'') #this is a hack to plot data outside the globe...
       
     def plot_track_old(self,*args,**kwargs):
         '''
-        PLOT_TRACK: plot a surface map of sampling track
+        plot a surface map of sampling track
         
-        @param map {in}{optional}{type=atools.pmap} Input plot_map or pyplot object. Must be passed as 1st argument
-        @param lon {in}{required}{type=numeric} longitude
-        @param lat {in}{required}{type=numeric} latitude
-        @param var {in}{optional}{type=numeric} variable to be displayed (scatter plot)
-        
-        @keyword julian {in}{optional}{type=BOOLEAN} True if output date is in julian format
-        
-        @examples 1) Converts an array of calendar dates into julian dates<br />
-        
-        @author : Renaud DUSSURGET (RD), IFREMER LER/PAC, La Seyne/Mer
-        @history
-           - Created by RD (May 2012)
+        .. warning:: DEPRECATED method!
         '''
         
         #Get map object (plot_map or Basemap)
@@ -785,6 +1020,11 @@ class hydro_data(object):
                       xstep=1,zstep=10,    #Interpolation step
                       s=10, edgecolor='none',
                       **kwargs):
+        '''
+        shows a 2d space-depth section plotting point (using :func:`altimetry.tools.plot_map.scatter`)
+        
+        :example: plot a temperature section along a glider transect
+        '''
 
         ax=plt.gca()
         if isinstance(var,np.ma.masked_array) :
@@ -800,7 +1040,11 @@ class hydro_data(object):
         pass
     
     def contour_transect(self, x, z, var, xrange=None,zrange=None, xstep=1,zstep=10,vmin=None,vmax=None,marker='.k', **kwargs):
+        '''
+        shows a 2d space-depth section by interpolating the data along the section.
         
+        .. note:: This method interpolates using :func:`scipy.interpolate.griddata` and plots using :func:`matplotlib.pyplot.meshcolorgrid`
+        '''
         
         if xrange is None : xrange=(x.min(),x.max())
         if zrange is None : zrange=(z.min(),z.max())
@@ -832,10 +1076,10 @@ class hydro_data(object):
 
     def read_ArgoNC(self,filename,params=None,force=False,dephrange=None,timerange=None,**kwargs):
         """
-        READ_ARGONC : Argo NetCDF reader
+        An Argo network NetCDF reader
         
-        @return: outStr {type:dict} Output data structure containing all recorded parameters as specificied by NetCDF file PARAMETER list.
-        @author: Renaud Dussurget
+        :return outStr: Output data stricture (dict) containing all recorded parameters as specificied by NetCDF file PARAMETER list.
+        :author: Renaud Dussurget
         """
         
         #Open file
@@ -944,6 +1188,46 @@ class hydro_data(object):
 
     def load_ncVar(self,varName,nc=None,**kwargs):
         return load_ncVar_v2(varName, nc=self._ncfile, **kwargs)
+    
+    def ncstruct(self):
+        '''
+        returns a data structure (dict) of the dataset.
+        '''
+        par_list = self.par_list.tolist()
+        dimStr=self._dimensions
+        dimlist = dimStr.keys()
+        outStr = OrderedDict({'_dimensions':dimStr})
+        
+        if (np.array(par_list) == 'sat').sum() : par_list.pop(par_list.index('sat')) #Remove satellite info
+        varlist=np.append(np.array(dimlist[1:]),np.array(par_list))
+        
+        for d in varlist :
+            self.message(2, 'Updating output structure with {0}'.format(d))
+            curDim=getattr(self.__getattribute__(d),'_dimensions',None)
+            attributes = [a for a in self.__getattribute__(d).__dict__.keys() if not a.startswith('_')]
+#            attributes = np.append(attributes,'_dimensions')
+            outStr[d]={'_dimensions':self.__getattribute__(d)._dimensions}
+            outStr[d].update({'data':self.__getattribute__(d)})
+            for a in attributes : outStr[d].update({a:self.__getattribute__(d).__getattribute__(a)})
+        
+        return outStr
+    
+    def write_nc(self,filename,clobber=False,**kwargs):
+        '''
+        write a NetCDF file from current dataset
+        
+        :keyword kwargs: additional arguments are passed to :meth:`altimetry.tools.nctools.nc.write`
+        '''
+        obj=ncobj(verbose=self.verbose,limit=self.limit,use_local_dims=True)
+        ncalti=self.ncstruct() #Get an netcdf structure from data
+        res=obj.write(ncalti,filename,clobber=clobber,**kwargs) #Save processed datase
+    
+    def push_nc(self,*args,**kwargs):
+        '''
+        append a data structure to an exisiting netcdf file
+        '''
+        obj=ncobj(verbose=self.verbose,limit=self.limit,use_local_dims=True)
+        res=obj.push(*args,**kwargs)
 
 class buoy_data(hydro_data):
     

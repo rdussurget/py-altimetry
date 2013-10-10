@@ -7,21 +7,19 @@ if __debug__ : import matplotlib.pyplot as plt
 
 def get_kx(N,dx):
     """
-    #+
-    # GET_KX
-    # @summary: Returns the frequencies to be used with FFT analysis
-    #
-    # @param N {type:numeric} : number of samples in data
-    # @param dx {type:numeric} : sampling step
-    #
-    # @return:
-    #    k: frequency
-    #    L: length
-    #    imx: index of maximum frequency (for separating positive and negative frequencies)
-    #
-    # @author: Renaud DUSSURGET (RD) - LER/PAC, Ifremer
-    # @change: Created by RD, July 2012
-    #-
+    GET_KX
+    :summary: Returns the frequencies to be used with FFT analysis
+    
+    :parameter N: number of samples in data
+    :parameter dx: sampling step
+    
+    :return: Returns
+      * k: frequency
+      * L: length
+      * imx: index of maximum frequency (for separating positive and negative frequencies)
+    
+    :author: Renaud DUSSURGET (RD) - LER/PAC, Ifremer
+    :change: Created by RD, July 2012
     """
     
     # to work with dimensional axes
@@ -44,26 +42,25 @@ def get_kx(N,dx):
 
 def get_spec(dx,Vin,verbose=False,gain=1.0,integration=True):
     """
-    #+
-    # GET_SPEC
-    # @summary: Returns the spectrum of a regularly sampled dataset
-    #
-    # @param dq {type:numeric} : sampling interval (1D)
-    # @param V {type:numeric} : data to analyse (1D).
-    #
-    # @note: NaN can not be used. 
-    #
-    # @return:
-    #    psd: Power Spectral Density
-    #    esd: Energy Spectral Density
-    #    fq: frequency
-    #    p: wavelength (period)
-    #
-    # @author: Renaud DUSSURGET (RD) - LER/PAC, Ifremer
-    # @change: Created by RD, July 2012
-    #     29/08/2012 : Changed the computation of frequencies and the spectral integration (spectrum is averaged at mid-width frequencies)
-    #     30/11/2012 : Outstanding changes : corrected the spectral integration for computing psd and corrected the normalisation
-    #-
+    GET_SPEC
+    :summary: Returns the spectrum of a regularly sampled dataset
+    
+    :parameter dq: sampling interval (1D)
+    :parameter V: data to analyse (1D).
+    
+    :note: NaN can not be used. 
+    
+    :return:
+    
+      * psd: Power Spectral Density
+      * esd: Energy Spectral Density
+      * fq: frequency
+      * p: wavelength (period)
+    
+    :author: Renaud DUSSURGET (RD) - LER/PAC, Ifremer
+    :change: Created by RD, July 2012. Changes
+      * 29/08/2012 : Changed the computation of frequencies and the spectral integration (spectrum is averaged at mid-width frequencies)
+      * 30/11/2012 : Outstanding changes : corrected the spectral integration for computing psd and corrected the normalisation
     """
     V=Vin.copy()
     N=V.size
@@ -155,24 +152,35 @@ def get_spec(dx,Vin,verbose=False,gain=1.0,integration=True):
 
 def spectral_analysis(dx,Ain,tapering=None,overlap=None,wsize=None,alpha=3.0,detrend=False,normalise=False,integration=True,average=True,ARspec=None):
     """
-     Spectral_Analysis
-     @summary: This function performs a spatial spectral analysis with different options on a time series of SLA profiles.
-     @param dx {type:numeric} : sampling distance
-     @param Ain {type:numeric} : 2D table of sla data with time along 2nd axis (NXxNT with NX the spatial length and NT the time length)
-     @keyword tapering {type:string|bool|nd.array} : apply tapering to the data. <br \>
-                    If this keyword is of type bool : apply hamming window. <br \>
-                    If this keyword is a string : apply a hamming ('hamm'), hann ('hann'), kaiser-bessel ('kaiser'), kaiser-bessel ('blackman') or no ('none') tapering function. <br \>
-                    If this keyword is an nd.array aobject : apply this array as taper.
-     @keyword overlap {type:float} : overlap coefficient of the windows (0.75 means 75% overlap).
-     @keyword wsize {type:numeric} : size of the sub-segments.
-     @keyword normalise {type:bool,default:False} : If True, normalise the spectrum by its overall energy content.
-     @keyword detrend {type:bool,default:False} : If True, removes a linear trend to the segmented signal (if tapered) or to the whole signal (if not tapered).
-     @keyword integration {type:bool,default:False} : If True, integrate the spectrum between 2 frequencies. 
-     @param sla {type:numeric} : data
-     @return: a spectrum structrue with Energy Spectral Density ('esd'), Power Spectral Density ('PSD'), frequency ('fq'), wavelength ('p') and tapering parameters.
+    Spectral_Analysis :
+    This function performs a spatial spectral analysis with different options on a time series of SLA profiles.
     
-     @author: Renaud DUSSURGET (RD) - LER/PAC, Ifremer
-     @change: Created by RD, December 2012
+    :parameter dx: sampling distance
+    :parameter Ain: 2D table of sla data with time along 2nd axis (NXxNT with NX the spatial length and NT the time length)
+    :keyword tapering: apply tapering to the data
+    
+      * If this keyword is of type bool : apply hamming window.
+      * If this keyword is a string : apply a hamming ('hamm'), hann ('hann'), kaiser-bessel ('kaiser'), kaiser-bessel ('blackman') or no ('none') tapering function.
+      * If this keyword is an :class:`numpy.array` object : apply this array as taper.
+       
+    :keyword overlap: overlap coefficient of the windows (0.75 means 75% overlap).
+    :keyword wsize: size of the sub-segments.
+    :keyword normalise: If True, normalise the spectrum by its overall energy content.
+    :keyword detrend: If True, removes a linear trend to the segmented signal (if tapered) or to the whole signal (if not tapered).
+    :keyword integration: If True, integrate the spectrum between 2 frequencies. 
+    :parameter sla: data
+    :return: a spectrum structure
+    
+       .. code-block:: python
+       
+          {'esd':esd,       #Energy Spectral Density
+           'psd':psd,       #Power Spectral Density
+           'fq':fq,         #frequency
+           'p':p,           #wavelength
+           'params':params} #tapering parameters.
+    
+    :author: Renaud DUSSURGET (RD) - LER/PAC, Ifremer
+    :change: Created by RD, December 2012
     """
     
     A=Ain.copy()
@@ -498,6 +506,35 @@ def preprocess(lat,lon,sla,
                return_interpolated=False,
                last=True,mid=None,first=None, #for get_segments
                verbose=1):
+    '''   
+    Preprocessing of the SLA data ::
+       * process positions :
+          * interpolate over gaps
+          * find continents (extend the positions over continents to get the discontinuity)
+          * find track edges
+          * find gap lengths
+
+       * clean SLA data::
+          * Remove gaps greater than maximum allowed length over which interpolate is OK.
+          * Remove time steps with not enough coverage
+          * get sub-segments of valid data of a given length
+          
+    :parameter lon: longitude
+    :parameter lat: longitude
+    :parameter sla: data
+    
+    :keyword N_min: Length of subsegments (cf :func:`altimetry.tools.spectrum.get_segments`)
+    :keyword per_min: Minimum percentage of valid data to allow.
+    :keyword max_gap: Maximum gap length to interpolate over (interpolation is done 1st, THEN long gaps are eliminated)
+    :keyword leave_gaps: Leave gaps (equivalent to setting max_gap to number of points in track).
+    
+    :keyword remove_edges: discard data at track edges.
+    :keyword truncate_if_continents: Force truncating data if a continent is found within a segment of data.
+    :keyword last: Get segments of data sticked to the last point in track (cf :func:`altimetry.tools.spectrum.get_segments`)
+    :keyword first: Get segments of data sticked to the first point in track (cf :func:`altimetry.tools.spectrum.get_segments`)
+    :keyword mid: Get segments of data sticked to the middle point in track (cf :func:`altimetry.tools.spectrum.get_segments`)
+    
+    '''
     sh=sla.shape
     nt=sh[0]
     nx=sh[1]
@@ -611,7 +648,17 @@ def preprocess(lat,lon,sla,
     return res
 
 def get_segment(sla,N,last=True,mid=None,first=None,remove_edges=True,truncate_if_continents=True):
+    '''
+    Intelligent segmentation of data.
     
+    :keyword remove_edges: discard data at track edges.
+    :keyword truncate_if_continents: Force truncating data if a continent is found within a segment of data.
+    
+    :keyword last: Get segments of data sticked to the last point in track
+    :keyword first: Get segments of data sticked to the first point in track
+    :keyword mid: Get segments of data sticked to the middle point in track
+
+    '''
     #Set defaults
     if first is not None :
         last=None
@@ -687,22 +734,21 @@ def get_segment(sla,N,last=True,mid=None,first=None,remove_edges=True,truncate_i
 
 def get_slope(fq,spec,degree=1,frange=None,threshold=0.):
     """
-    #+
-    # GET_SLOPE
-    # @summary: This function returns the spectral slope of a spectrum using a least-square regression 
-    #
-    # @param fq {type:numeric} : frequency
-    # @param spec {type:numeric} : spectrum data
-    #
-    # @keyword degree {type:numeric}{default:1}: Degree of the least-square regression model 
-    #
-    # @return:
-    #    slope : spectral slope (or model coefficients for a higher order model)
-    #    intercept : Energy at unit frequency (1 cpkm)
-    #
-    # @author: Renaud DUSSURGET (RD) - LER/PAC, Ifremer
-    # @change: Created by RD, August 2012
-    #-
+    
+    GET_SLOPE
+    :summary: This function returns the spectral slope of a spectrum using a least-square regression 
+    
+    :parameter fq: frequency
+    :parameter spec: spectrum data
+    
+    :keyword degree: Degree of the least-square regression model 
+    
+    :return:
+      * slope : spectral slope (or model coefficients for a higher order model)
+      * intercept : Energy at unit frequency (1 cpkm)
+    
+    :author: Renaud DUSSURGET (RD) - LER/PAC, Ifremer
+    :change: Created by RD, August 2012
     """
     
     sh=spec.shape
@@ -746,32 +792,17 @@ def get_slope(fq,spec,degree=1,frange=None,threshold=0.):
 
 def yule_walker(acf, orden):
     """
-# *********************************************************************
-# DESCRIPTION:    Program to solve Yule-Walker equations for AutoRegressive Models
-# *********************************************************************
-# AUTHOR:       XAVI LLORT
-# E-MAIL:     llort(at)grahi.upc.edu
-# DATE:       MAY 2007
-# *********************************************************************
+    Program to solve Yule-Walker equations for AutoRegressive Models
+    
+    :author: XAVI LLORT (llort(at)grahi.upc.edu)
+    :created: MAY 2007
+    :changes: adapted to python by R.Dussurget
 
-# *********************************************************************
-# COMENTARI:  
-
-# *********************************************************************
-# VARIABLES
-#   acf   (Input) AutoCorrelation Function
-# orden   (Input) Order of the AutoRegressive Model
-# parameters  (Output) Parameters
-# sigma_e   (Output) Standard deviation of the noise term
-
-# *********************************************************************
-# KEYWORDS: IDL Yule Walker Yule-Walker YuleWalker AR 
-# *********************************************************************
-# COMMONS
-# *********************************************************************
-# CONSTANS
-# *********************************************************************
-# CALCUL
+    :parameter acf: AutoCorrelation Function
+    :parameter orden: Order of the AutoRegressive Model
+    :return:
+      * parameters : Parameters
+      * sigma_e : Standard deviation of the noise term
     """
     
     if len(acf) + 1 <= orden : raise Exception('ACF too short for the solicited order!')
@@ -800,44 +831,49 @@ def yule_walker(acf, orden):
 #-
 def yule_walker_regression(dx, Y, deg, res=None):
     """
-  #####X -> (input) time vector (disabled)
-  #Y -> (input) stationary time series
-  #deg -> (input) AR model degree
-  #a -> (output) Yule Walker parameters
-  #sig -> (output)  Standard deviation of the noise term
-  #aicc -> (output) corrected Akaike Information Criterion
-  #gamma -> (output) Autocorrelation function
-  #ar -> (output) Fitted function
-  #argamma -> (output) Fitted autocorrelation function
-  #arspec -> (output) Fitted spectral model
-  #F -> (output) Relative frequency
+    :parameter X: time vector (disabled)
+    :parameter Y: stationary time series
+    :parameter deg: AR model degree
+    :return:
+      * a : Yule Walker parameters
+      * sig : Standard deviation of the noise term
+      * aicc : corrected Akaike Information Criterion
+      * gamma : Autocorrelation function
+      * ar : Fitted function
+      * argamma : Fitted autocorrelation function
+      * arspec : Fitted spectral model
+      * F : Relative frequency
 
+    .. note:: To know more about yule-walker and autoregressive methods, see
+    
+      * `Example of AR(p) model auto-regression using yule-walker equations <http://www-ssc.igpp.ucla.edu/personnel/russell/ESS265/Ch9/autoreg/node7.html>`_
+      * `Other notes on the autoregressive method <http://www.ee.lamar.edu/gleb/adsp/Lecture%2009%20-%20Parametric%20SE.pdf>`_
 
-#  #Example of AR(p) model auto-regression using yule-walker equations
-#  #http://www-ssc.igpp.ucla.edu/personnel/russell/ESS265/Ch9/autoreg/node7.html
-#  #Other notes on the autoregressuve method:
-#  #http://www.ee.lamar.edu/gleb/adsp/Lecture%2009%20-%20Parametric%20SE.pdf
-
-#  # Define an n-element vector of time-series samples:  
-#  X = [6.63, 6.59, 6.46, 6.49, 6.45, 6.41, 6.38, 6.26, 6.09, 5.99, $  
-#       5.92, 5.93, 5.83, 5.82, 5.95, 5.91, 5.81, 5.64, 5.51, 5.31, $  
-#       5.36, 5.17, 5.07, 4.97, 5.00, 5.01, 4.85, 4.79, 4.73, 4.76]  
-#  
-#  #Compute auto_correlation function
-#  acorr=A_CORRELATE(X,INDGEN(30))
-#  
-#  #Solve YW equation to get auto-regression coefficients for AR(2) model
-#  YULE_WALKER, acorr, 2, a, sig
-#  
-#  #Process auto-regression model
-#  ar=DBLARR(28)
-#  FOR i = 2, 29 DO ar[i-2] = SQRT(a[0]*X[i-1]*X[i] + a[1]*x[i-2]*x[i]+sig*x[i])
-#
-#  #Compute spectrum
-#  spec=spectrogram(TRANSPOSE(X), INDGEN(N), WSIZE=N, OVERLAY=1.0, DISPLAY_IMAGE=0)
-#  
-#  #Compute AR(2) model spectrum
-#  ar2=spectrogram(TRANSPOSE(ar), INDGEN(28), WSIZE=28, OVERLAY=1.0, DISPLAY_IMAGE=0)
+    :example: IDL example :
+       
+       .. code-block:: IDL
+      
+          #Define an n-element vector of time-series samples  
+          X = [6.63, 6.59, 6.46, 6.49, 6.45, 6.41, 6.38, 6.26, 6.09, 5.99, $  
+              5.92, 5.93, 5.83, 5.82, 5.95, 5.91, 5.81, 5.64, 5.51, 5.31, $  
+              5.36, 5.17, 5.07, 4.97, 5.00, 5.01, 4.85, 4.79, 4.73, 4.76]  
+          
+          #Compute auto_correlation function
+          acorr=A_CORRELATE(X,INDGEN(30))
+          
+          #Solve YW equation to get auto-regression coefficients for AR(2) model
+          YULE_WALKER, acorr, 2, a, sig
+          
+          #Process auto-regression model
+          ar=DBLARR(28)
+          FOR i = 2, 29 DO ar[i-2] = SQRT(a[0]*X[i-1]*X[i] + a[1]*x[i-2]*x[i]+sig*x[i])
+          
+          #Compute spectrum
+          spec=spectrogram(TRANSPOSE(X), INDGEN(N), WSIZE=N, OVERLAY=1.0, DISPLAY_IMAGE=0)
+          
+          #Compute AR(2) model spectrum
+          ar2=spectrogram(TRANSPOSE(ar), INDGEN(28), WSIZE=28, OVERLAY=1.0, DISPLAY_IMAGE=0)
+          
     """
     
     #Defaults
@@ -961,6 +997,9 @@ def yule_walker_regression(dx, Y, deg, res=None):
     return outStr
 
 def optimal_AR_spectrum(dx, Y, ndegrees=None,return_min=True):
+    '''
+    Get the optimal order AR spectrum by minimizing the BIC.
+    '''
     
     if ndegrees is None : ndegrees=len(Y)-ndegrees
     

@@ -1,48 +1,4 @@
 # -*- coding: utf-8 -*-
-'''
-;@author: rdussurg
-;
-; CNES_convert: converts a date from a specified time reference frame to another
-;
-;@param in {in}{required}{type=STRING|NUMERIC} input date (either a scalar or a vector)
-;@keyword julian {in}{optional}{type=BOOLEAN} True if output date is in julian format
-;@keyword calendar {in}{optional}{type=BOOLEAN} True if output date is in calendar format
-;@keyword nasa {in}{optional}{type=BOOLEAN} True if reference frame should be NASA time (days since 01/01/1958) instead of CNES time (days since 01/01/1950)
-;@keyword string {in}{optional}{type=BOOLEAN} True if output date should be formatted as a string instead of a 3 column matrix (days, months, years)
-;@keyword out {out}{optional}{type=STRING|NUMERIC} Used to return output variable
-;@keyword quiet {in}{optional}{type=BOOLEAN} Turn off comments
-;@keyword calformat {out}{optional}{type=STRING} Calendar format used for conversion. dd : day, mm : month, yyyy:year; with any non-alphanumeric separator
-;
-;@examples 1) Converts an array of calendar dates into julian dates<br />
-;   IDL> CNES_convert, ['01/01/2007','02/01/2007'], /julian, out=out<br />
-;   IDL> print, out<br />
-;   20819<br />
-;   20820<br />
-;   example 2) Converts an array of julian dates into string formatted calendar dates<br />
-;   IDL> CNES_convert, [20819,20820], /calendar, out=out, /string<br />
-;   IDL> print, out<br />
-;   1/1/2007 2/1/2007<br />
-;   example 3) Converts a NASA julian date into a calendar data<br />
-;   IDL> CNES_convert, 17897, /calendar, /nasa<br />
-;   Calendar date : 1/1/2007<br />
-;   example 4) Converts a calendar date into a julian date<br />
-;   IDL> CNES_convert, '01/01/2007', /julian<br />
-;   Julian day : 20819 (CNES time)
-;
-;@todo Fix bug with NaN values : CNES_convert, !VALUES.D_NAN returns "19/12/****"
-;
-;@author : Renaud DUSSURGET (RD), LEGOS/CTOH, Toulouse
-;          Renaud DUSSURGET (RD@IFR), IFREMER LER/PAC, La Seyne/Mer
-;@history
-;   - Jan. 2009 : First release<br />
-;   - 9 Feb. 2009 : changed default options and fixed logical errors<br />
-;   - March 2009 : Working on arrays and added OUT keyword to get output data<br /> 
-;   - April 2009 : quiet mode<br />
-;   - May 2009 : Automatic recognition of output format (calendar or julian)<br />
-;   - May 2010 : Added CALFORMAT option for date conversion in any format
-;   - Apr. 2012 : Ported to Python by RD@IFR (Created on 24 avr. 2012)
-;
-'''
 
 #Loading libraries
 
@@ -64,7 +20,83 @@ if __debug__ : import matplotlib.pyplot as plt
 #Load alti data
 ###############
 class alti_data(htools.hydro_data) :
+    '''
+    An :class:`altimetry.data.hydro_data` object dedicated to handling along-track altimetry data.
+    
+    :example: To load different sets of data, try these :
+    
+      * Concatenate a set of **AVISO's MFSTEP NRT along-track data** and plot a 2D hovmoller matrix:
+      
+      .. code-block:: python
+         
+         #Define parameters 
+         trange_str = ['24/09/2012','05/09/2013']
+         trange,tdatetime=AT.cnes_convert(trange_str) #convert time range
+         alti_pattern = '/path/to/nrt/mfstep/nrt_mfstep_j2_sla_vfec_*.nc'
+         
+         #Load data
+         alti=alti_data(alti_pattern,verbose=verbose,datatype='DT',time_range=trange,slaext=True) #Load data
+         
+         #2D reordering of the data
+         alti.reorder()
+         
+         #Plot results
+         pcolormesh(data.lat,data.cycle,data.sla); show() #plot the hovmoller
+    
+      * Loads a set of **PISTACH L3 5Hz** files and create a new SLA variable and slice the object using a given time range :
+      .. code-block:: python
+      
+         #Load data
+         alti_pattern = '/path/to/data/PISTACH_L3_Product_NWMED_MLE4_tr*_5hz.nc'
+         alti=alti_data(alti_pattern,limit=limit,verbose=verbose)
+          
+         alti.create_Variable('sla',                             #new variable name
+                              alti.ssh_mss_filtree_21pts,        #data
+                              {'time':alti._dimensions['time']}, #set dimensions
+                              extend=False)                      #extend option
+         
+         #get daily updates of the object
+         for date in xrange(21300,21320):
+            
+             #get a deep copy of the object, not to erase the whole dataset
+             subset=alti.copy(deep=True)
+                
+             #update the object with the proper slice
+             fg=subset.slice('date', [date,date+1])
+             subset.update(fg)
+             
+             do_something(subset)
+    
+      * Loads a set of **PISTACH hydro** files :
+      
+      .. code-block:: python
+       
+         data=AD.alti_data('%s/*_2PTP*_*.nc' % RepData,verbose=opts.verbose,datatype='RAW',remove_existing=False)
+      
+      * Load any **NetCDF file** using :class:`altimetry.tools.nctools.nc` :
+    
+      .. code-block:: python
+       
+         data=AD.alti_data(fout,verbose=opts.verbose,datatype='RAW',transpose=False)
+         
+       
+       
+    '''
+    
     def __init__(self,file_pattern,time_range=None,output_is_dict=True,**kwargs):
+        '''
+        returns a dataset from a single file or multiple concatenated files. cf. :class:`altimetry.data.hydro_data` for further informations
+        
+        :keyword time_range: get start dates from file names (cf. notes on file names when using this option)
+        :keyword kwargs: additionnal keywords to be passed to :meth:`altimetry.data.hydro_data.__init__`
+        
+        .. note:: Naming convetion should respect AVISO formatting 
+        
+           * start dates should be the 3rd field from the end
+           * satellite name should be the 3rd from the start 
+           * eg. my_file_sat_20010101_20010108_20010109.nc
+           
+        '''
         
         if time_range is not None :
             ls=np.array(glob.glob(file_pattern))
@@ -95,12 +127,30 @@ class alti_data(htools.hydro_data) :
         self.set_sats()
     
     def set_sats(self):
+        '''
+        set satellite name using (cf. notes on file names in `altimetry.data.alti_data.__init__`)
+        '''
         self.sat=[]
         for enum in enumerate(self.filelist):
             self.sat=np.append(self.sat,[enum[1].split('_')[2]]*self.filelist_count[enum[0]])
         self.sat=np.ma.array(self.sat,mask=False) 
     
     def read(self,filename,datatype=None,slaext=False,**kwargs):
+        '''
+        reader method.
+        
+        :parameter filename: name of the file to load.
+        :keyword datatype: choose between DT/NRT/PISTACH/CTOH or other formats to call the corresponding reader. If datatype is :
+        
+           * DT or NRT or PISTACH : calls :func:`altimetry.data.alti_data.read_sla` or :func:`altimetry.data.alti_data.read_slaext`
+           * CTOH : calls :func:`altimetry.data.alti_data.read_CTOH`
+           * else : calls :func:`altimetry.data.alti_data.read_nc`, based on :class:`altimetry.tools.nctools.nc` object.
+        
+        :keyword slaext: force using :func:`altimetry.data.alti_data.read_slaext`
+        
+        .. note:: This method is call from :meth:`altimetry.data.hydro_data.__init__` and returns a data structure to be handled by :meth:`altimetry.data.hydro_data.update_dataset`
+        
+        '''
         
         fname,extension = os.path.splitext(filename)
         
@@ -133,10 +183,10 @@ class alti_data(htools.hydro_data) :
     def read_sla(self,filename,params=None,force=False,timerange=None,datatype=None,**kwargs):
         
         """
-        READ_SLA : Read AVISO Along-Track products
+        Read AVISO Along-Track products
         
-        @return: outStr {type:dict} Output data structure containing all recorded parameters as specificied by NetCDF file PARAMETER list.
-        @author: Renaud Dussurget
+        :return outStr: Output data structure containing all recorded parameters as specificied by NetCDF file PARAMETER list.
+        :author: Renaud Dussurget
         """
         
         from time import time
@@ -360,10 +410,10 @@ class alti_data(htools.hydro_data) :
     def read_slaext(self,filename,params=None,force=False,timerange=None,datatype=None,**kwargs):
         
         """
-        READ_SLAEXT : Read AVISO Along-Track SLA regional products
+        Read AVISO Along-Track SLAEXT regional products
         
-        @return: outStr {type:dict} Output data structure containing all recorded parameters as specificied by NetCDF file PARAMETER list.
-        @author: Renaud Dussurget
+        :return outStr: Output data structure containing all recorded parameters as specificied by NetCDF file PARAMETER list.
+        :author: Renaud Dussurget
         """
         
         self.message(2,'Reading SLAext data ({0})'.format(datatype))
@@ -440,10 +490,10 @@ class alti_data(htools.hydro_data) :
     def read_CTOH(self,filename,params=None,force=False,timerange=None,datatype=None,**kwargs):
         
         """
-        READ_SLAEXT : Read AVISO Along-Track SLA regional products
+        Read AVISO Along-Track SLA regional products
         
-        @return: outStr {type:dict} Output data structure containing all recorded parameters as specificied by NetCDF file PARAMETER list.
-        @author: Renaud Dussurget
+        :return outStr: Output data structure containing all recorded parameters as specificied by NetCDF file PARAMETER list.
+        :author: Renaud Dussurget
         """
         
         #Open file
@@ -544,8 +594,16 @@ class alti_data(htools.hydro_data) :
         return outStr
     
     def read_nc(self,filename,**kwargs):
+        '''
+        data reader based on :class:`altimetry.tools.nctools.nc` object.
+        
+        .. note:: THIS can be VERY powerful!
+        '''
+        
         #Set filename
         self._filename = filename
+        
+        remove_existing = kwargs.get('remove_existing',True)
         
         #Read data from NetCDF
         obj=nctools.nc(verbose=self.verbose,limit=self.limit,use_local_dims=True)
@@ -554,21 +612,40 @@ class alti_data(htools.hydro_data) :
         #Remove attributes already existing in data object
         for a in self.__dict__.keys():
             if outStr.has_key(a) and not a.startswith('_') :
-                outStr.pop(a)
+                if remove_existing : outStr.pop(a)
                 self.message(4, 'Attribute {0} already exists'.format(a))
         
         return outStr
 
 
     def track_list(self,*args):
+        '''
+        return the list of tracks contained if the dataset
+        '''
         noargs = len(args) == 0
         return np.unique(self.track) if noargs else np.unique(self.track.compress(args[0]))
     
     def cycle_list(self,*args):
+        '''
+        return the list of cycles contained if the dataset
+        '''
         noargs = len(args) == 0
         return np.unique(self.cycle) if noargs else np.unique(self.cycle.compress(args[0]))
 
     def reorder(self,*args,**kwargs):
+        '''
+        Reorders data vectors in 2D (ie. with dimensions (CYCLE,RECORD)). This is useful to get a hovmoller-type matrix of each variable.
+        
+        :example: To plot a hovmoller for a given variable, do ::
+           
+           .. code-block:: pyhton
+              
+              data=alti_data('/my/dir/my_files_pattern*.nc') #concatenate the files
+              data.reorder() #reorder data
+              pcolormesh(data.lat,data.cycle,data.sla); show() #plot the hovmoller
+           
+        .. note:: This only works for data reprojected along a nominal track.
+        '''
         #update time range with real value
         trange_str = self.time_range()[0]
         cycle_list = self.cycle_list()
@@ -608,6 +685,7 @@ class alti_data(htools.hydro_data) :
         
         #Get local index on nominal tracks (THIS IS long)
         self.message(2, 'Computing space and time indices')
+        
         xid = np.array([np.where((ln == lon) & (self.lat[i] == lat))[0][0] for i,ln in enumerate(self.lon) ])
         tid = np.array([np.where(c == cycle_list)[0][0] for c in self.cycle])
         
@@ -664,6 +742,12 @@ class alti_data(htools.hydro_data) :
         self.par_list=par_list #Add record dimension
     
     def pass_time(self):
+        '''
+        Compute the central time for each passes.
+        
+        .. note:: this must be called AFTER having called :meth:`altimetry.data.alti_data.reorder` as it looks for the CYCLE and RECORD dimensions.
+        .. note:: The methodology to compute the central time is to interpolate the time along the track at missing points, and then reading the value at point N/2.
+        '''
         date=self.date
         nt=self._dimensions['cycle']
         N=self._dimensions['record']
@@ -686,35 +770,6 @@ class alti_data(htools.hydro_data) :
 #        for par in par_list :
 #            self.__setattr__(par,self.__dict__[par][flag])
 #            if (hasattr(self.__dict__[par], '_dimensions')) : self.__dict__[par]._dimensions['time']=self._dimensions['time']
-        
-    def ncstruct(self):
-        par_list = self.par_list.tolist()
-        dimStr=self._dimensions
-        dimlist = dimStr.keys()
-        outStr = OrderedDict({'_dimensions':dimStr})
-        
-        if (np.array(par_list) == 'sat').sum() : par_list.pop(par_list.index('sat')) #Remove satellite info
-        varlist=np.append(np.array(dimlist[1:]),np.array(par_list))
-        
-        for d in varlist :
-            self.message(2, 'Updating output structure with {0}'.format(d))
-            curDim=getattr(self.__getattribute__(d),'_dimensions',None)
-            attributes = [a for a in self.__getattribute__(d).__dict__.keys() if not a.startswith('_')]
-#            attributes = np.append(attributes,'_dimensions')
-            outStr[d]={'_dimensions':self.__getattribute__(d)._dimensions}
-            outStr[d].update({'data':self.__getattribute__(d)})
-            for a in attributes : outStr[d].update({a:self.__getattribute__(d).__getattribute__(a)})
-        
-        return outStr
-    
-    def write_nc(self,filename,clobber=False,**kwargs):
-        obj=nctools.nc(verbose=self.verbose,limit=self.limit,use_local_dims=True)
-        ncalti=self.ncstruct() #Get an netcdf structure from data
-        res=obj.write(ncalti,filename,clobber=clobber,**kwargs) #Save processed datase
-    
-    def push_nc(self,*args,**kwargs):
-        obj=nctools.nc(verbose=self.verbose,limit=self.limit,use_local_dims=True)
-        res=obj.push(*args,**kwargs)
         
 
 
