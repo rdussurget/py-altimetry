@@ -36,7 +36,7 @@ class hydro_data(object):
     .. note:: This object SHOULD NOT be called directly but through a subclass heritating of it (eg. :class:`altimetry.data.alti_data`) 
     '''
     
-    def __init__(self,file_pattern,limit=None,verbose=1,round=True,zero_2pi=True,output_is_dict=True,**kwargs):
+    def __init__(self,file_pattern,limit=None,verbose=1,round=True,zero_2pi=True,output_is_dict=True,flatten=False,**kwargs):
         '''
         Returns the object filled with the data loaded from a single file or a concatenated set of files
         
@@ -93,7 +93,7 @@ class hydro_data(object):
         #Setup file list
         if isinstance(file_pattern, str) : ls=glob.glob(file_pattern)
         else :
-            ls = file_pattern.tolist()
+            ls = file_pattern.tolist() if not isinstance(file_pattern,list) else file_pattern
             file_pattern=file_pattern[0]
         
         if len(ls) == 0 :
@@ -146,11 +146,13 @@ class hydro_data(object):
             self.current_file=enum[0][i]
             
             res=self.read(filename,output_is_dict=output_is_dict,**kwargs) #read() function is specific of each class
-            self.update_dataset(res) #update class with loaded data
+            self.update_dataset(res,flatten=flatten) #update class with loaded data
             
             self.check_variables()
         
         if not self.limit_set : self.limit=self.extension(round=round)
+        
+        if self.count == 0 : self.warning(1,'Empty object!')
 #        self.update()
 
     def update_dataset(self,dataStr,flatten=False):
@@ -162,12 +164,15 @@ class hydro_data(object):
 
         #Load keys and dimensions
         #########################
-        dataDim = dataStr.pop('_dimensions')
+        dataDim = dataStr.pop('_dimensions',{})
         attrStr = dataStr.pop('_attributes',{})
-        ndims = dataDim.pop('_ndims')
+        ndims = dataDim.pop('_ndims',0)
         dimensions = [dataDim.keys(),dataDim.values()]
         
         keys = dataStr.keys()
+        if len(keys) == 0:
+            self.warning(2, 'No data loaded')
+            return
         self.message(2, 'Loaded variables : '+str(keys))
         
         #Check what is the current variable type
@@ -209,11 +214,23 @@ class hydro_data(object):
             #Load variable
             ##############
 #            var=dataStr.get(key)
-            dum=dataStr.get(key).get('data') if isStructure else dataStr.get(key) 
+            dum=dataStr.get(key).pop('data') if isStructure else copy.deepcopy(dataStr.get(key)) 
             if flatten :
-                if isStructure :
-                    dum['data']=dum['data'].flatten()
-                else : dum=dum.flatten
+                if isinstance(dum,dict) :dum['data']=dum['data'].flatten()
+                else : dum=dum.flatten()
+            
+            if not isStructure :
+                dum={'_dimensions':dum._dimensions if hasattr(dum,'_dimensions') else {},
+                      '_attributes':dum._attributes if hasattr(dum,'_attributes') else {},
+                      'data':dum}
+            else :
+                dumStr=dataStr.get(key)
+                dumStr.update({'data':dum})
+                dum=dumStr
+                
+
+#             if dataStr[key].has_key('_attributes'):
+#                 dum.update(dataStr[key]['_attributes'])
 #            if isinstance(dum,np.ma.masked_array) : 
             
 #            #Get associated dimensions
@@ -493,9 +510,10 @@ class hydro_data(object):
         #Restructure dataset if structure
         if isStructure :
             dumvalue=value.pop('data')
-            for a in value.keys() :
-                dumvalue.__setattr__(a,value[a])
-            value=dumvalue
+            if value.has_key('_attributes'):
+                for a in value['_attributes'].keys():
+                    dumvalue.__setattr__(a,value['_attributes'][a])
+            value=copy.deepcopy(dumvalue)
         
         
         curDim, nself=self.get_currentDim()
@@ -542,7 +560,11 @@ class hydro_data(object):
         elif (not createDim.any()) & toCreate :
             
             #extend variable
-            if extend : value = np.ma.masked_array(np.append(np.zeros(curDim[1][curInd]),value.data),mask=np.append(np.ones(curDim[1][curInd],dtype='bool'),value.mask))
+            if extend :
+                dumvalue = np.ma.masked_array(np.append(np.zeros(curDim[1][curInd]),value.data),mask=np.append(np.ones(curDim[1][curInd],dtype='bool'),value.mask))
+                for a in set(value.__dict__.keys()).difference(dumvalue.__dict__.keys()) :
+                    dumvalue.__setattr__(a,value.__dict__[a] if hasattr(value, a) else self.__getattribute__(name).__getattribute__(a))
+                value=copy.deepcopy(dumvalue)
             
             self.message(4,'Extend variable '+name)
 #            self.__setattr__(name,value)
@@ -561,13 +583,25 @@ class hydro_data(object):
         elif (not createDim.any()) & (not toCreate) :
             #append variable
             self.message(4,'Append data to variable '+name)
-            value = np.ma.masked_array(np.append(self.__getattribute__(name).data,value.data),mask=np.append(self.__getattribute__(name).mask,value.mask))
-#             cmd = 'self.'+name+'=np.ma.concatenate((self.'+name+',value),mask=np.append(self.dac))' #buggy command : concatenate do not always work..
-#            cmd = 'self.{0}=np.ma.masked_array(np.append(self.{0}.data,value.data),mask=np.append(self.{0}.mask,value.mask))'.format(name)
-        
-#            exec('res = [self.{0}.mask.size,value.mask.size]'.format(name))
-#                raise 'error!'
-        
+            
+            dumvalue = np.ma.masked_array(np.append(self.__getattribute__(name).data,value.data),mask=np.append(self.__getattribute__(name).mask,value.mask))
+            
+            #We gather a list of attributes :
+            # - already in data structure,
+            # - in current data file
+            # - and not in output structure
+            attributes=set(self.__getattribute__(name).__dict__.keys())
+            attributes=attributes.union(value.__dict__.keys())
+#             attributes=attributes.difference(self.__getattribute__(name).__dict__.keys())
+            attributes=attributes.difference(dumvalue.__dict__.keys())
+            
+            #Then :
+            # - we add attributes of current file not in data structure
+            # - we keep attributes of current data structure if they exist 
+            for a in attributes :
+                dumvalue.__setattr__(a,value.__dict__[a] if hasattr(value, a) else self.__getattribute__(name).__getattribute__(a))
+            value=copy.deepcopy(dumvalue)
+                    
             updateDim=True
         
         elif createDim.any() & (not toCreate) :
@@ -634,7 +668,7 @@ class hydro_data(object):
         '''
         Wrapper to :func:`altimetry.data.hydro_data.update_with_slice`.
         '''
-        self.update_with_slice(self,*args,**kwargs)
+        self.update_with_slice(*args,**kwargs)
 
     def message(self,MSG_LEVEL,str):
         """
@@ -669,7 +703,7 @@ class hydro_data(object):
         
         """
         
-        if self.verbose <= 1 : warn(str)
+        if self.verbose >= 1 : warn(str)
     
     def Error(self,ErrorMsg):
         '''
@@ -729,9 +763,22 @@ class hydro_data(object):
         par_list=np.array(self.__dict__.keys())[varSize == self._dimensions['time']].tolist()
         
         self._dimensions['time']=N
+        self.count=N
         
         for par in par_list :
-            self.__setattr__(par,self.__dict__[par][flag])
+#             self.__setattr__(par,self.__dict__[par][flag])
+#             inVar=copy.deepcopy(self.__dict__[par])
+            if isinstance(self.__dict__[par],np.ma.masked_array) :
+                tmpVar=self.__dict__.pop(par)
+                dumVar=copy.deepcopy(tmpVar)
+                tmpVar=tmpVar.compress(flag)
+                for a in set(dumVar.__dict__.keys()).difference(tmpVar.__dict__.keys()) :
+                    tmpVar.__dict__[a]=dumVar.__dict__[a]
+                self.__dict__[par] =  tmpVar
+            elif isinstance(self.__dict__[par],np.ndarray):
+                self.__dict__[par] = self.__dict__[par].compress(flag)
+            elif isinstance(self.__dict__[par],list):
+                self.__dict__[par] = (np.array(self.__dict__[par])[flag]).tolist()
             if (hasattr(self.__dict__[par], '_dimensions')) : self.__dict__[par]._dimensions['time']=self._dimensions['time']
 
     def get_file(self,pattern):
@@ -764,8 +811,13 @@ class hydro_data(object):
         :keyword flag: an indexation flag array
         :keyword round: round the limits to the south-west and north-east.
         '''
-        if flag is None : limit = [self.lat.min(),self.lon.min(),self.lat.max(),self.lon.max()]
-        else : limit = [self.lat.compress(flag).min(),self.lon.compress(flag).min(),self.lat.compress(flag).max(),self.lon.compress(flag).max()]
+        if flag is None : limit = [self.lat.min(),self.lon.min(),self.lat.max(),self.lon.max()] \
+                                   if (self.__dict__.has_key('lat') and self.__dict__.has_key('lon')) \
+                                   else [-90,0,90,360]
+        else : limit = [self.lat.compress(flag).min(),self.lon.compress(flag).min(),self.lat.compress(flag).max(),self.lon.compress(flag).max()] \
+                        if (self.__dict__.has_key('lat') and self.__dict__.has_key('lon')) \
+                        else [-90,0,90,360]
+        
         if round :
             limit[0]=np.floor(limit[0])
             limit[2]=np.floor(limit[2])

@@ -2,7 +2,7 @@ from distutils.core import setup
 
 setup(
     name='py-altimetry',
-    version='0.1.0',
+    version='0.3.0',
     author='R. Dussurget',
     author_email='renaud.dussurget@gmail.com',
     packages=['altimetry','altimetry.config','altimetry.data','altimetry.tools','altimetry.externals'],
@@ -13,6 +13,8 @@ setup(
     long_description=open('README.txt').read(),
     install_requires=[
         "numpy",
+        "scipy",
+        "matplotlib",
         "NetCDF4"
     ],
 )

@@ -495,7 +495,11 @@ class nc :
         
         #Open file
         self._filename = filename
-        ncf = ncfile(self._filename, "r")
+        try:
+            ncf = ncfile(self._filename, "r")
+        except Exception,e:
+            warn(repr(e),stacklevel=2)
+            return {}
         
         #Load global attributes
         akeys = ncf.ncattrs()
@@ -1005,6 +1009,7 @@ def load_ncVar_v2(varName,nc=None,**kwargs):
         
         #Build up output structure
         outStr={'_dimensions':dims,'data':varOut}
+        outStr.update({'_attributes':attrStr})
         dims.update({'_ndims':len(dims.keys()[1:])})
         
         return outStr

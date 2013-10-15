@@ -130,9 +130,18 @@ class alti_data(htools.hydro_data) :
         '''
         set satellite name using (cf. notes on file names in `altimetry.data.alti_data.__init__`)
         '''
+        if self.count == 0 : return
         self.sat=[]
         for enum in enumerate(self.filelist):
-            self.sat=np.append(self.sat,[enum[1].split('_')[2]]*self.filelist_count[enum[0]])
+            
+            if hasattr(self, 'id') : sat = self.id
+            elif (self.datatype == 'DT') | (self.datatype == 'NRT') | (self.datatype == 'PISTACH') : sat = [enum[1].split('_')[2]]
+            elif (self.datatype == 'CTOH') : sat = [enum[1].split('.')[-4]]
+            else : sat = 'N/A'
+            
+            if len(sat) == 1 : sat*self.filelist_count[enum[0]]
+            self.sat=np.append(self.sat,sat)
+            
         self.sat=np.ma.array(self.sat,mask=False) 
     
     def read(self,filename,datatype=None,slaext=False,**kwargs):
@@ -166,16 +175,18 @@ class alti_data(htools.hydro_data) :
 #        else :
 #            datatype='RAW' #Setup default as raw NetCDF file
         
+        self.datatype=datatype
+        
         if (datatype == 'DT') | (datatype == 'NRT') | (datatype == 'PISTACH') :
             if slaext : outStr=self.read_slaext(filename,datatype=datatype,**kwargs)
             else : outStr=self.read_sla(filename,datatype=datatype,**kwargs)
-            self.update_fid_list(os.path.basename(filename),outStr['_dimensions']['time'])
+            if outStr.has_key('_dimensions'): self.update_fid_list(os.path.basename(filename),outStr['_dimensions']['time'])
         elif (datatype == 'CTOH') :
             outStr=self.read_CTOH(filename,**kwargs)
-            self.update_fid_list(os.path.basename(filename),outStr['_dimensions']['time'])
+            if outStr.has_key('_dimensions'): self.update_fid_list(os.path.basename(filename),outStr['_dimensions']['time'])
         else: #Setup default as raw NetCDF file
             outStr=self.read_nc(filename,**kwargs)
-            self.update_fid_list(os.path.basename(filename),outStr['_dimensions'][outStr['_dimensions'].keys()[1]])
+            if outStr.has_key('_dimensions'): self.update_fid_list(os.path.basename(filename),outStr['_dimensions'][outStr['_dimensions'].keys()[1]])
         
         
         return outStr
@@ -195,9 +206,13 @@ class alti_data(htools.hydro_data) :
         
         self.message(2,'Reading AVISO DT data ({0})'.format(datatype))
         
-        #Open file
+                #Open file
         self._filename = filename
-        self._ncfile = ncfile(self._filename, "r")
+        try:
+            self._ncfile = ncfile(self._filename, "r")
+        except Exception,e:
+            self.warning(1, repr(e))
+            return {}
         
         #Get delimiter
         if os.path.basename(filename).count('.') > os.path.basename(filename).count('_'): delim='.'
@@ -365,7 +380,12 @@ class alti_data(htools.hydro_data) :
         
         for i in ['DeltaT','NbPoints','Cycles','Tracks','DataIndexes'] : par_list.pop(par_list.index(i))
         
-        outStr={'_dimensions':dimStr,'lon':lon,'lat':lat,'date':date,'cycle':cycles,'track':tracks}
+        outStr={'_dimensions':dimStr,
+                'lon':lon,
+                'lat':lat,
+                'date':date,
+                'cycle':cycles,
+                'track':tracks}
         
         
         
@@ -420,7 +440,11 @@ class alti_data(htools.hydro_data) :
         
         #Open file
         self._filename = filename
-        self._ncfile = ncfile(self._filename, "r")
+        try:
+            self._ncfile = ncfile(self._filename, "r")
+        except Exception,e:
+            self.warning(1, repr(e))
+            return {}
         
         #Get delimiter
         if os.path.basename(filename).count('.') > os.path.basename(filename).count('_'): delim='.'
@@ -479,7 +503,7 @@ class alti_data(htools.hydro_data) :
             exec(cmd)
             outStr.update(dumStr)
         
-        id=np.repeat(sat_name,sz)
+        id={'data':np.repeat(sat_name,sz)}
         
         
         outStr.update({'id':id})
@@ -498,14 +522,23 @@ class alti_data(htools.hydro_data) :
         
         #Open file
         self._filename = filename
-        self._ncfile = ncfile(self._filename, "r")
+        try:
+            self._ncfile = ncfile(self._filename, "r")
+        except Exception,e:
+            self.warning(1, repr(e))
+            return {}
+
+        
+        #Get file infos from filename
         
         #Get delimiter
         delim = '.'
         
         #Gat sat name
         splitted=os.path.basename(filename).split(delim)
-        sat_name = splitted[4]
+        sat_name = splitted[3]
+        track = np.ma.masked_array(int(splitted[-2]))
+        ntracks=1
      
         #Get list of recorded parameters:
         par_list=[i.encode() for i in self._ncfile.variables.keys()]
@@ -521,74 +554,79 @@ class alti_data(htools.hydro_data) :
         
         #Extract within limits
         ind, flag = in_limits(lon['data'],lat['data'],limit=self.limit)
-        dim_lon = lon['_dimensions']
-        lat = lat['data'].compress(flag)
-        lon = lon['data'].compress(flag)
-        dist=cumulative_distance(lat, lon)
+        latout = lat.pop('data').compress(flag)
+        lonout = lon.pop('data').compress(flag)
+        nlon = len(lonout)
         
-        sz=np.shape(lon)
-        ndims=np.size(sz)
+        #Get cycles
+        cycle = self.load_ncVar('cycle',**kwargs)
+        cycleout = cycle.pop('data')
+        ncycles = len(cycleout)
         
-        #Get date table and convert it to dimension
-        date = self.load_ncVar('time',nbpoints=ind,**kwargs)
+        N = ncycles * nlon
         
-#        mn = np.min(date['data'],1)
-#        mx = np.max(date['data'],1)
-#        trange=mx - mn
-#        mxid = np.argmax(trange)
-#        mxtrange = trange[mxid] #Get maximum time range
-#        deltat = (date['data'][mxid]))[0,1:data[mxid].mes-1] - (*(data[mxid].data))[0,0:data[mxid].mes-2]
+        mask=np.repeat(lonout.mask,ncycles) & np.repeat(latout.mask,ncycles) & np.repeat(cycleout.mask,nlon)
         
-#        ;Get theoretical time range
-#          FOR i=0, N_ELEMENTS(data) - 1 DO mn = (i EQ 0)? (*(data[i].data))[0,0] : [mn,(*(data[i].data))[0,0]]; Get minimum time at each time series
-#          FOR i=0, N_ELEMENTS(data) - 1 DO mx = (i EQ 0)? (*(data[i].data))[0,data[i].mes - 1] : [mx,(*(data[i].data))[0,data[i].mes - 1]] ;same for max time
-#          trange=[mx - mn] ;Get time range for each time series
-#          mxtrange=max(trange,mxid) ;Get maximum time range
-#          deltat=(*(data[mxid].data))[0,1:data[mxid].mes-1] - (*(data[mxid].data))[0,0:data[mxid].mes-2]
-#          hist=HISTOGRAM(deltat,LOCATIONS=loc,BINSIZE=1);Put deltat into 1 day boxes
-#          dum=MAX(hist,histmx) ;Get modal class
-#          tstep=MAX(deltat[WHERE(deltat LT loc[histmx] + 1.AND deltat GT loc[histmx])]) ;delta is the time spelled btw.
-#                                                                                        ;max time from previous pass and
-#                                                                                        ;min time of following pass.
-#                                                                                        ;Thus the greatest time is the closest
-#                                                                                        ;to the complete cycle
-#          
-#          ;tstep=MIN(DERIV((*(data[mxid].data))[0,*]))
-#        ;  nt=ROUND(( (*(data[mxid].data))[0,data[mxid].mes - 1] - (*(data[mxid].data))[0,0] ) / tstep) + 1
-#          nt=LONG(ROUND(( (*(data[mxid].data))[0,data[mxid].mes - 1] - (*(data[mxid].data))[0,0] ) / tstep) + 1)
-#        ;  theoretical_time=Scale_Vector(DINDGEN(nt), MEDIAN(mn),MEDIAN(mx))
-#          
-#          theoretical_time=DINDGEN(nt)*tstep + MIN(mn) ;This is the theoretical time from reference date MIN(min)
+        #update index
+        ind = np.repeat(ind, ncycles)
         
         
-        dimStr = date['_dimensions']
-        date=date['data']
+        lon={'_dimensions':{'_ndims':1,'time':N},
+             '_attributes':lon['_attributes'],
+             'data':np.ma.masked_array(np.repeat(lonout.data,ncycles),mask=mask),
+             'long_name':'longitude'}
+#         lon.update()
         
-        outStr={'_dimensions':dimStr,'lon':lon,'lat':lat,'date':date}
+        lat={'_dimensions':{'_ndims':1,'time':N},
+             '_attributes':lat['_attributes'],
+             'data':np.ma.masked_array(np.repeat(latout.data,ncycles),mask=mask),
+             'long_name':'latitude'}
+        
+        cycle={'_dimensions':{'_ndims':1,'time':N},
+               '_attributes':cycle['_attributes'],
+             'data':np.ma.masked_array(np.repeat(cycleout.data,nlon),mask=mask),
+             'long_name':'cycle_number'}
+        
+        track={'_dimensions':{'_ndims':1,'time':N},
+               'data':np.ma.masked_array(np.repeat(track,N),mask=mask),
+               'long_name':'track_number'}
+        
+        outStr={'_dimensions':{'_ndims':1,'time':N},
+                'lon':lon,
+                'lat':lat,
+                'track':track,
+                'cycle':cycle}
         
         for param in par_list :
             dumVar = self.load_ncVar(param,time=ind,**kwargs) #Load variables
-            dimStr=dumVar['_dimensions']
+            dimStr=dumVar.pop('_dimensions')
+            attrStr=dumVar.pop('_attributes')
             
-            #update dimensions
-            curDim = [str(dimname) for dimname in dimStr.keys()[1:]] #[str(dimname) for dimname in self._ncfile.variables['LONGITUDE'].dimensions]
-            curDimval = [dimStr[dim] for dim in curDim] #[len(self._ncfile.dimensions[dimname]) for dimname in curDim]
-            flag = [(np.array(dimname) == outStr['_dimensions'].keys()).sum() == 0 for dimname in curDim] #find dimensions to update
-            dimUpdate = np.array(curDim).compress(flag)
-            for enum in enumerate(dimUpdate) : 
-                self.message(3, 'Appending dimensions {0}:{1} to dataStructure'.format(enum[1],np.array(curDimval).compress(flag)[enum[0]]))
-                outStr['_dimensions'].update({enum[1]:np.array(curDimval).compress(flag)[enum[0]]}) #Append new dimension
-                outStr['_dimensions']['_ndims']+=1 #update dimension counts
+            #Get dimension properties
+#             curDim = [str(dimname) for dimname in dimStr.keys()[1:]] #[str(dimname) for dimname in self._ncfile.variables['LONGITUDE'].dimensions]
+#             curDimval = [dimStr[dim] for dim in curDim] #[len(self._ncfile.dimensions[dimname]) for dimname in curDim]
             
-            cmd = 'dumStr = {\''+param.lower()+'\':dumVar[\'data\']}'
+            #Repeat if only 1 dim
+            if dimStr['_ndims'] == 1:
+                dumVar={'data':np.ma.repeat(dumVar.pop('data'),N/dimStr[dimStr.keys()[dimStr['_ndims']]])}
+            #Else flatten
+            else :
+                dumVar={'data':dumVar.pop('data').flatten()}
+                
+            #update with dimensions
+            dumVar['_dimensions']=outStr['_dimensions'].copy()
+            dumVar['_attributes']=attrStr
+                  
+            cmd = 'dumStr = {\''+param.lower()+'\':dumVar}'
             self.message(4, 'exec : '+cmd)
             exec(cmd)
             outStr.update(dumStr)
         
-        id=np.repeat(sat_name,sz)
-        
-        
-        outStr.update({'id':id})
+#         id={'_dimensions':{'_ndims':1,'time':N},
+#             'data':np.repeat(sat_name,N)}
+#          
+#          
+#         outStr.update({'id':id})
         self._ncfile.close()
         
         return outStr
