@@ -559,7 +559,7 @@ class alti_data(htools.hydro_data) :
         nlon = len(lonout)
         
         #Get cycles
-        cycle = self.load_ncVar('cycle',**kwargs)
+        cycle = self.load_ncVar('cycle',time=ind,**kwargs)
         cycleout = cycle.pop('data')
         ncycles = len(cycleout)
         
@@ -584,7 +584,7 @@ class alti_data(htools.hydro_data) :
         
         cycle={'_dimensions':{'_ndims':1,'time':N},
                '_attributes':cycle['_attributes'],
-             'data':np.ma.masked_array(np.repeat(cycleout.data,nlon),mask=mask),
+             'data':np.ma.masked_array(np.repeat(cycleout.data,nlon).reshape((ncycles,nlon)).T.flatten(),mask=mask),
              'long_name':'cycle_number'}
         
         track={'_dimensions':{'_ndims':1,'time':N},
