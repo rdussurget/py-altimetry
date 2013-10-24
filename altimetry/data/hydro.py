@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from netCDF4 import Dataset as ncfile
 import copy
 
-from altimetry.tools.nctools import load_ncVar, load_ncVar_v2, nc as ncobj
+from altimetry.tools.nctools import load_ncVar, load_ncVar_v2, nc as ncobj, dimStr
 try:
     import seawater.csiro as csw
 except ImportError:
@@ -129,7 +129,7 @@ class hydro_data(object):
         array containing the dimensions of each parameter
         '''
         
-        self._dimensions={'_ndims':0}
+        self._dimensions=dimStr()
         '''
         dimensional strucutre
         '''
@@ -179,14 +179,18 @@ class hydro_data(object):
         isStructure = True if isinstance(dataStr[keys[0]],dict) else False
         
 #        datalen = [np.size(dataStr[key]) for key in keys]
-        datalen = [list(np.shape(dataStr[key]['data'])) for key in keys] if isStructure else [list(np.shape(dataStr[key])) for key in keys] #####!!!!!! WARNING!!!! NEW FEATURE TO TEST
+        datalen = [list(np.shape(dataStr[key]['data'])[::-1]) for key in keys] if isStructure else [list(np.shape(dataStr[key])[::-1]) for key in keys] #Shape is inverted wrt to order of dimensions to be consistent with check_variable
         if isStructure :
-            varDim = [list(dataStr[key]['_dimensions'])[1:][::-1] for key in keys]
+            varDim = [list(dataStr[key]['_dimensions'])[1:] for key in keys]
             ind = [where_list(vDim,dimensions[0]) for vDim in varDim] #Dimensions indices from actual variables' dimensions
+            
             #Check dimension lengths
-            dimOk = np.array([enum[1][0] == dimensions[1][ind[enum[0]][0]] for enum in enumerate(datalen)])
-            if (~dimOk).sum() > 0 : 
-                notOk = np.where(~dimOk)[0]
+#             dimOk = np.array([enum[1][0] == dimensions[1][ind[enum[0]][0]] for enum in enumerate(datalen)])
+            dimOk = [any([enum[1][ii] == dimensions[1][jj] for ii,jj in enumerate(ind[enum[0]])]) for enum in enumerate(datalen)]
+            
+
+            if any([not d for d in dimOk]) : 
+                notOk = np.where(~np.array(dimOk))[0]
                 self.Error('Problem with {0} variables : {1}'.format(len(notOk),','.join(np.array(dataStr.keys())[notOk])))
         else :
             ind = [where_list(dlen,dimensions[1]) for dlen in datalen] #Dimensions indices from variable length
@@ -227,7 +231,8 @@ class hydro_data(object):
                 dumStr=dataStr.get(key)
                 dumStr.update({'data':dum})
                 dum=dumStr
-                
+
+            dumDim=dimStr(dimname[ind],datalen[ind])
 
 #             if dataStr[key].has_key('_attributes'):
 #                 dum.update(dataStr[key]['_attributes'])
@@ -243,7 +248,7 @@ class hydro_data(object):
             #Initialize variable if required
 #            if toCreate :
 #            updateDim.append(self.create_Variable(key, dum, dimensions={dimname[ind]:datalen[ind]},toCreate=toCreate[ind],createDim=createDim[ind]))
-            updateDim.append(self.create_Variable(key, dum, dimensions=dict(zip(dimname[ind],datalen[ind])),toCreate=toCreate[ind],createDim=createDim[ind]))
+            updateDim.append(self.create_Variable(key, dum, dimensions=dumDim,toCreate=toCreate[ind],createDim=createDim[ind]))
 
         
         
@@ -347,7 +352,18 @@ class hydro_data(object):
         for enum in enumerate(infos):
             varSize = np.size(self.__dict__.get(enum[1][0]))
             varShape = np.shape(self.__dict__.get(enum[1][0]))[::-1] #Data and Netcdf dimensions are inverted (not allways?)
-            dimSize = tuple([(self._dimensions).get(d) for d in enum[1][1]])
+            
+            if hasattr(self.__dict__.get(enum[1][0]),'_dimensions') :
+                dumDim = self.__dict__.get(enum[1][0])._dimensions
+                dumDim.pop('_ndims')
+                dimSize = tuple(dumDim.values())
+            elif self.__dict__.get(enum[1][0]).has_key('_dimensions'):
+                dumDim = self.__dict__.get(enum[1][0])['_dimensions']
+                dumDim.pop('_ndims')
+                dimSize = tuple(dumDim.values())
+            else :
+                dimSize = tuple([(self._dimensions).get(d) for d in enum[1][1]])
+                
             masked = isinstance(self.__dict__.get(enum[1][0]), np.ma.masked_array)
             
             #Check mask consistency (mask length should be the same as data)
@@ -518,7 +534,6 @@ class hydro_data(object):
         
         curDim, nself=self.get_currentDim()
         
-        
         curInd=np.array(where_list(dimName,curDim[0]))
         curDimVal=np.array(where_list(dimVal,curDim[1]))
         
@@ -545,7 +560,7 @@ class hydro_data(object):
         # 4: impossible case ?
         if createDim.any() & toCreate :           
             #Create Variable
-            self.message(4,'Create variable '+name)
+            self.message(4,'Create variable %s '+name)
 #            self.__setattr__(name,value)
 #            cmd='self.'+name+'=value'
 
@@ -610,8 +625,7 @@ class hydro_data(object):
         
         #Append dimensions to variable
         if not dimensions.has_key('_ndims') :
-            dumDim={'_ndims':len(dimensions.keys())}
-            dumDim.update(dimensions)
+            dumDim=dimStr(dimensions)
             dimensions=dumDim.copy()
         value.__setattr__('_dimensions',dimensions)
         
@@ -657,10 +671,12 @@ class hydro_data(object):
         returns the current dimensions of the object
         '''
         selfDim = self._dimensions.copy()
-        if selfDim.has_key('_ndims') : nself = selfDim.pop('_ndims')
-        else : 
-            self.warning(1, 'self._dimensions does not have the _ndims key')
-            nself = len(selfDim)
+        if not isinstance(selfDim,dimStr):
+            if selfDim.has_key('_ndims') : nself = selfDim.pop('_ndims')
+            else : 
+                self.warning(1, 'self._dimensions does not have the _ndims key')
+                nself = len(selfDim)
+        else : nself = selfDim['_ndims']
         curDim = [[key for key in selfDim.keys()],[selfDim[key] for key in selfDim.keys()]]
         return curDim, nself
     

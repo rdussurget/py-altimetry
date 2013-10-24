@@ -4,6 +4,7 @@ from Tkinter import Tk
 import inspect
 import getpass, socket #User and Host names
 from warnings import warn
+import collections
 
 def get_zero_element(array):
     try : array = array.flat.next()
@@ -42,6 +43,15 @@ def where_list(list1,list2):
             index.append(-1)
 
     return index
+
+def isiterable(item):
+    """
+    Check if item is iterable
+    """
+    if isinstance(item, collections.Iterable):
+        if not isinstance(item,str)  :return True
+        else : return False
+    else : False
 
 ##from scipy.interpolate import lagrange, BarycentricInterpolator, barycentric_interpolate
 #def deprecated_deriv(*args):

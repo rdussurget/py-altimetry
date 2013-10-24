@@ -650,8 +650,9 @@ class alti_data(htools.hydro_data) :
         #Remove attributes already existing in data object
         for a in self.__dict__.keys():
             if outStr.has_key(a) and not a.startswith('_') :
-                if remove_existing : outStr.pop(a)
-                self.message(4, 'Attribute {0} already exists'.format(a))
+                if remove_existing :
+                    outStr.pop(a)
+                    self.message(2, 'Attribute {0} already exists - removing it (set remove_existing to False instead)'.format(a))
         
         return outStr
 

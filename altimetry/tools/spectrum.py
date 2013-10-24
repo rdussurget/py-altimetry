@@ -542,7 +542,7 @@ def preprocess(lat,lon,sla,
         
     #Remove profiles with less than 3 points
     ok=np.where(sla.mask.sum(axis=1) < (nx -3))[0]
-    if (nt != len(ok)) : message(2, '%i time steps on %i removed: contain less than 3 valid data points' % (nt - len(ok),nt))
+    if (nt != len(ok)) : message(2, '%i time steps on %i removed: contain less than 3 valid data points' % (nt - len(ok),nt),verbose=verbose)
     dumsla=dumsla[ok,:]
     ntinit=nt
     nt=len(ok)
@@ -607,7 +607,7 @@ def preprocess(lat,lon,sla,
         id1 = np.where(gapmax <= max_gap)[0] if not leave_gaps else ok
         
         if len(id1) == 0 : raise Exception('[ERROR] : All gaps in current track are greater than the maximum specified gap')
-        if (len(id1) != nt) : message(2, '%i time steps on %i removed: gaps > %i point' %(nt - len(id1), ntinit, int(max_gap)))
+        if (len(id1) != nt) : message(2, '%i time steps on %i removed: gaps > %i point' %(nt - len(id1), ntinit, int(max_gap)),verbose=verbose)
         
         dumsla=dumsla[id1,:]
         
@@ -623,7 +623,7 @@ def preprocess(lat,lon,sla,
         id2 = np.where( per <= per_min)[0]
         
         if len(id2) == 0 : raise Exception('[ERROR] : All time steps in current track have a percentage of invalid data > than the maximum allowed (%i)' % int(per_min))
-        if (len(id2) != len(id1)) : message(2, '%i time steps on %i removed: exceed maximum allowed percentage of invalid data (%i)' %(len(id1) - len(id2), ntinit, int(per_min)))
+        if (len(id2) != len(id1)) : message(2, '%i time steps on %i removed: exceed maximum allowed percentage of invalid data (%i)' %(len(id1) - len(id2), ntinit, int(per_min)),verbose=verbose)
         
         dumsla=dumsla[id2,:]
         
@@ -633,7 +633,7 @@ def preprocess(lat,lon,sla,
         dumsla,id3=get_segment(dumsla,N_min,remove_edges=remove_edges,truncate_if_continents=truncate_if_continents,last=last,mid=mid,first=first)
         
         if len(id3) == 0 : raise Exception('[ERROR] : Remaining time steps do not reach the minimum length of %i points' % int(N_min))
-        if (len(id3) != len(id2)) : message(2, '%i time steps no reaching rhe minimum length of %i points have been removed)' %(len(id2) - len(id3), int(N_min)))
+        if (len(id3) != len(id2)) : message(2, '%i time steps no reaching rhe minimum length of %i points have been removed)' %(len(id2) - len(id3), int(N_min)),verbose=verbose)
         
         res=(dumsla, ok[id1[id2[id3]]])
         
@@ -642,7 +642,7 @@ def preprocess(lat,lon,sla,
         res=(dumsla, ngaps, gaplen)
     
     nt=res[0].shape[0]
-    if (nt != ntinit) : message(1, '%i time steps on %i removed by data pre-processing' %(ntinit - nt, ntinit))
+    if (nt != ntinit) : message(1, '%i time steps on %i removed by data pre-processing' %(ntinit - nt, ntinit),verbose=verbose)
     if return_lonlat : res+=(lonout, latout)
     if return_interpolated : res += (dumint,)
     return res

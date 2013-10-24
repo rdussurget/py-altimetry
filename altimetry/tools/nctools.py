@@ -8,10 +8,304 @@ import matplotlib.pylab as pylab
 from netCDF4 import Dataset as ncfile
 import glob
 import os
-from altimetry.tools import recale, in_limits, where_list, recale_limits, get_caller
+from altimetry.tools import recale, in_limits, where_list, recale_limits, get_caller, isiterable
 #import altimetry.data.alti_tools as atools
 from collections import OrderedDict
 from warnings import warn
+from copy import deepcopy
+
+class baseDict(OrderedDict):
+    
+    def __init__(self, *args, **kwargs):
+        keys=kwargs.pop('keys',None)
+        values=kwargs.pop('values',None)
+         
+        if len(args) == 0 : args =(self,)
+        
+        #If 2 arguments, both list arguments become keys and args 
+        elif len(args) == 2 :
+            if isinstance(args[0],list) and isinstance(args[1],list) and (keys is None) and (values is None) :
+                keys,values=args
+                args = (self,)
+        #else len(args) == 1 : an object instance is passed
+        
+        super(baseDict,self).__init__(*args,**kwargs)
+        
+        if keys is not None and values is not None :
+            self.add(keys,values)
+        
+    def copy(self):   
+        return deepcopy(self)
+
+class dimStr(baseDict):
+    '''
+    A dimension structure based on OrderedDict.
+    '''
+    
+    def __init__(self,*args,**kwargs):
+        super(dimStr, self).__init__(*args, **kwargs)
+        self.set_ndims(__init__=True)
+        
+    def get_ndims(self):
+        return len([k for k in self.keys() if k is not '_ndims'])
+    
+    def set_ndims(self,__init__=False,__setitem__=False):
+        #Modify _ndims if it exists or during __init__
+        if self.has_key('_ndims') or __init__ :
+            
+            self['_ndims']=self.get_ndims()
+            
+            #Force pushing _ndims in first
+            if (not __setitem__) : self.reorder()
+            
+    
+    def reorder(self):
+        if self.has_key('_ndims') :
+            if self['_ndims'] > 0 :
+                for k in self.keys():
+                    self[k]=self.pop(k)
+                pass
+            
+    
+    #===========================================================================
+    # Work with dimensions
+    #===========================================================================
+    def add(self,dimlist,dimvalues):
+        '''
+        add dimensions
+        
+        :parameter dimlist: list of dimensions
+        :parameter dimvalues: list of values for dimlist
+        '''
+        for i,d in enumerate(dimlist):
+            self[d] = dimvalues[i]
+        
+        self.set_ndims()
+    
+    def put(self,*args):
+        '''
+        Wrapper to add
+        '''
+        self.addDim(*args)
+        
+        
+    def get(self,dimlist):
+        '''
+        get dimensions
+        :parameter dimlist: list of dimensions
+        '''
+        out=()
+        for d in enumerate(dimlist):
+            out+=(self.get(d,None),)
+         
+        return out
+    
+    def pop(self,*args):
+        '''
+        pop dimensions
+        :parameter dimlist: list of dimensions
+        :return: popped dimensions (tuple)
+        
+        .. note: overrides :func:`OrderedDict.pop`
+        '''
+        nargs=len(args)
+        dimlist=args[0] if isiterable(args[0]) else [args[0]]
+        missing=args[1] if nargs > 1 else None 
+        out=()
+        for d in dimlist:
+            out+=(super(dimStr, self).pop(d,missing),)
+            if out[-1] == missing : self.set_ndims()
+        
+        return out if len(out) > 1 else out[0]
+
+    def __setitem__(self, *args,**kwargs):
+        OrderedDict.__setitem__(self, *args, **kwargs)
+        if args[0] != '_ndims' :self.set_ndims(__setitem__=True)
+
+    def keys(self):
+        return [k for k in super(dimStr, self).keys() if k != '_ndims']
+
+    def values(self):
+        return [self[k] for k in super(dimStr, self).keys() if k != '_ndims']
+
+class attrStr(baseDict):
+    '''
+    An attribute structure based on OrderedDict.
+    '''
+    
+#     def __init__(self,*):
+#         super(attrStr,self).__init__()
+#         if attrlist is not None : self.add(attrlist,attrlist)
+    
+    def add(self,attrlist,attrvalues):
+        '''
+        add an attribute
+        
+        :parameter dimlist: list of dimensions
+        :parameter dimvalues: list of values for dimlist
+        '''
+        for i,d in enumerate(attrlist):
+            self[d] = attrvalues[i]
+    
+    def put(self,*args):
+        '''
+        Wrapper to addDim
+        '''
+        self.addDim(*args)
+        
+        
+#     def get(self,dimlist):
+#         '''
+#         '''
+#         out=()
+#         for d in enumerate(dimlist):
+#             out+=(self['_dimensions'].get(d,None),)
+#         
+#         return out
+    
+    def pop(self,*args):
+        '''
+        pop dimensions from data structure.
+        :parameter dimlist: list of dimensions
+        :return: popped dimensions (tuple)
+        
+        .. note: overrides :func:`OrderedDict.pop`
+        '''
+        nargs=len(args)
+        dimlist=args[0] if isiterable(args[0]) else [args[0]]
+        missing=args[1] if nargs > 1 else None 
+        out=()
+        for d in dimlist:
+            out+=(super(attrStr, self).pop(d,missing),)
+        
+        return out if len(out) > 1 else out[0]
+    
+class dataStr(baseDict):
+    '''
+    Data structure class to be used with altimetry.tools.nctools.nc
+    '''
+    
+    def __init__(self,*args,**kwargs):
+        super(attrStr,self).__init__(*args,**kwargs)
+        self['_dimensions']=dimStr()
+        '''
+        Dimensions structure
+        '''
+        
+        self['_attributes']=attrStr()
+        '''
+        Attributes structure
+        '''
+    
+    def add(self,struct):
+        if isinstance(struct,varStr): self[struct.getVarName(self)]=struct
+        elif isinstance(struct,attrStr): self['_attributes'].put(struct)
+        elif isinstance(struct,dimStr): self['_dimensions'].put(struct)
+    
+    def put(self,*args):
+        self.add(*args)
+    
+    def getStructVars(self):
+        return [k for k in self.keys() if isinstance(self[k],varStr)]
+    
+    def getStructDims(self):
+        return [k for k in self.keys() if isinstance(self[k],dimStr)]
+    
+    def getStructAttr(self):
+        return [k for k in self.keys() if isinstance(self[k],attrStr)]
+    
+class varStr(dataStr):
+    '''
+    Data structure class containing variables
+    
+    :keyword name: Name of the variable. Stored in :attr:`varStr.name`
+    :keyword (dimStr,dict or OrderedDict) dimensions: Dimension structure .
+    :keyword dimlist: list of variable dimension names. Their order will be kept.
+    :keyword optional dimvalues: list of values associated with dimlist.
+        
+    :keyword (attrStr,dict or OrderedDict) attributes: Attribute structure.
+    :keyword attrlist: list of variable attribute names. Their order will be kept.
+    :keyword optional attrvalues: list of values associated with attrist.
+    
+    
+    .. note : if dict are used in :param:`dimensions` and :param:`attributes`, dimensions may not be in proper order. Use dimlist and attrlist instead to keep order.
+      
+    '''
+    
+    def __init__(self,
+                 name=None,
+                 dimensions=None,
+                 dimlist=None,
+                 dimvalue=None,
+                 attributes=None,
+                 attrlist=None,
+                 attrvalues=None,
+                 data=None):
+        
+        #Init parent object
+        dataStr.__init__(self)
+        
+        #Set variable name
+        self.name = name
+        
+        #Set variable dimensions
+        if dimensions is not None and isinstance(dimensions,(dimStr,dict,OrderedDict)):
+            dimlist = dimensions.keys()
+            dimvalue = dimensions.values()
+        if dimlist is not None :
+            if dimvalue is None : dimvalue = [None for d in dimlist]
+            self['_dimensions'].add(dimlist,dimvalue)
+        
+        #Set variable attributes
+        if attributes is not None and isinstance(attributes,(attrStr,dict,OrderedDict)):
+            attrlist = attributes.keys()
+            attrvalues = attributes.values()
+        if attrlist is not None :
+            self['_attributes'].add(attrlist,attrvalues)
+        
+        #Set variable data
+        if data is not None : self['data']=data
+        
+        #Reform attributes
+        for d in self['_attributes'].keys():
+            self[d] = self['_attributes'].pop(d)
+        self.pop('_attributes')
+        
+    def getVarName(self,parent):
+        
+        name = None
+        if hasattr(self, 'name') : name =  self.__dict__.pop('name',None)
+        
+        if name is None :
+            varNames=parent.getStructVars()
+            if len(np.shape(self['data'])) == 1 :
+                nvars = len([v for v in varNames if v.startswith("Param_")])
+                name =  "Param_%04i" % (nvars+1)
+            elif len(np.shape(self['data'])) == 2 :
+                nvars = len([v for v in varNames if v.startswith("Grid_")])
+                name = "Grid_%04i" % (nvars+1)
+            elif len(np.shape(self['data'])) == 3 :
+                nvars = len([v for v in varNames if v.startswith("Matrix_")])
+                name = "Matrix_%04i" % (nvars+1)
+        
+        return name
+
+class ncStr(dataStr):
+    '''
+    Data structure class containing NetCDF data.
+    '''
+    
+    def __init__(self,
+                 dimlist=None,
+                 dimvalues=None,
+                 attrlist=None,
+                 attrvalues=None):
+        
+        dataStr.__init__(self)
+        if dimlist is not None : self['_dimensions'].add(dimlist,dimvalues)
+        if attrlist is not None : self['_attributes'].add(attrlist,attrvalues)
+    
+
 
 class nc :
     
@@ -429,7 +723,7 @@ class nc :
         
         #Setup file list
         if isinstance(file_pattern, str) : ls = glob.glob(file_pattern)
-        else :
+        elif isinstance(file_pattern,np.ndarray) :
             ls = file_pattern.tolist()
             file_pattern = file_pattern[0]
         
@@ -820,7 +1114,11 @@ def load_ncVar(varName, nc=None, **kwargs):
         #Load dimensions
         varDim = [str(dim) for dim in var.dimensions]
         missDim=len(varDim) == 0
-        if (missDim): warn('No dimension found')
+        if (missDim):
+            warn('No dimension found - creating it')
+            sh=var[:].shape
+            varDimval = sh
+            varDim = ['dim_%02i' % (i+1) for i in xrange(len(varDimval))]
         else : varDimval = [len(nc.dimensions[dimname]) for dimname in varDim]
         
         #Load Attributes

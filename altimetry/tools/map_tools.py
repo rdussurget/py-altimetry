@@ -443,7 +443,7 @@ class plot_map(Basemap):
 
 def load_bathy(bathy='MENOR',**kwargs):
     
-    if not bathy.set : raise Exception('Bathymetry not set : check your altimetry.config module')
+    if not bathy.set : Warning('Bathymetry not set : check your altimetry.config module')
     
     if bathy.ext == '.nc' :
         ncf=nc.nc()
