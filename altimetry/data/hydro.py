@@ -15,11 +15,13 @@ from altimetry.tools.nctools import load_ncVar, load_ncVar_v2, nc as ncobj, dimS
 try:
     import seawater.csiro as csw
 except ImportError:
-    warn("Module seawater doesn't exists. not loading it")
+    warn("[WARNING:%s] Module seawater doesn't exists. not loading it" % __name__)
     pass # module doesn't exist, deal with it.
 
 #import alti_tools as atools
-from scipy import interpolate
+try : from scipy import interpolate
+except ImportError :
+    warn("[WARNING:%s] module scipy not found" % __name__)
 
 from altimetry.tools import recale_limits, in_limits, cumulative_distance, calcul_distance, \
     where_list, \

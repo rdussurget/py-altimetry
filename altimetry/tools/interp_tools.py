@@ -1,11 +1,14 @@
 # -*- coding: utf-8 -*-
 import numpy as np
-import scipy.interpolate
 import threading
 import Queue
 import bisect
 import operator
 import datetime
+try : import scipy.interpolate
+except ImportError :
+    from warnings import warn
+    warn("[WARNING:%s] module scipy not found" % __name__)
 if __debug__ : import matplotlib.pyplot as plt
 
 def lagrange(x, x_values, y_values):

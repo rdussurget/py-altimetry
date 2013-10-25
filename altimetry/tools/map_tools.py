@@ -6,7 +6,10 @@ import numpy as np
 from altimetry import defaults
 from altimetry.tools import track_orient, in_limits, calcul_distance, recale, nctools as nc
 from collections import OrderedDict
-from scipy import io
+try : from scipy import io
+except ImportError :
+    from warnings import warn
+    warn("[WARNING:%s] module scipy not found" % __name__)
 
 class plot_map(Basemap):
     def __init__(self,*args,**kwargs):
