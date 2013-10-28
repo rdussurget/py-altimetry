@@ -246,6 +246,7 @@ def spectral_analysis(dx,Ain,tapering=None,overlap=None,wsize=None,alpha=3.0,det
         notaper = np.ones(wsize) #overpass tapering option
         gain=1.0
         
+        
         if isinstance(tapering,bool) : which='hamm'
         elif isinstance(tapering,str) :
             if tapering.upper() == 'HAMMING' :
@@ -264,11 +265,12 @@ def spectral_analysis(dx,Ain,tapering=None,overlap=None,wsize=None,alpha=3.0,det
                 which='blackman'
                 gain=np.sum(blackman)/wsize
             else : raise Exception('Unknown taper {0}'.format(tapering))
-        elif isinstance(tapering,np.ndarray) : pass
+        elif isinstance(tapering,np.ndarray) :
+            which='tapering'
+            gain=np.sum(tapering)/wsize
         else :
             raise Exception('Bad value for tapering keyword')
-        if not isinstance(tapering,np.ndarray) : exec('window='+which)
-        else : window=tapering
+        xec('window='+which)
         window = np.repeat(window,nn*nr).reshape((wsize,nn,nr))
     
         #Apply tapering on segmented data
