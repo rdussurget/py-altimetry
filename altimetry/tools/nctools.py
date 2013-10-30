@@ -597,10 +597,10 @@ class nc :
             root_grp.setncatts(attrStr)
         
         #Get dimensions
-        dimStr=data.pop('_dimensions')
-        ndims=dimStr.pop('_ndims')
-        dimlist = dimStr.keys()
-        dimVal = dimStr.values()
+        dimDict=data.pop('_dimensions')
+        ndims=dimDict.pop('_ndims')
+        dimlist = dimDict.keys()
+        dimVal = dimDict.values()
         
         #Get variables
         parlist = data.keys()
@@ -610,8 +610,8 @@ class nc :
         
         #Put dimensions
         for d in dimlist :
-            self.message(2, 'Adding D {0}={1}'.format(d,dimStr[d]))
-            root_grp.createDimension(d, dimStr[d])
+            self.message(2, 'Adding D {0}={1}'.format(d,dimDict[d]))
+            root_grp.createDimension(d, dimDict[d])
         
 #        if data.has_key('p')  : self.Error('Variable name \'p\' is not available for use as NetCDF variable name')
         
@@ -621,7 +621,8 @@ class nc :
             #Get dimensions for current variable
             if not data[p].has_key('_dimensions') : self.Error('_dimension attribute is not set for variable'+p)
             pardim=data[p].pop('_dimensions')
-            if isinstance(pardim,dict) :pardim=tuple(pardim.keys()[1:]) if pardim.has_key("_ndims") else tuple(pardim.keys())
+            if isinstance(pardim,dimDict) : pardim=pardim.keys()
+            elif isinstance(pardim,dict) :pardim=tuple(pardim.keys()[1:]) if pardim.has_key("_ndims") else tuple(pardim.keys())
             elif isinstance(pardim,list) : pardim = tuple(pardim)
             elif isinstance(pardim,tuple) : pass
             else : self.Error('_dimensions must be dict, list or tuple - not {0}'.type(pardim)) 
@@ -635,7 +636,7 @@ class nc :
 #            if not (data[p]['data'].dtype == '|S6') and not (data[p]['data'].dtype == '|S2') :
             self.message(2, 'Adding V {0} (dims={{{1}}},attr={{{2}}})'.
                          format(p,
-                                ', '.join(['\'{0}\':{1}'.format(d,dimStr[d]) for d in pardim]),
+                                ', '.join(['\'{0}\':{1}'.format(d,dimDict[d]) for d in pardim]),
                                 ', '.join(['\'{0}\':{1}'.format(d,data[p][d]) for d in data[p].keys() if (d != '_dimensions') and (d != 'data')]) )
                          )
             
