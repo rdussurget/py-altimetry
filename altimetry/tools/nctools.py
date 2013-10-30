@@ -621,7 +621,7 @@ class nc :
             #Get dimensions for current variable
             if not data[p].has_key('_dimensions') : self.Error('_dimension attribute is not set for variable'+p)
             pardim=data[p].pop('_dimensions')
-            if isinstance(pardim,dimDict) : pardim=pardim.keys()
+            if isinstance(pardim,dimStr) : pardim=pardim.keys()
             elif isinstance(pardim,dict) :pardim=tuple(pardim.keys()[1:]) if pardim.has_key("_ndims") else tuple(pardim.keys())
             elif isinstance(pardim,list) : pardim = tuple(pardim)
             elif isinstance(pardim,tuple) : pass
