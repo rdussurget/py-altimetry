@@ -186,7 +186,7 @@ class dataStr(baseDict):
     '''
     
     def __init__(self,*args,**kwargs):
-        super(attrStr,self).__init__(*args,**kwargs)
+        super(dataStr,self).__init__(*args,**kwargs)
         self['_dimensions']=dimStr()
         '''
         Dimensions structure
