@@ -749,7 +749,7 @@ class nc :
             #Read data file
             ###############
             filename = self.dirname+os.sep+self.filelist[i]
-            self.message(0, "Loading " + os.path.basename(filename))
+            self.message(1, "Loading " + os.path.basename(filename))
             
             res = self.load(filename, **kwargs) #read() function is specific of each class
             #self.update_dataset(res) #update class with loaded data
