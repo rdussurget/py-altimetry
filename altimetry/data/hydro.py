@@ -878,7 +878,7 @@ class hydro_data(object):
         par_stats = OrderedDict()
         for p in avail_par :
             var = self.__dict__[p].compress(flag).compressed()
-            par_stats.update({p:{'mean':np.mean(var),'min':np.min(var),'max':np.min(var),'ptp':np.ptp(var),'std':np.std(var),'median':np.median(var)}})
+            par_stats.update({p:{'mean':np.mean(var),'min':np.min(var),'max':np.max(var),'ptp':np.ptp(var),'std':np.std(var),'median':np.median(var)}})
         
         return par_list, valid, per_valid, fname, trange, extent, N, avail_par, avail_par_per, par_stats
     
