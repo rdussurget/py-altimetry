@@ -220,8 +220,12 @@ class alti_data(htools.hydro_data) :
         
         #Gat sat name
         splitted=os.path.basename(filename).split(delim)
-        if (datatype == 'DT') | (datatype == 'NRT') : sat_name = splitted[2] if splitted[0] == 'nrt' else splitted[3]
-        if datatype == 'PISTACH' : sat_name = 'J2'
+        if len(splitted) > 3 :
+	    if (datatype == 'DT') | (datatype == 'NRT') : sat_name = splitted[2] if splitted[0] == 'nrt' else splitted[3]
+	    elif datatype == 'PISTACH' : sat_name = 'J2'
+	    else : sat_name = 'J2'
+	else :
+	    sat_name="N/A"
         
      
         #Get list of recorded parameters:

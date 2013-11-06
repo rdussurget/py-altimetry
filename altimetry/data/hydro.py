@@ -522,7 +522,7 @@ class hydro_data(object):
         #Cast variable into masked array first
         ######################################
         if (not isinstance(value['data'],np.ma.core.MaskedArray) if isStructure else not isinstance(value,np.ma.core.MaskedArray)) :
-            value = np.ma.masked_array(value['data'],mask=np.zeros(tuple(dimVal),dtype='bool')) if isStructure else np.ma.masked_array(value,mask=np.zeros(tuple(dimVal),dtype='bool'))
+            value['data'] = np.ma.masked_array(value['data'],mask=np.zeros(tuple(dimVal),dtype='bool')) if isStructure else np.ma.masked_array(value,mask=np.zeros(tuple(dimVal),dtype='bool'))
             self.message(4,'Casting variable to np.ma.MaskedArray')
         
         #Restructure dataset if structure
@@ -530,6 +530,7 @@ class hydro_data(object):
             dumvalue=value.pop('data')
             if value.has_key('_attributes'):
                 for a in value['_attributes'].keys():
+                    print "copying %s" % a
                     dumvalue.__setattr__(a,value['_attributes'][a])
             value=copy.deepcopy(dumvalue)
         
@@ -874,14 +875,19 @@ class hydro_data(object):
         avail_par = par_list.compress(per_valid > 0)
         avail_par_per = per_valid.compress(per_valid > 0)
         
-        return par_list, valid, per_valid, fname, trange, extent, N, avail_par, avail_par_per
+        par_stats = OrderedDict()
+        for p in avail_par :
+            var = self.__dict__[p].compress(flag).compressed()
+            par_stats.update({p:{'mean':np.mean(var),'min':np.min(var),'max':np.min(var),'ptp':np.ptp(var),'std':np.std(var),'median':np.median(var)}})
+        
+        return par_list, valid, per_valid, fname, trange, extent, N, avail_par, avail_par_per, par_stats
     
     def get_platform_stats(self,id):
         '''
         get statistics based on `altimetry.data.hydro_data.id`
         '''
-        par_list, valid, per_valid, fname, trange, extent, N, avail_par, avail_par_per = self.get_stats(self.id == id)
-        return (fname,trange,extent,N,avail_par,avail_par_per)
+        par_list, valid, per_valid, fname, trange, extent, N, avail_par, avail_par_per, par_stats = self.get_stats(self.id == id)
+        return (fname,trange,extent,N,avail_par,avail_par_per, par_stats)
 
     def get_object_stats(self):
         '''
@@ -899,7 +905,9 @@ class hydro_data(object):
         self.message(0, '\t-> from : '+' - '.join(map(str,stats[1][0])))
         self.message(0, '\t-> extent : ['+', '.join(['{0:.1f}'.format(x) for x in stats[2]])+']')
         self.message(0, '\t-> size : {0} pts'.format(stats[3]))
-        self.message(0, '\t-> variables :'+', '.join(['{0}({1:.0f} %)'.format(i[0],i[1]) for i in zip(*(stats[4],stats[5]))])+']')
+        self.message(0, '\t-> variables : [%s]' % ', '.join(['{0}({1:.0f} %)'.format(i[0],i[1]) for i in zip(*(stats[4],stats[5]))])+']')
+        for p in avail_par :
+			self.message(0,'\t\to %s : {%s}' % (p,','.join(["%s:%f" % (s,stats[6][s]) for s in stats[6].keys()])))
         
     def map(self, flag=None,  fname=None, zoom=False, pmap=None, show=True, **kwargs):
         '''
@@ -927,7 +935,7 @@ class hydro_data(object):
         outputs a summary of the whole current dataset
         """
         
-        par_list, valid, per_valid, fname, trange, extent, N, avail_par, avail_par_per = self.get_object_stats()
+        par_list, valid, per_valid, fname, trange, extent, N, avail_par, avail_par_per, par_stats = self.get_object_stats()
         
         #Print parameter list
         self.message(0, '\n\t  DATA SUMMARY')
@@ -938,8 +946,9 @@ class hydro_data(object):
         self.message(0, '\tSpatial extension: ['+', '.join(['{0:.1f}'.format(x) for x in extent])+']')
         self.message(0, '\tRecords : [{0}]'.format(N))
         self.message(0, '\tAvailable parameters : '+', '.join(map(str,self.par_list))) 
-        self.message(0, '\tParam summary :'+', '.join(['{0}({1:.0f} %)'.format(i[0],i[1]) for i in zip(*(avail_par,avail_par_per))])+']')
-
+        self.message(0, '\tParam summary : [%s]' % ', '.join(['{0}({1:.0f} %)'.format(i[0],i[1]) for i in zip(*(avail_par,avail_par_per))]))
+        for p in avail_par :
+			self.message(0,'\t\to %s : {%s}' % (p,','.join(["%s:%s" % (s,par_stats[p][s]) for s in par_stats[p].keys()])))
         
         if isinstance(fig,str) :
             ffig = fig+'dataset.png'

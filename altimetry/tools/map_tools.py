@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+import os
+from warnings import warn
 import matplotlib.pyplot as plt
 import matplotlib.pylab as pylab
 from mpl_toolkits.basemap import Basemap
@@ -8,7 +10,6 @@ from altimetry.tools import track_orient, in_limits, calcul_distance, recale, nc
 from collections import OrderedDict
 try : from scipy import io
 except ImportError :
-    from warnings import warn
     warn("[WARNING:%s] module scipy not found" % __name__)
 
 class plot_map(Basemap):
@@ -21,7 +22,7 @@ class plot_map(Basemap):
 #                 scale_lat=None,
 #                 s=25,
 #                 c='k',
-#                 limit=None,
+#                 limit=None,cp -rf /home/du2_dev/dev/OCTANT/incl/*
 #                 edgecolor='none'):
     
         #Startup sequence
@@ -385,11 +386,12 @@ class plot_map(Basemap):
         
         s = kwargs['s'] if kwargs.has_key('s') else 25
         edgecolor = kwargs['edgecolor'] if kwargs.has_key('edgecolor') else 'none'
+        bathy = kwargs.get('bathy',not kwargs.get('nobathy',False))
         
         #Plot Sequence
         ##############
         self.drawcoastlines()
-        cs=self.drawbathy(**kwargs)
+        if bathy : cs=self.drawbathy(**kwargs)
         
         self.drawparallels(np.arange(np.floor(self.limit[0]), np.ceil(self.limit[2]), latdel), labels=[1, 0, 0, 0])
         self.drawmeridians(np.arange(np.floor(self.limit[1]), np.ceil(self.limit[3]), londel), labels=[0, 0, 0, 1])
@@ -409,7 +411,7 @@ class plot_map(Basemap):
 #            else : 
 #                if type(z) != type(str()) : z = '.k'
 #                self.plot(lon,lat,z,ms=s)
-        return cs
+        return cs if bathy else None
     
     def drawbathy(self,fname=None,V=[-250,-2000],Nlevels=None,step=None,colors='k',linestyles='dotted', linewidths=2,**kwargs):
 
@@ -418,20 +420,24 @@ class plot_map(Basemap):
             bathy=defaults.menor
         else : bathy = defaults.etopo
         
-        if fname is None :
-            bat=load_bathy(bathy=bathy,limit=self.limit)
+        if os.path.exists(bathy.path) :
+            
+            if fname is None :
+                bat=load_bathy(bathy=bathy,limit=self.limit)
+            else :
+                bat=load_bathy(fname=fname,limit=self.limit)
+            
+            glat,glon=np.meshgrid(np.squeeze(bat['lat']), np.squeeze(bat['lon']))
+            
+            mn=0.01
+            mx=np.nanmin(bat['Z'].data)
+            if Nlevels is not None :
+                if step is None : step = (mx - mn) / Nlevels
+                V = np.arange(mn,mx,step,dtype=np.float)
+            
+            return self.contour(glon,glat,bat['Z'],V,colors=colors,linestyles=linestyles,linewidths=linewidths,**kwargs)
         else :
-            bat=load_bathy(fname=fname,limit=self.limit)
-        
-        glat,glon=np.meshgrid(np.squeeze(bat['lat']), np.squeeze(bat['lon']))
-        
-        mn=0.01
-        mx=np.nanmin(bat['Z'].data)
-        if Nlevels is not None :
-            if step is None : step = (mx - mn) / Nlevels
-            V = np.arange(mn,mx,step,dtype=np.float)
-        
-        return self.contour(glon,glat,bat['Z'],V,colors=colors,linestyles=linestyles,linewidths=linewidths,**kwargs)
+            return self.contour(np.array(self.limit[1,3]),np.array(self.limit[0,2]),np.ones((2,2),dtype=float),np.array([1.,1.]),colors=colors,linestyles=linestyles,linewidths=linewidths,**kwargs)
         
         
         

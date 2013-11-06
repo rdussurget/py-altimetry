@@ -306,7 +306,6 @@ class ncStr(dataStr):
         if attrlist is not None : self['_attributes'].add(attrlist,attrvalues)
     
 
-
 class nc :
     
     '''
@@ -621,7 +620,7 @@ class nc :
             #Get dimensions for current variable
             if not data[p].has_key('_dimensions') : self.Error('_dimension attribute is not set for variable'+p)
             pardim=data[p].pop('_dimensions')
-            if isinstance(pardim,dimStr) : pardim=pardim.keys()
+            if isinstance(pardim,dimStr) : pardim=tuple(pardim.keys())
             elif isinstance(pardim,dict) :pardim=tuple(pardim.keys()[1:]) if pardim.has_key("_ndims") else tuple(pardim.keys())
             elif isinstance(pardim,list) : pardim = tuple(pardim)
             elif isinstance(pardim,tuple) : pass
@@ -753,11 +752,11 @@ class nc :
             self.message(0, "Loading " + os.path.basename(filename))
             
             res = self.load(filename, **kwargs) #read() function is specific of each class
-#            self.update_dataset(res) #update class with loaded data
-#            
-#            self.check_variables()
+            #self.update_dataset(res) #update class with loaded data
+            
+            #self.check_variables()
         
-#        self.update()
+        #self.update()
 
         return(res)
 
