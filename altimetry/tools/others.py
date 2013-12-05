@@ -44,6 +44,20 @@ def where_list(list1,list2):
 
     return index
 
+def argresample(a,**kwargs):
+    '''
+    This function returns the positions needed for resampling a "gappy" vector 
+    
+    :keyword dt: Force sampling at a given resolution. Otherwise uses main data sampling (computed by getting the median value of the derivative)
+    '''
+    
+    dt=kwargs.get('dt',np.median(deriv(a)))
+    
+    h,_=np.histogram(a, bins=(a.max()-a.min())/dt + 1, range=[a.min()-dt/2.,a.max()+dt/2.])
+    
+    return h.astype(bool)
+    
+
 def isiterable(item):
     """
     Check if item is iterable
@@ -201,9 +215,6 @@ def histogram_indices(hist,R):
 
 
 def nanargmin(array,axis=None):
-    shape=array.shape
-    nx=shape[0]
-    ny=shape[1]
     if axis is None : return np.nanargmin()
 
 def nearest(t, x):
@@ -227,9 +238,9 @@ def rad2geo(alpha):
     return theta
 
 def cart2geo(u,v):
-    spd,dir=cart2polar(u, v)
-    dir=rad2geo(dir)
-    return spd,dir
+    spd,d=cart2polar(u, v)
+    d=rad2geo(d)
+    return spd,d
 
 def rms(array):
     """
@@ -245,9 +256,7 @@ def rms(array):
     ;-
     """
     #;time should be the last dimension
-  
-    n=array.size
-    
+      
 #    IF sz[ndims-1] EQ 1 THEN RETURN, 0.
     
     nans = np.where(~np.isnan(array))
@@ -275,7 +284,7 @@ def username():
 def hostname():
     return socket.gethostbyaddr(socket.gethostname())[0]
 
-def message(MSG_LEVEL,str,verbose=1):
+def message(MSG_LEVEL,msg,verbose=1):
     """
      MESSAGE : print function wrapper. Print a message depending on the verbose level
      
@@ -285,9 +294,9 @@ def message(MSG_LEVEL,str,verbose=1):
     """
     
     caller=get_caller()
-    if MSG_LEVEL <= verbose :  print('[{0}.{1}()] {2}'.format(__name__,caller.co_name,str))
+    if MSG_LEVEL <= verbose :  print('[{0}.{1}()] {2}'.format(__name__,caller.co_name,msg))
 
-def warning(MSG_LEVEL,str,verbose=1):
+def warning(MSG_LEVEL,msg,verbose=1):
     """
      WARNING : Wrapper to the warning function. Returns a warning when verbose level is not 0. 
      
@@ -296,4 +305,4 @@ def warning(MSG_LEVEL,str,verbose=1):
      @example self.waring(1,'Warning being issued) 
     """
     
-    if verbose <= 1 : warn(str)
+    if verbose <= 1 : warn(msg)

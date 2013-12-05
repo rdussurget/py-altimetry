@@ -95,8 +95,8 @@ class dimStr(baseDict):
         :parameter dimlist: list of dimensions
         '''
         out=()
-        for d in enumerate(dimlist):
-            out+=(self.get(d,None),)
+        for i,d in enumerate(dimlist):
+            out+=(super(dimStr, self).get(d,None),)
          
         return out
     
@@ -616,6 +616,8 @@ class nc :
         
         #Loop over variables
         for p in parlist :
+            
+            self.message(4,'Looping parameter list : %s' %p)
             
             #Get dimensions for current variable
             if not data[p].has_key('_dimensions') : self.Error('_dimension attribute is not set for variable'+p)

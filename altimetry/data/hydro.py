@@ -212,6 +212,7 @@ class hydro_data(object):
         
         self.message(2, 'Updating object with '+str(['{0}({1}:{2})'.format(i[0],i[1],i[2]) for i in zip(*(keys,dimname,datalen))]))
         
+        #Update variables available in files
         for enum in enumerate(keys) :
             
             ind=enum[0]
@@ -252,6 +253,13 @@ class hydro_data(object):
 #            updateDim.append(self.create_Variable(key, dum, dimensions={dimname[ind]:datalen[ind]},toCreate=toCreate[ind],createDim=createDim[ind]))
             updateDim.append(self.create_Variable(key, dum, dimensions=dumDim,toCreate=toCreate[ind],createDim=createDim[ind]))
 
+        
+        #Extend missing variables
+#         missing__keys = list(set(self.par_list).difference(keys))
+#         for enum in enumerate(missing__keys) :
+#             ind=enum[0]
+#             key=enum[1]
+#             updateDim.append(self.create_Variable(key, np.ma.repeat(self.dist_to_coast_leuliette.fill_value), dimensions=dumDim,toCreate=False,createDim=False))
         
         
         #Final sequence
@@ -348,23 +356,29 @@ class hydro_data(object):
         self.count = len(self.fileid)
         self.size = np.size([np.size(self.__dict__.get(par)) for par in self.par_list])
         
-        infos = zip(*(self.par_list,self.dim_list))
+        infos = zip(*(self.par_list.tolist(),self.dim_list.tolist()))
 #        curDim, nself = self.get_currentDim()
         
         for enum in enumerate(infos):
             varSize = np.size(self.__dict__.get(enum[1][0]))
             varShape = np.shape(self.__dict__.get(enum[1][0]))[::-1] #Data and Netcdf dimensions are inverted (not allways?)
             
+            dimSize = None
             if hasattr(self.__dict__.get(enum[1][0]),'_dimensions') :
                 dumDim = self.__dict__.get(enum[1][0])._dimensions
                 dumDim.pop('_ndims')
                 dimSize = tuple(dumDim.values())
-            elif self.__dict__.get(enum[1][0]).has_key('_dimensions'):
-                dumDim = self.__dict__.get(enum[1][0])['_dimensions']
-                dumDim.pop('_ndims')
-                dimSize = tuple(dumDim.values())
-            else :
-                dimSize = tuple([(self._dimensions).get(d) for d in enum[1][1]])
+            elif isinstance(self.__dict__.get(enum[1][0]),dict):
+                if self.__dict__.get(enum[1][0]).has_key('_dimensions'):
+                    dumDim = self.__dict__.get(enum[1][0])['_dimensions']
+                    dumDim.pop('_ndims')
+                    dimSize = tuple(dumDim.values())
+            
+            if dimSize is None :
+                if isinstance(self._dimensions,dimStr) :
+                    dimSize = (self._dimensions).get(enum[1][1])
+                else :
+                    dimSize = tuple([(self._dimensions).get([d]) for d in enum[1][1]])
                 
             masked = isinstance(self.__dict__.get(enum[1][0]), np.ma.masked_array)
             
@@ -380,8 +394,14 @@ class hydro_data(object):
                 elif (sh < dimSize[n]):
                     self.message(3, 'Variable {0}(N={1}) being extended to match dimension {2}:{3}'.format(enum[1][0],varSize,enum[1][1],dimSize))  
     #                self.__dict__[enum[1][0]] = np.ma.concatenate((self.__dict__[enum[1][0]], np.ma.masked_array(np.repeat(np.nan,dimSize - varSize),mask=np.zeros(dimSize - varSize,dtype='bool'))))
+    
+                    #Save additonnal attributes
+                    attrStr={}
+                    for a in set(self.__dict__[enum[1][0]].__dict__.keys()).difference(np.ma.empty(0,dtype=bool).__dict__.keys()):
+                        attrStr.update({a:self.__dict__[enum[1][0]].__dict__[a]})
                     self.__dict__[enum[1][0]] = np.ma.masked_array( np.append(self.__dict__[enum[1][0]].data,np.repeat(self.__dict__[enum[1][0]].fill_value if hasattr(self.__dict__[enum[1][0]],'fill_value') else np.NaN,dimSize[n] - varSize)),
                                                                     mask=np.append(self.__dict__[enum[1][0]].mask,np.ones(dimSize[n] - varSize,dtype='bool')) )
+                    self.__dict__[enum[1][0]].__dict__.update(attrStr)
     
     def create_Dim(self, name,value):
         '''
@@ -407,6 +427,13 @@ class hydro_data(object):
         oldVal=self._dimensions[name]
         self._dimensions[name] += value
         self.message(2, 'Updating dimension {0} (from {1} to {2})'.format(name,oldVal,self._dimensions[name]))
+        
+        #Update dimensions within all variables
+        for p in self.par_list:
+            if self.__dict__[p].__dict__.has_key('_dimensions'):
+                for d in self.__dict__[p]._dimensions.keys():
+                    self.__dict__[p]._dimensions.update({d:self._dimensions[d]})
+        
     
     def update_fid_list(self,filename,N):
         '''
@@ -530,7 +557,7 @@ class hydro_data(object):
             dumvalue=value.pop('data')
             if value.has_key('_attributes'):
                 for a in value['_attributes'].keys():
-                    print "copying %s" % a
+                    self.message(4, "copying attribute %s" % a)
                     dumvalue.__setattr__(a,value['_attributes'][a])
             value=copy.deepcopy(dumvalue)
         
@@ -561,6 +588,8 @@ class hydro_data(object):
         # 2: extend -> create a new variable using existing dimensions
         # 3: append exisiting variable with data
         # 4: impossible case ?
+        
+        #1) Create variable
         if createDim.any() & toCreate :           
             #Create Variable
             self.message(4,'Create variable %s '+name)
@@ -575,6 +604,7 @@ class hydro_data(object):
         
             updateDim=False
         
+        #2) Extend
         elif (not createDim.any()) & toCreate :
             
             #extend variable
@@ -598,6 +628,7 @@ class hydro_data(object):
             
             updateDim=True
         
+        #3) Append
         elif (not createDim.any()) & (not toCreate) :
             #append variable
             self.message(4,'Append data to variable '+name)
@@ -626,10 +657,16 @@ class hydro_data(object):
             #Impossible case ?
             self.Error('Impossible case : create dimensions and variable {0} already existing'.format(name))
         
+        
         #Append dimensions to variable
         if not dimensions.has_key('_ndims') :
             dumDim=dimStr(dimensions)
             dimensions=dumDim.copy()
+        
+        #Update variable dimensions
+        if updateDim :
+            for k in dimensions.keys(): dimensions.update({k:self._dimensions[k]})
+        
         value.__setattr__('_dimensions',dimensions)
         
         try : self.__setattr__(name,value)
@@ -1268,11 +1305,14 @@ class hydro_data(object):
     def load_ncVar(self,varName,nc=None,**kwargs):
         return load_ncVar_v2(varName, nc=self._ncfile, **kwargs)
     
-    def ncstruct(self):
+    def ncstruct(self,**kwargs):
         '''
         returns a data structure (dict) of the dataset.
+        
+        :keyword params: Add this keyword to provide a list of variables to export. Default : all variables contained is self.par_list
         '''
-        par_list = self.par_list.tolist()
+        par_list = kwargs.get('params',self.par_list.tolist())
+        
         dimStr=self._dimensions
         dimlist = dimStr.keys()
         outStr = OrderedDict({'_dimensions':dimStr})
