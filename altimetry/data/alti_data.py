@@ -98,6 +98,9 @@ class alti_data(htools.hydro_data) :
            
         '''
         
+        self.datatype=None
+        self.sat=[]
+        
         if time_range is not None :
             ls=np.array(glob.glob(file_pattern))
             if len(ls) == 0: raise Exception('File not found : {0}'.format(file_pattern))
@@ -131,7 +134,7 @@ class alti_data(htools.hydro_data) :
         set satellite name using (cf. notes on file names in `altimetry.data.alti_data.__init__`)
         '''
         if self.count == 0 : return
-        self.sat=[]
+        
         for enum in enumerate(self.filelist):
             
             if hasattr(self, 'id') : sat = self.id

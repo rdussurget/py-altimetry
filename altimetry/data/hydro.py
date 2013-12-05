@@ -96,11 +96,24 @@ class hydro_data(object):
         if isinstance(file_pattern, str) : ls=glob.glob(file_pattern)
         else :
             ls = file_pattern.tolist() if not isinstance(file_pattern,list) else file_pattern
-            file_pattern=file_pattern[0]
+            file_pattern=file_pattern[0] if len(file_pattern) > 0 else []
         
         if len(ls) == 0 :
-            self.Error('File pattern not matched : '+file_pattern)
-                
+            if isinstance(file_pattern, str) :
+                self.Error('File pattern not matched '+file_pattern)
+            if isinstance(file_pattern, list) :
+                self.warning(2, 'Empty file list - will return empty object')
+        
+        self._filename=None
+        '''
+        Name of the file currently used
+        '''
+        
+        self._ncfile=None
+        '''
+        Name of the file currently used
+        '''
+        
         self.filelist=[os.path.basename(j) for i,j in enumerate(ls)]
         '''
         list of files being loaded
@@ -114,12 +127,14 @@ class hydro_data(object):
         enum = list(enumerate(ls))
         enum = zip(*enum)
         
-        self.fid_list=np.array(enum[0])
+        self.fid_list=np.array(enum[0]) if len(enum) > 0 else np.array([])
         
-        self.dirname=os.path.dirname(file_pattern)
+        self.dirname=None
         '''
         Directory name of the file pattern being globbed (:func:`glob.glob`)
         '''
+        if isinstance(file_pattern,str) : self.dirname=os.path.dirname(file_pattern)
+        elif len(file_pattern) > 0 : self.dirname=os.path.dirname(file_pattern[0])  
         
         self.par_list=np.array([])
         '''
@@ -144,8 +159,6 @@ class hydro_data(object):
             ###############
             filename = enum[1][i]
             self.message(1,"Loading "+os.path.basename(filename))
-            
-            self.current_file=enum[0][i]
             
             res=self.read(filename,output_is_dict=output_is_dict,**kwargs) #read() function is specific of each class
             self.update_dataset(res,flatten=flatten) #update class with loaded data
@@ -767,13 +780,58 @@ class hydro_data(object):
         '''
         raise Exception(ErrorMsg)
     
-    def copy(self,deep=True):
+    def updated_copy(self,flag,deep=True):
+        '''
+        Returns a sliced (updated) copy of current data object
+        
+        :summary: This has the same effect as `obj.copy();obj.update(flag)` but is much less memory consumming.
+        
+        .. note:: TypeError could arise if some object attributes are setted outside the :func:`__init__` function (eg. for data objects derived from :class:`hydro_data`). If this is the case, initialise these attributes within their respective :func:`__init__`.
+        
+        '''
+        
+        
+        emptyObj=self.__class__([])
+        
+        if deep : func_copy = copy.deepcopy
+        else : func_copy = copy.copy
+        
+        #Get object attributes from self
+        for a in set(self.__dict__.keys()).intersection(emptyObj.__dict__.keys()):
+            self.message(4, 'updating attribute %s to returned object' % a)
+            emptyObj.__dict__[a] = func_copy(self.__dict__[a])
+        
+        #Get slices
+        for p in set(self.__dict__.keys()).difference(emptyObj.__dict__.keys()):
+            self.message(4, 'updating parameter %s to returned object' % p)
+            try :
+                emptyObj.__dict__[p] = func_copy(self.__dict__[p][flag])
+            except TypeError:
+                self.warning(1,'Could not slice %s - check if this attribute is in self.__init__')
+            
+        #update dimensions
+        N=flag.sum()
+        self._dimensions['time']=N
+        self.count=N
+        
+        self.message(4, "Checking variables consistency")
+        emptyObj.check_variables()
+        
+        return emptyObj
+    
+    def copy(self,*args,**kwargs):
         '''
         Returns a copy of the current data object
         
-        :keyword deep: deep copies the object (object data will be copied as well).
+        :param flag: if an argument is provided, this returns an updated copy of current object (ie. equivalent to obj.copy();obj.update(flag)), optimising the memory (
+        :keyword True deep: deep copies the object (object data will be copied as well).
         '''
-        return copy.deepcopy(self) if deep else copy.copy(self)
+        deep=kwargs.get('deep',True)
+        
+        if len(args) > 0:
+            return self.updated_copy(*args)
+        else :
+            return copy.deepcopy(self) if deep else copy.copy(self)
     
     def slice(self,param,range,surf=False):
         '''
