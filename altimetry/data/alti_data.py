@@ -510,7 +510,7 @@ class alti_data(htools.hydro_data) :
             exec(cmd)
             outStr.update(dumStr)
         
-        id={'data':np.repeat(sat_name,sz)}
+        id=np.repeat(sat_name,sz)
         
         
         outStr.update({'id':id})

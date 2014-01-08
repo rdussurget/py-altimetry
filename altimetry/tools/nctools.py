@@ -24,7 +24,7 @@ class baseDict(OrderedDict):
         
         #If 2 arguments, both list arguments become keys and args 
         elif len(args) == 2 :
-            if isinstance(args[0],list) and isinstance(args[1],list) and (keys is None) and (values is None) :
+            if (isinstance(args[0],list) or isinstance(args[0],tuple)) and (isinstance(args[1],list) or isinstance(args[1],tuple)) and (keys is None) and (values is None) :
                 keys,values=args
                 args = (self,)
         #else len(args) == 1 : an object instance is passed
@@ -738,7 +738,7 @@ class nc :
         enum = zip(*enum)
         
         self.fid_list = np.array(enum[0])
-        self.dirname = os.path.dirname(file_pattern)
+        self.dirname = os.path.dirname(os.path.abspath(file_pattern))
         
         self.par_list = np.array([])
         self.dim_list = np.array([])
@@ -750,7 +750,7 @@ class nc :
             
             #Read data file
             ###############
-            filename = self.dirname+os.sep+self.filelist[i]
+            filename = os.path.join(self.dirname,self.filelist[i])
             self.message(1, "Loading " + os.path.basename(filename))
             
             res = self.load(filename, **kwargs) #read() function is specific of each class

@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from netCDF4 import Dataset as ncfile
 import copy
 
-from altimetry.tools.nctools import load_ncVar, load_ncVar_v2, nc as ncobj, dimStr
+from altimetry.tools.nctools import load_ncVar, load_ncVar_v2, nc as ncobj, dimStr,attrStr
 try:
     import seawater.csiro as csw
 except ImportError:
@@ -129,12 +129,12 @@ class hydro_data(object):
         
         self.fid_list=np.array(enum[0]) if len(enum) > 0 else np.array([])
         
-        self.dirname=None
+        self.dirname=os.getcwd()
         '''
-        Directory name of the file pattern being globbed (:func:`glob.glob`)
+        Directory name of the file pattern being globbed (:func:`glob.glob`). Defaulted to current directory
         '''
-        if isinstance(file_pattern,str) : self.dirname=os.path.dirname(file_pattern)
-        elif len(file_pattern) > 0 : self.dirname=os.path.dirname(file_pattern[0])  
+        if isinstance(file_pattern,str) : self.dirname=os.path.dirname(os.path.abspath(file_pattern))
+        elif len(file_pattern) > 0 : self.dirname=os.path.dirname(os.path.abspath(file_pattern[0]))  
         
         self.par_list=np.array([])
         '''
@@ -805,17 +805,22 @@ class hydro_data(object):
         for p in set(self.__dict__.keys()).difference(emptyObj.__dict__.keys()):
             self.message(4, 'updating parameter %s to returned object' % p)
             try :
+                #Save additionnal attributes
+                attrlist=list(set(dir(self.__dict__[p])).difference(dir(np.ma.array(0))))
+                attrvalues=[self.__dict__[p].__dict__[l] for l in attrlist]
+                attr=attrStr(attrlist,attrvalues)
                 emptyObj.__dict__[p] = func_copy(self.__dict__[p][flag])
+                for a in attr.keys(): setattr(emptyObj.__dict__[p], a, attr[a])
             except TypeError:
                 self.warning(1,'Could not slice %s - check if this attribute is in self.__init__')
             
         #update dimensions
         N=flag.sum()
-        self._dimensions['time']=N
-        self.count=N
+        emptyObj._dimensions['time']=N
+        emptyObj.count=N
         
-        self.message(4, "Checking variables consistency")
-        emptyObj.check_variables()
+#         self.message(4, "Checking variables consistency")
+#         emptyObj.check_variables()
         
         return emptyObj
     
@@ -1383,7 +1388,7 @@ class hydro_data(object):
             curDim=getattr(self.__getattribute__(d),'_dimensions',None)
             attributes = [a for a in self.__getattribute__(d).__dict__.keys() if not a.startswith('_')]
 #            attributes = np.append(attributes,'_dimensions')
-            outStr[d]={'_dimensions':self.__getattribute__(d)._dimensions}
+            outStr[d]={'_dimensions':curDim if curDim else self._dimensions}
             outStr[d].update({'data':self.__getattribute__(d)})
             for a in attributes : outStr[d].update({a:self.__getattribute__(d).__getattribute__(a)})
         
@@ -1395,9 +1400,9 @@ class hydro_data(object):
         
         :keyword kwargs: additional arguments are passed to :meth:`altimetry.tools.nctools.nc.write`
         '''
-        obj=ncobj(verbose=self.verbose,limit=self.limit,use_local_dims=True)
+        obj=ncobj(verbose=kwargs.pop('verbose',self.verbose),limit=self.limit,use_local_dims=True)
         ncalti=self.ncstruct() #Get an netcdf structure from data
-        res=obj.write(ncalti,filename,clobber=clobber,**kwargs) #Save processed datase
+        return obj.write(ncalti,filename,clobber=clobber,**kwargs) #Save processed datase
     
     def push_nc(self,*args,**kwargs):
         '''
