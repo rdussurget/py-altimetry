@@ -1,4 +1,4 @@
-.TH "ALTIMETRYTOOLS" "1" "October 10, 2013" "0.1" "altimetry tools"
+.TH "ALTIMETRYTOOLS" "1" "January 08, 2014" "0.1" "altimetry tools"
 .SH NAME
 altimetrytools \- altimetry tools Documentation
 .
@@ -301,7 +301,7 @@ return the list of tracks contained if the dataset
 .SS hydro_data class \- handles oceanographic (in\-situ or remotely sensed) data:
 .INDENT 0.0
 .TP
-.B class altimetry.data.hydro_data(file_pattern, limit=None, verbose=1, round=True, zero_2pi=True, output_is_dict=True, **kwargs)
+.B class altimetry.data.hydro_data(file_pattern, limit=None, verbose=1, round=True, zero_2pi=True, output_is_dict=True, flatten=False, **kwargs)
 A base object dedicated to handle oceanographic data (in\-situ or remote sensing) with upper level processing methods.
 .IP Note
 This object SHOULD NOT be called directly but through a subclass heritating of it (eg. \fBaltimetry.data.alti_data\fP)
@@ -313,7 +313,7 @@ raises an exception
 .UNINDENT
 .INDENT 7.0
 .TP
-.B __init__(file_pattern, limit=None, verbose=1, round=True, zero_2pi=True, output_is_dict=True, **kwargs)
+.B __init__(file_pattern, limit=None, verbose=1, round=True, zero_2pi=True, output_is_dict=True, flatten=False, **kwargs)
 Returns the object filled with the data loaded from a single file or a concatenated set of files
 .INDENT 7.0
 .TP
@@ -360,12 +360,17 @@ This method interpolates using \fBscipy.interpolate.griddata()\fP and plots usin
 .UNINDENT
 .INDENT 7.0
 .TP
-.B copy(deep=True)
+.B copy(*args, **kwargs)
 Returns a copy of the current data object
 .INDENT 7.0
 .TP
 .B Parameters
-\fBdeep\fP \-\- deep copies the object (object data will be copied as well).
+.INDENT 7.0
+.IP \(bu 2
+\fBflag\fP \-\- if an argument is provided, this returns an updated copy of current object (ie. equivalent to obj.copy();obj.update(flag)), optimising the memory (
+.IP \(bu 2
+\fBdeep\fP (\fI\%True\fP) \-\- deep copies the object (object data will be copied as well).
+.UNINDENT
 .UNINDENT
 .UNINDENT
 .INDENT 7.0
@@ -495,7 +500,7 @@ array containing the dimensions of each parameter
 .INDENT 7.0
 .TP
 .B dirname = None
-Directory name of the file pattern being globbed (\fI\%glob.glob()\fP)
+Directory name of the file pattern being globbed (\fI\%glob.glob()\fP). Defaulted to current directory
 .UNINDENT
 .INDENT 7.0
 .TP
@@ -609,8 +614,13 @@ self.message(0,\(aqThis message will be shown for any verbose level\(aq)
 .UNINDENT
 .INDENT 7.0
 .TP
-.B ncstruct()
+.B ncstruct(**kwargs)
 returns a data structure (dict) of the dataset.
+.INDENT 7.0
+.TP
+.B Parameters
+\fBparams\fP \-\- Add this keyword to provide a list of variables to export. Default : all variables contained is self.par_list
+.UNINDENT
 .UNINDENT
 .INDENT 7.0
 .TP
@@ -775,6 +785,19 @@ update object with a given time slice flag
 .B Parameters
 \fBarray) flag\fP (\fI(boolean\fP) \-\- a flag for indexing data along the \(aq\(aqtime\(aq\(aq dimension
 .UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B updated_copy(flag, deep=True)
+Returns a sliced (updated) copy of current data object
+.INDENT 7.0
+.TP
+.B Summary 
+This has the same effect as \fIobj.copy();obj.update(flag)\fP but is much less memory consumming.
+.UNINDENT
+.IP Note
+TypeError could arise if some object attributes are setted outside the \fB__init__()\fP function (eg. for data objects derived from \fBhydro_data\fP). If this is the case, initialise these attributes within their respective \fB__init__()\fP.
+.RE
 .UNINDENT
 .INDENT 7.0
 .TP

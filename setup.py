@@ -2,7 +2,7 @@ from distutils.core import setup
 
 setup(
     name='py-altimetry',
-    version='0.3.0',
+    version='0.3.1',
     author='R. Dussurget',
     author_email='renaud.dussurget@gmail.com',
     packages=['altimetry','altimetry.config','altimetry.data','altimetry.tools','altimetry.externals'],

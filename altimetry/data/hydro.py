@@ -960,11 +960,21 @@ class hydro_data(object):
         '''
         return self.delete_Variable(*args,**kwargs)
     
-    def get_stats(self,flag):
+    def get_stats(self,flag,par_list=None,full=True):
         '''
         get some statistics about a part of the dataset
+        
+        :keyword par_list: List of parameters
+        :keyword True full: cf. :return: section
+        
+        :return: If not FULL returs par_stats only (dict of dicts), else returns (par_list, valid, per_valid, fname, trange, extent, N, avail_par, avail_par_per, par_stats)
+        :example: par_list, valid, per_valid, fname, trange, extent, N, avail_par, avail_par_per, par_stats = self.stats(flag)
+        
         '''
-        par_list=self.par_list.compress([(not par.endswith('_surf')) & ( par != 'id') for par in self.par_list])
+        
+        if par_list is None : par_list=self.par_list.compress([(not par.endswith('_surf')) & ( par != 'id') for par in self.par_list])
+        else :
+            if not isinstance(par_list,np.ma.masked_array) : par_list=np.ma.array(par_list,mask=np.zeros(len(par_list),dtype=bool))
         valid= np.array([len(self.__dict__[par].compress(flag).compressed()) for par in par_list])
         per_valid = (100.0* valid) /float(np.sum(flag))
         
@@ -978,9 +988,19 @@ class hydro_data(object):
         par_stats = OrderedDict()
         for p in avail_par :
             var = self.__dict__[p].compress(flag).compressed()
-            par_stats.update({p:{'mean':np.mean(var),'min':np.min(var),'max':np.max(var),'ptp':np.ptp(var),'std':np.std(var),'median':np.median(var)}})
+            par_stats.update({p:{'nb':N,
+                                 'mean':np.mean(var),       
+                                 'median':np.median(var),
+                                 'std':np.std(var),
+                                 'min':np.min(var),
+                                 'max':np.max(var), #
+                                 'ptp':np.ptp(var)} #peak-to-peak
+                              })
         
-        return par_list, valid, per_valid, fname, trange, extent, N, avail_par, avail_par_per, par_stats
+        if full : out = par_list, valid, per_valid, fname, trange, extent, N, avail_par, avail_par_per, par_stats
+        else : out = par_stats
+        
+        return out
     
     def get_platform_stats(self,id):
         '''
@@ -989,11 +1009,14 @@ class hydro_data(object):
         par_list, valid, per_valid, fname, trange, extent, N, avail_par, avail_par_per, par_stats = self.get_stats(self.id == id)
         return (fname,trange,extent,N,avail_par,avail_par_per, par_stats)
 
-    def get_object_stats(self):
+    def get_object_stats(self,**kwargs):
         '''
         get some statistics about the whole dataset.
+        
+        :return: par_list, valid, per_valid, fname, trange, extent, N, avail_par, avail_par_per, par_stats
+        :example: par_list, valid, per_valid, fname, trange, extent, N, avail_par, avail_par_per, par_stats = self.get_object_stats()
         '''
-        return self.get_stats(np.ones(self.count,dtype='bool'))
+        return self.get_stats(np.ones(self.count,dtype='bool'),**kwargs)
         
     def platform_summary(self,id,col='.k'):
         '''

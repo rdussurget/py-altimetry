@@ -13,7 +13,7 @@
 
 
 \title{altimetry tools Documentation}
-\date{October 10, 2013}
+\date{January 08, 2014}
 \release{0}
 \author{Renaud Dussurget}
 \newcommand{\sphinxlogo}{}
@@ -441,7 +441,7 @@ return the list of tracks contained if the dataset
 \label{altimetry.data:hydro-data-class-handles-oceanographic-in-situ-or-remotely-sensed-data}\label{altimetry.data:hydro-data}\index{hydro\_data (class in altimetry.data)}
 
 \begin{fulllineitems}
-\phantomsection\label{altimetry.data:altimetry.data.hydro_data}\pysiglinewithargsret{\strong{class }\code{altimetry.data.}\bfcode{hydro\_data}}{\emph{file\_pattern}, \emph{limit=None}, \emph{verbose=1}, \emph{round=True}, \emph{zero\_2pi=True}, \emph{output\_is\_dict=True}, \emph{**kwargs}}{}
+\phantomsection\label{altimetry.data:altimetry.data.hydro_data}\pysiglinewithargsret{\strong{class }\code{altimetry.data.}\bfcode{hydro\_data}}{\emph{file\_pattern}, \emph{limit=None}, \emph{verbose=1}, \emph{round=True}, \emph{zero\_2pi=True}, \emph{output\_is\_dict=True}, \emph{flatten=False}, \emph{**kwargs}}{}
 A base object dedicated to handle oceanographic data (in-situ or remote sensing) with upper level processing methods.
 
 \begin{notice}{note}{Note:}
@@ -458,7 +458,7 @@ raises an exception
 \index{\_\_init\_\_() (altimetry.data.hydro\_data method)}
 
 \begin{fulllineitems}
-\phantomsection\label{altimetry.data:altimetry.data.hydro_data.__init__}\pysiglinewithargsret{\bfcode{\_\_init\_\_}}{\emph{file\_pattern}, \emph{limit=None}, \emph{verbose=1}, \emph{round=True}, \emph{zero\_2pi=True}, \emph{output\_is\_dict=True}, \emph{**kwargs}}{}
+\phantomsection\label{altimetry.data:altimetry.data.hydro_data.__init__}\pysiglinewithargsret{\bfcode{\_\_init\_\_}}{\emph{file\_pattern}, \emph{limit=None}, \emph{verbose=1}, \emph{round=True}, \emph{zero\_2pi=True}, \emph{output\_is\_dict=True}, \emph{flatten=False}, \emph{**kwargs}}{}
 Returns the object filled with the data loaded from a single file or a concatenated set of files
 \begin{quote}\begin{description}
 \item[{Parameters}] \leavevmode\begin{itemize}
@@ -525,11 +525,17 @@ This method interpolates using \code{scipy.interpolate.griddata()} and plots usi
 \index{copy() (altimetry.data.hydro\_data method)}
 
 \begin{fulllineitems}
-\phantomsection\label{altimetry.data:altimetry.data.hydro_data.copy}\pysiglinewithargsret{\bfcode{copy}}{\emph{deep=True}}{}
+\phantomsection\label{altimetry.data:altimetry.data.hydro_data.copy}\pysiglinewithargsret{\bfcode{copy}}{\emph{*args}, \emph{**kwargs}}{}
 Returns a copy of the current data object
 \begin{quote}\begin{description}
-\item[{Parameters}] \leavevmode
-\textbf{deep} -- deep copies the object (object data will be copied as well).
+\item[{Parameters}] \leavevmode\begin{itemize}
+\item {} 
+\textbf{flag} -- if an argument is provided, this returns an updated copy of current object (ie. equivalent to obj.copy();obj.update(flag)), optimising the memory (
+
+\item {} 
+\textbf{deep} (\href{http://docs.python.org/library/constants.html\#True}{\emph{True}}) -- deep copies the object (object data will be copied as well).
+
+\end{itemize}
 
 \end{description}\end{quote}
 
@@ -677,7 +683,7 @@ array containing the dimensions of each parameter
 
 \begin{fulllineitems}
 \phantomsection\label{altimetry.data:altimetry.data.hydro_data.dirname}\pysigline{\bfcode{dirname}\strong{ = None}}
-Directory name of the file pattern being globbed (\href{http://docs.python.org/library/glob.html\#glob.glob}{\code{glob.glob()}})
+Directory name of the file pattern being globbed (\href{http://docs.python.org/library/glob.html\#glob.glob}{\code{glob.glob()}}). Defaulted to current directory
 
 \end{fulllineitems}
 
@@ -837,8 +843,13 @@ To write a message
 \index{ncstruct() (altimetry.data.hydro\_data method)}
 
 \begin{fulllineitems}
-\phantomsection\label{altimetry.data:altimetry.data.hydro_data.ncstruct}\pysiglinewithargsret{\bfcode{ncstruct}}{}{}
+\phantomsection\label{altimetry.data:altimetry.data.hydro_data.ncstruct}\pysiglinewithargsret{\bfcode{ncstruct}}{\emph{**kwargs}}{}
 returns a data structure (dict) of the dataset.
+\begin{quote}\begin{description}
+\item[{Parameters}] \leavevmode
+\textbf{params} -- Add this keyword to provide a list of variables to export. Default : all variables contained is self.par\_list
+
+\end{description}\end{quote}
 
 \end{fulllineitems}
 
@@ -1060,6 +1071,23 @@ update object with a given time slice flag
 \textbf{array) flag} (\emph{(boolean}) -- a flag for indexing data along the `'time'' dimension
 
 \end{description}\end{quote}
+
+\end{fulllineitems}
+
+\index{updated\_copy() (altimetry.data.hydro\_data method)}
+
+\begin{fulllineitems}
+\phantomsection\label{altimetry.data:altimetry.data.hydro_data.updated_copy}\pysiglinewithargsret{\bfcode{updated\_copy}}{\emph{flag}, \emph{deep=True}}{}
+Returns a sliced (updated) copy of current data object
+\begin{quote}\begin{description}
+\item[{Summary }] \leavevmode
+This has the same effect as \emph{obj.copy();obj.update(flag)} but is much less memory consumming.
+
+\end{description}\end{quote}
+
+\begin{notice}{note}{Note:}
+TypeError could arise if some object attributes are setted outside the \code{\_\_init\_\_()} function (eg. for data objects derived from \code{hydro\_data}). If this is the case, initialise these attributes within their respective \code{\_\_init\_\_()}.
+\end{notice}
 
 \end{fulllineitems}
 
