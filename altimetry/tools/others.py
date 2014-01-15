@@ -60,10 +60,10 @@ def argresample(a,**kwargs):
 
 def isiterable(item):
     """
-    Check if item is iterable
+    Check if item is iterable ans is not a string (or unicode)
     """
     if isinstance(item, collections.Iterable):
-        if not isinstance(item,str)  :return True
+        if not isinstance(item,(str,unicode))  :return True
         else : return False
     else : False
 

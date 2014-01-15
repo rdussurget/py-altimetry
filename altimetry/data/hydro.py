@@ -11,7 +11,8 @@ import matplotlib.pyplot as plt
 from netCDF4 import Dataset as ncfile
 import copy
 
-from altimetry.tools.nctools import load_ncVar, load_ncVar_v2, nc as ncobj, dimStr,attrStr
+from altimetry.tools.nctools import load_ncVar, load_ncVar_v2, nc as ncobj, dimStr,attrStr,\
+    ncStr, varStr
 try:
     import seawater.csiro as csw
 except ImportError:
@@ -1401,7 +1402,10 @@ class hydro_data(object):
         
         dimStr=self._dimensions
         dimlist = dimStr.keys()
-        outStr = OrderedDict({'_dimensions':dimStr})
+        
+        #outStr = OrderedDict({'_dimensions':dimStr})
+        outStr=ncStr()
+        outStr['_dimensions'].update(dimStr)
         
         if (np.array(par_list) == 'sat').sum() : par_list.pop(par_list.index('sat')) #Remove satellite info
         varlist=np.append(np.array(dimlist[1:]),np.array(par_list))
@@ -1409,12 +1413,14 @@ class hydro_data(object):
         for d in varlist :
             self.message(2, 'Updating output structure with {0}'.format(d))
             curDim=getattr(self.__getattribute__(d),'_dimensions',None)
-            attributes = [a for a in self.__getattribute__(d).__dict__.keys() if not a.startswith('_')]
-#            attributes = np.append(attributes,'_dimensions')
-            outStr[d]={'_dimensions':curDim if curDim else self._dimensions}
-            outStr[d].update({'data':self.__getattribute__(d)})
-            for a in attributes : outStr[d].update({a:self.__getattribute__(d).__getattribute__(a)})
-        
+            attributes=[a for a in self.__getattribute__(d).__dict__.keys() if not a.startswith('_')]
+            attr=attrStr(keys=attributes,
+                         values=[self.__getattribute__(d).__getattribute__(a) for a in attributes])
+            data=self.__getattribute__(d)
+            outStr[d]=varStr(dimensions=curDim if curDim is not None else self._dimensions,
+                             attributes=attr,
+                             data=data)
+            
         return outStr
     
     def write_nc(self,filename,clobber=False,**kwargs):

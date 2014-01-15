@@ -13,6 +13,7 @@ import hydro as htools #This object is based on the hydro_data object
 from altimetry.externals import esutils_stat as es
 from altimetry.tools import cnes_convert, histogram_indices, recale, in_limits, cumulative_distance , nctools
 from collections import OrderedDict
+from altimetry.tools.nctools import varStr
 
 if __debug__ : import matplotlib.pyplot as plt
 
@@ -484,12 +485,20 @@ class alti_data(htools.hydro_data) :
         
         sz=np.shape(lon)
         ndims=np.size(sz)
+        
+        id=np.repeat(sat_name,sz)
             
         date = self.load_ncVar('time',time=ind,**kwargs)
         dimStr = date['_dimensions']
         date=date['data']
+                
+        outStr=varStr(dimensions=dimStr)
         
-        outStr={'_dimensions':dimStr,'lon':lon,'lat':lat,'date':date}
+        outStr.update({'lon':lon})
+        outStr.update({'lat':lat})
+        outStr.update({'date':date})
+        outStr.update({'id':id})
+        #{'_dimensions':dimStr,'lon':lon,'lat':lat,'date':date}
         
         for param in par_list :
             dumVar = self.load_ncVar(param,time=ind,**kwargs) #Load variables
@@ -503,17 +512,13 @@ class alti_data(htools.hydro_data) :
             for enum in enumerate(dimUpdate) : 
                 self.message(3, 'Appending dimensions {0}:{1} to dataStructure'.format(enum[1],np.array(curDimval).compress(flag)[enum[0]]))
                 outStr['_dimensions'].update({enum[1]:np.array(curDimval).compress(flag)[enum[0]]}) #Append new dimension
-                outStr['_dimensions']['_ndims']+=1 #update dimension counts
+                if not isinstance(outStr['_dimensions'],dimStr) : outStr['_dimensions']['_ndims']+=1 #update dimension counts
             
             cmd = 'dumStr = {\''+param.lower()+'\':dumVar[\'data\']}'
             self.message(4, 'exec : '+cmd)
             exec(cmd)
             outStr.update(dumStr)
         
-        id=np.repeat(sat_name,sz)
-        
-        
-        outStr.update({'id':id})
         self._ncfile.close()
         
         return outStr

@@ -86,7 +86,7 @@ class dimStr(baseDict):
         '''
         Wrapper to add
         '''
-        self.addDim(*args)
+        self.add(*args)
         
         
     def get(self,dimlist):
@@ -151,7 +151,7 @@ class attrStr(baseDict):
         '''
         Wrapper to addDim
         '''
-        self.addDim(*args)
+        self.add(*args)
         
         
 #     def get(self,dimlist):
@@ -171,9 +171,10 @@ class attrStr(baseDict):
         
         .. note: overrides :func:`OrderedDict.pop`
         '''
+        
         nargs=len(args)
         dimlist=args[0] if isiterable(args[0]) else [args[0]]
-        missing=args[1] if nargs > 1 else None 
+        missing=args[1] if nargs > 1 else None
         out=()
         for d in dimlist:
             out+=(super(attrStr, self).pop(d,missing),)
@@ -298,12 +299,19 @@ class ncStr(dataStr):
     def __init__(self,
                  dimlist=None,
                  dimvalues=None,
+                 dimensions=None,
                  attrlist=None,
-                 attrvalues=None):
+                 attrvalues=None,
+                 attributes=None):
         
         dataStr.__init__(self)
         if dimlist is not None : self['_dimensions'].add(dimlist,dimvalues)
+        elif dimensions is not None : self['_dimensions']=dimensions
+        else : self['_dimensions']=dimStr()
+        
         if attrlist is not None : self['_attributes'].add(attrlist,attrvalues)
+        elif attributes is not None : self['_attributes']=attributes
+        else : self['_attributes']=attrStr()
     
 
 class nc :
@@ -620,8 +628,8 @@ class nc :
             self.message(4,'Looping parameter list : %s' %p)
             
             #Get dimensions for current variable
-            if not data[p].has_key('_dimensions') : self.Error('_dimension attribute is not set for variable'+p)
-            pardim=data[p].pop('_dimensions')
+            if not data[p].has_key('_dimensions') : warn('_dimension attribute is not set for variable'+p)
+            pardim=data[p].pop('_dimensions') if data[p].has_key('_dimensions') else dimStr()
             if isinstance(pardim,dimStr) : pardim=tuple(pardim.keys())
             elif isinstance(pardim,dict) :pardim=tuple(pardim.keys()[1:]) if pardim.has_key("_ndims") else tuple(pardim.keys())
             elif isinstance(pardim,list) : pardim = tuple(pardim)
@@ -686,10 +694,11 @@ class nc :
             ncdimname=tuple([d for d in pardim if d in dimlist])
             
             #Transposition is done if provided dimensions is not in phase with data dimensions (and if provided dimensions has no unlimited dimensions)
-            if not ncsh == dumVar.shape and ncsh.count(0) == 0 :
-                dimOrder=tuple([ncsh.index(dsh) for dsh in dumVar.shape])
+            if not ncsh == dumVar.shape and ncsh.count(0) == 0:
+                dimOrder=tuple([ncsh.index(dsh) for dsh in dumVar.shape if dsh in ncsh])
                 self.message(2, 'Transposing data axes {0}{1}'.format(ncdimname,dimOrder)) #Make it a bit more explicit...
-                dumVar=dumVar.transpose(dimOrder)
+                if len(dimOrder) > 0:
+                    dumVar=dumVar.transpose(dimOrder)
             
             #Transpose data before writing it into file
             locals()[p][:]=dumVar
@@ -1246,12 +1255,11 @@ def load_ncVar_v2(varName,nc=None,**kwargs):
         varDim = [str(dim) for dim in var.dimensions]
         varDimval = [len(nc.dimensions[dimname]) for dimname in varDim]
         
-        #Load Attributes
-        attrStr=var.__dict__
         
 #        from collections import deque
         ind_list = [] #deque() #Init index list
-        dims={'_ndims':0} #Init dimensions
+        #dims={'_ndims':0} #Init dimensions
+        dims=dimStr()
 
         #Construct index list
         #looping on variable dimension list
@@ -1301,16 +1309,20 @@ def load_ncVar_v2(varName,nc=None,**kwargs):
         else : raise 'This data type {} has not been defined - code it!'.format(type(varOut))
         
         #Get attributes
-        attrStr=var.__dict__
-        attrStr.pop('_FillValue',None) #Remove this attributed as it is overidden
+        attr=attrStr(var.__dict__.keys(),var.__dict__.values())
+        attr.pop('_FillValue',None) #Remove this attributed as it is overidden
         
         #Append attributes to varOut
-        varOut.__dict__.update(attrStr)
+        varOut.__dict__.update(attr)
         
         #Build up output structure
-        outStr={'_dimensions':dims,'data':varOut}
-        outStr.update({'_attributes':attrStr})
-        dims.update({'_ndims':len(dims.keys()[1:])})
+        outStr=varStr(dimensions=dims,
+                      attributes=attr,
+                      data=varOut)
+        
+#         outStr={'_dimensions':dims,'data':varOut}
+#         outStr.update({'_attributes':attrStr})
+#         dims.update({'_ndims':len(dims.keys()[1:])})
         
         return outStr
 ##            ind_list=[[]] 
