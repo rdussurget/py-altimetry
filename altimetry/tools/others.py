@@ -1,15 +1,23 @@
 # -*- coding: utf-8 -*-
 import numpy as np
+import datetime
+from dateutil import tz
 from Tkinter import Tk
 import inspect
-import getpass, socket #User and Host names
+import getpass, socket, platform #User and Host names
 from warnings import warn
 import collections
+import __main__, os, sys
 
 def get_zero_element(array):
     try : array = array.flat.next()
     except StopIteration : pass
     return array
+
+def current_time():
+    LOCAL=tz.tzlocal()
+    GMT = tz.gettz('GMT')
+    return datetime.datetime.now().replace(tzinfo=LOCAL).astimezone(GMT)
 
 def bytscl(array, maximum=None , minimum=None , nan=0, top=255 ):
     """
@@ -278,11 +286,17 @@ def get_caller(level=2):
         code=frame.f_code
         return code
 
+def get_main():
+#     return os.path.basename(__main__.__file__)
+    return ' '.join(sys.argv[:])
+
 def username():
     return getpass.getuser()
 
-def hostname():
-    return socket.gethostbyaddr(socket.gethostname())[0]
+def hostname(full=False):
+    if full:
+        return socket.gethostbyaddr(socket.gethostname())[0]
+    else : return platform.node()
 
 def message(MSG_LEVEL,msg,verbose=1):
     """

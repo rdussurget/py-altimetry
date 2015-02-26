@@ -225,11 +225,11 @@ class alti_data(htools.hydro_data) :
         #Gat sat name
         splitted=os.path.basename(filename).split(delim)
         if len(splitted) > 3 :
-	    if (datatype == 'DT') | (datatype == 'NRT') : sat_name = splitted[2] if splitted[0] == 'nrt' else splitted[3]
-	    elif datatype == 'PISTACH' : sat_name = 'J2'
-	    else : sat_name = 'J2'
-	else :
-	    sat_name="N/A"
+            if (datatype == 'DT') | (datatype == 'NRT') : sat_name = splitted[2] if splitted[0] == 'nrt' else splitted[3]
+            elif datatype == 'PISTACH' : sat_name = 'J2'
+            else : sat_name = 'J2'
+        else :
+            sat_name="N/A"
         
      
         #Get list of recorded parameters:
@@ -253,7 +253,7 @@ class alti_data(htools.hydro_data) :
         dim_lon = lon['_dimensions']
         lat = lat['data'].compress(flag)
         lon = lon['data'].compress(flag)
-        dist=cumulative_distance(lat, lon)
+#         dist=cumulative_distance(lat, lon)
         
         sz=np.shape(lon)
         ndims=np.size(sz)
@@ -289,8 +289,6 @@ class alti_data(htools.hydro_data) :
         
         #Loop 2
         
-        import operator
-        
         date = ()
         cycles = ()
         tracks = ()
@@ -307,12 +305,19 @@ class alti_data(htools.hydro_data) :
         
         nbTra_copy=nbTra.copy()
         
+        toto=npts.copy()
+        
+        concat_npts = not( nbCyc.shape[-1] > 1)
+        
+        #loop over cycles
         for i in np.arange(1,Ncycs,1.0,dtype=int) :
             nbTra=np.ma.concatenate((nbTra,nbTra_copy))
-            npts=np.ma.concatenate((npts,tuple((~nbCyc.T[i].mask)*1*npts)))
+            if concat_npts : npts=np.ma.concatenate((npts,tuple((~nbCyc.T[i].mask)*1*npts)))
 #            rowind+=(i,)*Ntra      
         
-        npts=npts.reshape(nbCyc.shape[::-1]).T
+        if concat_npts: npts=npts.reshape(nbCyc.shape[::-1]).T
+        else : npts=nbCyc
+        
         nbTra=nbTra.reshape(nbCyc.shape[::-1]).T
 #        rowind=np.reshape(rowind,nbCyc.shape[::-1]).T
         
@@ -735,7 +740,9 @@ class alti_data(htools.hydro_data) :
     #    dst = atools.calcul_distance(lat, lon)
         
         #Get local index on nominal tracks (THIS IS long)
+        #TODO: replace this lines by lines using set() - much much faster!!!
         self.message(2, 'Computing space and time indices')
+        
         
         xid = np.array([np.where((ln == lon) & (self.lat[i] == lat))[0][0] for i,ln in enumerate(self.lon) ])
         tid = np.array([np.where(c == cycle_list)[0][0] for c in self.cycle])

@@ -8,7 +8,7 @@ import matplotlib.pylab as pylab
 from netCDF4 import Dataset as ncfile
 import glob
 import os
-from altimetry.tools import recale, in_limits, where_list, recale_limits, get_caller, isiterable
+from altimetry.tools import recale, in_limits, where_list, recale_limits, get_caller, get_main, isiterable, username, hostname, current_time
 #import altimetry.data.alti_tools as atools
 from collections import OrderedDict
 from warnings import warn
@@ -203,6 +203,20 @@ class dataStr(baseDict):
         elif isinstance(struct,attrStr): self['_attributes'].put(struct)
         elif isinstance(struct,dimStr): self['_dimensions'].put(struct)
     
+    #~ def append(self,struct,dimension=None):
+	#~ 
+	#~ if dimension is None :
+	    #~ dimension=self[self.getStructDims()]=stuct.keys()[0]
+	#~ 
+	#~ #Append data
+	#~ for k in self.getStructVars():
+	    #~ 
+	    #~ np.ma.concatenate()
+	    #~ self[struct.getVarName(self)]['data']+=
+	#~ 
+	#~ #Append dimensions
+	#~ for k in self.getStructVars():
+    
     def put(self,*args):
         self.add(*args)
     
@@ -302,7 +316,8 @@ class ncStr(dataStr):
                  dimensions=None,
                  attrlist=None,
                  attrvalues=None,
-                 attributes=None):
+                 attributes=None,
+                 **kwargs):
         
         dataStr.__init__(self)
         if dimlist is not None : self['_dimensions'].add(dimlist,dimvalues)
@@ -310,9 +325,20 @@ class ncStr(dataStr):
         else : self['_dimensions']=dimStr()
         
         if attrlist is not None : self['_attributes'].add(attrlist,attrvalues)
-        elif attributes is not None : self['_attributes']=attributes
-        else : self['_attributes']=attrStr()
-    
+        elif attributes is not None : self['_attributes'].add(attributes)
+        self.set_global_attributes(**kwargs)
+#         self['_attributes'].update(set_global_attributes(**kwargs))
+
+    def set_global_attributes(self,full=False):
+        
+        #Set user
+        user="%s@%s" % (username(),hostname(full=full))
+        if not self['_attributes'].has_key('user'): self['_attributes'].update({'user':user})
+        
+        #Set history
+        history=self['_attributes']['history'].split('\n') if self['_attributes'].has_key('history') else [] 
+        history+=["%s : %s" %(current_time(), get_main())]
+        self['_attributes'].update({'history':'\n'.join(history)})
 
 class nc :
     
@@ -634,7 +660,7 @@ class nc :
             elif isinstance(pardim,dict) :pardim=tuple(pardim.keys()[1:]) if pardim.has_key("_ndims") else tuple(pardim.keys())
             elif isinstance(pardim,list) : pardim = tuple(pardim)
             elif isinstance(pardim,tuple) : pass
-            else : self.Error('_dimensions must be dict, list or tuple - not {0}'.type(pardim)) 
+            else : self.Error('_dimensions must be dict, list or tuple - not {0}'.type(pardim))
             
             #Convert to numpy array if scalar or non numpy
             if not hasattr(data[p]['data'],'__iter__') or not hasattr(data[p]['data'], 'dtype'):  data[p]['data']=np.array(data[p]['data'])
@@ -1222,7 +1248,10 @@ def load_ncVar(varName, nc=None, **kwargs):
         #Set masks properly
         if isinstance(varOut, np.ndarray) : varOut = np.ma.masked_array(varOut, mask=mask,dtype=varOut.dtype,fill_value=fill_value)
         elif isinstance(varOut, np.ma.masked_array) : var.mask = mask
-        else : raise 'This data type {} has not been defined - code it!'.format(type(varOut))
+        elif np.isscalar(varOut) : varOut = np.ma.masked_array([varOut], mask=mask,dtype=varOut.dtype,fill_value=fill_value) #Case of a scalar: cast to array and force having a shape
+        else :
+			try: varOut = np.ma.masked_array(np.array(varOut), mask=np.array(mask),dtype=varOut.dtype,fill_value=fill_value)   
+			except: raise Exception('This data type (%s) has not been defined - code it!' % type(varOut))
         
         #Update masked data properly
         varOut.data[varOut.mask]=varOut.fill_value

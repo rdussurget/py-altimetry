@@ -92,8 +92,8 @@ def main(argv=None):
     
     ncr=nc(verbose=opts.verbose,use_local_dims=opts.use_local_dims)
     
-    d1=ncr.load(f1,*kwargs)
-    d2=ncr.load(f2,*kwargs)
+    d1=ncr.load(f1,**kwargs)
+    d2=ncr.load(f2,**kwargs)
     
     dout=d1.copy()
     for k in d2.keys():

@@ -167,8 +167,10 @@ def spectral_analysis(dx,Ain,tapering=None,overlap=None,wsize=None,alpha=3.0,det
     :keyword wsize: size of the sub-segments.
     :keyword normalise: If True, normalise the spectrum by its overall energy content.
     :keyword detrend: If True, removes a linear trend to the segmented signal (if tapered) or to the whole signal (if not tapered).
-    :keyword integration: If True, integrate the spectrum between 2 frequencies. 
-    :parameter sla: data
+    :keyword integration: If True, integrate the spectrum between 2 frequencies.
+    :keyword alpha: used to compute the input (beta) of the kaiser-bessel taper.
+    :keyword ARspec: Applies an Auto-Regression model of the order provided as value of this parameter. 
+    
     :return: a spectrum structure
     
        .. code-block:: python
@@ -225,7 +227,7 @@ def spectral_analysis(dx,Ain,tapering=None,overlap=None,wsize=None,alpha=3.0,det
         b = np.float32(overlap) 
         c = np.float32(N) 
         nn=np.floor((c - (a * b))/(a - (a * b))) #This is the number of segments
-        print 'Number of windows :{0}\nTotal windowed points : {1} ({2} missing)\nTotal points : {3}'.format(nn,nn*wsize,N - nn*wsize,N)
+        print 'Number of windows :{0}\nTotal windowed points : {1} ({2} missing)\nTotal points : {3}'.format(nn,nn*wsize,N - nn*wsize*overlap,N)
         
         ix = np.arange(nn) * ((1.0 - b) * a) #These are the starting points of each segments
 
@@ -270,7 +272,7 @@ def spectral_analysis(dx,Ain,tapering=None,overlap=None,wsize=None,alpha=3.0,det
             gain=np.sum(tapering)/wsize
         else :
             raise Exception('Bad value for tapering keyword')
-        xec('window='+which)
+        exec('window='+which)
         window = np.repeat(window,nn*nr).reshape((wsize,nn,nr))
     
         #Apply tapering on segmented data
@@ -291,12 +293,13 @@ def spectral_analysis(dx,Ain,tapering=None,overlap=None,wsize=None,alpha=3.0,det
             esd = spec['esd']
             psd = spec['psd']
             fq = spec['fq']
+            if ARspec: model =spec['psd'].model
         else : 
             esd = np.append(esd,spec['esd'])
             psd = np.append(psd,spec['psd'])
+            if ARspec: model =np.append(model,spec['psd'].model)
     
 #    factor=((A[:,0]-A[:,0].mean())**2).sum()/spec['esd'].sum()
-    
     #Average spectrum
     #################
     nf=len(fq)
@@ -313,7 +316,21 @@ def spectral_analysis(dx,Ain,tapering=None,overlap=None,wsize=None,alpha=3.0,det
 #    esd=(np.sum(esd,axis=0))#/gain
 #    psd=(np.sum(psd,axis=0))#/gain
 
-
+    if ARspec:
+        mparam,msig=zip(*tuple([ (el['parameters'],el['sig']) for el in model]))
+        deg=ARspec
+        mparam=np.concatenate(mparam).reshape((len(model),deg))
+        msig=np.array(msig)
+        
+        if average :
+            mparam=mparam.mean(axis=0)
+            msig=np.nansum(msig)/msig.size
+            
+        mstr={'parameters':mparam,'sig':msig,'n':N,'deg':ARspec}
+        setattr(esd,'model',mstr)
+        setattr(psd,'model',mstr)
+        
+        
     #Normalise by energy content    
     Scaling_Factor=len(fq)/esd.sum()
     if normalise :
@@ -818,13 +835,41 @@ def yule_walker(acf, orden):
     
     aa_1 = np.linalg.inv(aa)
     
-    parameters = np.dot(bb,aa_1) #Compliant with IDL aa_1#bb
+    parameters = np.ma.dot(bb,aa_1) #Compliant with IDL aa_1#bb
     
-    
-    sigma_e = np.sqrt(acf[0] - np.sum(parameters * bb))
+    import warnings
+    warnings.filterwarnings('error')
+    try:
+        s = acf[0] - np.sum(parameters * bb)
+        sigma_e = np.sqrt(s)
+    except RuntimeWarning:
+        print "Warning : bad parameters - spectrum not computed"
+        sigma_e = np.nan
+        
     
     return parameters, sigma_e
 
+
+def ARspec(F,deg,a,sig):
+    
+    sh=F.shape
+    if len(sh) == 1:
+        NF,nt=sh,1
+        F.reshape(NF,nt)
+        a.reshape(NF,nt)
+    else : NF,nt=sh
+    
+    p=np.arange(1,deg+1)
+    
+    arspec=np.ma.masked_array(np.ones((NF,nt)),mask=False)
+    sig=np.ma.array(sig,mask=np.isnan(sig))
+    for ii in xrange(nt):
+    #     pass
+    #     arspec = sig**2 / (np.abs(1.-np.sum(a[p-1]*np.exp(-2.0 * np.pi * 1j *p*F[t])))**2)
+        for f in np.arange(NF,dtype=int) : arspec[f,ii] = sig[ii]**2 / (np.abs(1.-np.sum(a[ii,p-1]*np.exp(-2.0 * np.pi * 1j *p*F[f,ii])))**2)
+
+    if len(sh) == 1: arspec=np.squeeze(arspec)
+    return arspec
     
 
 #+
@@ -940,7 +985,12 @@ def yule_walker_regression(dx, Y, deg, res=None):
 #    #ar+=Z #Add random noise
     
     #Compute spectrum
-    for t in np.arange(NF,dtype=int) : arspec[t] = sig**2 / (np.abs(1.-np.sum(a[p-1]*np.exp(-2.0 * np.pi * 1j *p*F[t])))**2)
+#     arspec = sig**2 / (np.abs(1.-np.sum(a[p-1]*np.exp(-2.0 * np.pi * 1j *p*F)))**2)
+    for t in np.arange(NF,dtype=int) :
+        try:
+            arspec[t] = sig**2 / (np.abs(1.-np.sum(a[p-1]*np.exp(-2.0 * np.pi * 1j *p*F[t])))**2)
+        except ValueError:
+            pass
     
     #positive frequencies : multiply by 2
     arspec=arspec #Why 10?
@@ -971,7 +1021,7 @@ def yule_walker_regression(dx, Y, deg, res=None):
 
     #Normalize to conserve apropriate levels of energy
 #    fac=F*np.sum(np.abs(arspec))/(np.sum(np.abs(Y)**2)*res)
-    fac=len(F)/arspec.sum()
+    fac=np.ma.array(len(F))/arspec.sum()
     arspec/=fac
 
     esd=arspec
@@ -979,16 +1029,20 @@ def yule_walker_regression(dx, Y, deg, res=None):
 
 
     #We define the AIC (http://pages.stern.nyu.edu/~churvich/TimeSeries/Handouts/AICC.pdf) to define the optimal model
-    aicc=N*(np.log(sig**2)+1)+2*(deg+1)*(N/(N-deg-2))
-    aic=N*(np.log(2*sig**2)+1) + 2 * deg #from http://www-ssc.igpp.ucla.edu/personnel/russell/ESS265/Ch9/autoreg/node15.html
-    bic=N*np.log(sig**2)+deg*np.log(N)
+    logf=np.ma.log if isinstance(arspec,np.ma.masked_array) else np.log
+    aicc=N*(logf(sig**2)+1)+2*(deg+1)*(N/(N-deg-2))
+    aic=N*(logf(2*sig**2)+1) + 2 * deg #from http://www-ssc.igpp.ucla.edu/personnel/russell/ESS265/Ch9/autoreg/node15.html
+    bic=N*logf(sig**2)+deg*logf(N)
     
-    setattr(arspec, 'model',{'description':'AR model parameters','parameters':a,'sig':sig,'deg':deg,'n':N,'aicc':aicc,'aic':aic,'bic':bic})
+    params={'description':'AR model parameters','parameters':a,'sig':sig,'deg':deg,'n':N,'aicc':aicc,'aic':aic,'bic':bic}
+    setattr(psd, 'model',params)
+    setattr(esd, 'model',params)
+    setattr(ar, 'model',params)
 
     outStr={'_dimensions':{'_ndims':3,'N':N,'NF':NF,'P':deg},
 #        'X':{'name':'x','long_name':'time series','data':X},
 #        'gamma':{'name':'gamma','long_name':'autocorrelation function','data':gamma},
-#        'model':{'name':'model','long_name':'AR model parameters','data':a,'sig':sig,'deg':deg,'n':N,'aicc':aicc,'aic':aic},
+#         'model':{'name':'model','long_name':'AR model parameters','data':a,'sig':sig,'deg':deg,'n':N,'aicc':aicc,'aic':aic},
         'fq':Fout,
         'ar':ar,#{'name':'ar','long_name':'Fitted model','data':ar},
 #        'argamma':{'name':'argamma','long_name':'Fitted autocorrelation function','data':argamma},
