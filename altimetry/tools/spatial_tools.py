@@ -34,7 +34,7 @@ def in_limits(lon, lat, limit):
  
     # nothing remains
     if not np.sometrue(lat_flag):
-        print "* WARNING : No Lat [", lats, ",", lats, "]  with lon  [", lons, ",", lone, "]"
+        print "* WARNING : No Lat [", lats, ",", late, "]  with lon  [", lons, ",", lone, "]"
         return ind, lat_flag
     
     #Construct flag and index arrays

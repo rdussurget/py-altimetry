@@ -3,6 +3,7 @@ import os
 import glob
 import inspect
 import fnmatch
+import datetime
 
 from warnings import warn
 
@@ -963,6 +964,53 @@ class hydro_data(object):
         '''
         return self.delete_Variable(*args,**kwargs)
     
+    def get_timestats(self,flag,par_list=None,full=True,bins=None):
+        '''
+        get temporal statistics about a part of the dataset
+        
+        :keyword par_list: List of parameters
+        :keyword True full: cf. :return: section
+        
+        :return: If not FULL returs par_stats only (dict of dicts), else returns (par_list, valid, per_valid, fname, trange, extent, N, avail_par, avail_par_per, par_stats)
+        :example: par_list, valid, per_valid, fname, trange, extent, N, avail_par, avail_par_per, par_stats = self.stats(flag)
+        
+        '''
+        
+        if par_list is None : par_list=self.par_list.compress([(not par.endswith('_surf')) & ( par != 'id') for par in self.par_list])
+        else :
+            if not isinstance(par_list,np.ma.masked_array) : par_list=np.ma.array(par_list,mask=np.zeros(len(par_list),dtype=bool))
+        valid= np.array([len(self.__dict__[par].compress(flag).compressed()) for par in par_list])
+        per_valid = (100.0* valid) /float(np.sum(flag))
+        
+        fname = [self.filelist[i] for i in np.unique(self.fileid.compress(flag)).astype('i')]
+        trange = self.time_range(flag)
+        extent = self.extension(flag)
+        N = np.sum(flag)
+        avail_par = par_list.compress(per_valid > 0)
+        avail_par_per = per_valid.compress(per_valid > 0)
+        
+        if bins is None: bins=(max(trange[1])-min(trange[1])).days + 1
+        
+        par_stats = OrderedDict()
+        for p in avail_par :
+            var = self.__dict__[p].compress(flag).compressed()
+            
+            N,t_edges=np.histogram(self.date,bins=bins)
+            H,_=np.histogram(self.date,bins=bins,weights=var)
+            
+            t_edges=t_edges[:-1]+(t_edges[1]-t_edges[0])/2.
+            
+            par_stats.update({p:{'nb':N,
+                                 'mean':H/N,
+                                 't_axis':t_edges
+                                 }
+                              })
+        
+        if full : out = par_list, valid, per_valid, fname, trange, extent, N, avail_par, avail_par_per, par_stats
+        else : out = par_stats
+        
+        return out
+    
     def get_stats(self,flag,par_list=None,full=True):
         '''
         get some statistics about a part of the dataset
@@ -1005,37 +1053,68 @@ class hydro_data(object):
         
         return out
     
-    def get_platform_stats(self,id):
+    def get_platform_stats(self,id,functype='overall'):
         '''
         get statistics based on `altimetry.data.hydro_data.id`
+        
+        :param functype: set to 'overall' to get variables moments or 'time'|'temporal' to get temporal variability
         '''
-        par_list, valid, per_valid, fname, trange, extent, N, avail_par, avail_par_per, par_stats = self.get_stats(self.id == id)
+        
+        if functype == 'overall': get_stats = self.get_stats 
+        elif functype == 'time' or functype == 'temporall': get_stats = self.get_timestats 
+        else: get_stats = self.get_stats 
+        
+        par_list, valid, per_valid, fname, trange, extent, N, avail_par, avail_par_per, par_stats = get_stats(self.id == id)
         return (fname,trange,extent,N,avail_par,avail_par_per, par_stats)
 
-    def get_object_stats(self,**kwargs):
+    def get_object_stats(self,functype='overall',**kwargs):
         '''
         get some statistics about the whole dataset.
+        
+        :param functype: set to 'overall' to get variables moments or 'time' to get temporal variability
         
         :return: par_list, valid, per_valid, fname, trange, extent, N, avail_par, avail_par_per, par_stats
         :example: par_list, valid, per_valid, fname, trange, extent, N, avail_par, avail_par_per, par_stats = self.get_object_stats()
         '''
-        return self.get_stats(np.ones(self.count,dtype='bool'),**kwargs)
+        if functype == 'overall': get_stats = self.get_stats 
+        elif functype == 'time': get_stats = self.get_timestats 
         
-    def platform_summary(self,id,col='.k'):
+        return get_stats(np.ones(self.count,dtype='bool'),**kwargs)
+        
+    def platform_summary(self,id,col='.k',functype='overall'):
         '''
         outputs a summary of the statistics for a given platform
         '''
-        stats = self.get_platform_stats(id)
+        stats = self.get_platform_stats(id,functype=functype)
         self.message(0, '\tPlatform {0} : '.format(id))
         self.message(0, '\t-> file : {0}'.format(stats[0]))
         self.message(0, '\t-> from : '+' - '.join(map(str,stats[1][0])))
         self.message(0, '\t-> extent : ['+', '.join(['{0:.1f}'.format(x) for x in stats[2]])+']')
         self.message(0, '\t-> size : {0} pts'.format(stats[3]))
         self.message(0, '\t-> variables : [%s]' % ', '.join(['{0}({1:.0f} %)'.format(i[0],i[1]) for i in zip(*(stats[4],stats[5]))])+']')
-        for p in stats[6].keys() :
-			self.message(0,'\t\to %s : {%s}' % (p,','.join(["%s:%f" % (s,stats[6][p][s]) for s in stats[6][p].keys()])))
         
-    def map(self, flag=None,  fname=None, zoom=False, pmap=None, show=True, **kwargs):
+        if functype == 'time' or functype == 'temporal':
+            nsub=len(stats[6].keys())
+            nx,ny = ((nsub-1)/2) + 1, 2
+            plt.suptitle('Platform : %s' % id)
+            for i,item in enumerate(stats[6].iteritems()):
+                s,v=item[0],copy.deepcopy(item[1])
+                t=v.pop('t_axis')
+                ax1=plt.subplot(nx,ny,i+1)
+                ax1.plot(t,v['nb'],'-k')
+                plt.title(s)
+                if i == nsub: ax1.set_xlabel('time')
+                if i%2 == 0: ax1.set_ylabel('#')
+                ax2 = ax1.twinx()
+                ax2.set_ylabel('mean')
+                if i%2 == 1: ax1.set_ylabel('#')
+                ax2.plot(t,v['mean'],'-r')
+            plt.show()
+        else: 
+            for p in stats[6].keys() :
+                self.message(0,'\t\to %s : {%s}' % (p,','.join(["%s:%f" % (s,stats[6][p][s]) for s in stats[6][p].keys()])))
+        
+    def map(self, flag=None,  fname=None, zoom=False, pmap=None, show=True, bathy=False, **kwargs):
         '''
         display (or not) a map based on a :class:`altimetry.tools.plot_map` object.
         
@@ -1047,18 +1126,21 @@ class hydro_data(object):
         if zoom : limit = self.extension(flag)
         else : limit = self.limit
         
-        if pmap is None : pmap=plot_map(0,0,0,limit=limit)
+        if pmap is None : pmap=plot_map(0,0,0,limit=limit,bathy=bathy)
         p,=self.plot_track(pmap, flag,**kwargs)
         
         if show : 
-            pmap.setup_map()
+            pmap.setup_map(bathy=bathy)
             pmap.show()
 
         return p,pmap
 
-    def summary(self,all=False,fig=None,col='.k',legend=None,**kwargs):
+    def summary(self,all=False,fig=None,col='.k',legend=None,bathy=False,functype='overall',**kwargs):
         """
         outputs a summary of the whole current dataset
+        
+        :param functype: set to 'overall' to get variables moments or 'time' to get temporal variability
+        
         """
         
         par_list, valid, per_valid, fname, trange, extent, N, avail_par, avail_par_per, par_stats = self.get_object_stats()
@@ -1073,8 +1155,9 @@ class hydro_data(object):
         self.message(0, '\tRecords : [{0}]'.format(N))
         self.message(0, '\tAvailable parameters : '+', '.join(map(str,self.par_list))) 
         self.message(0, '\tParam summary : [%s]' % ', '.join(['{0}({1:.0f} %)'.format(i[0],i[1]) for i in zip(*(avail_par,avail_par_per))]))
+        
         for p in avail_par :
-			self.message(0,'\t\to %s : {%s}' % (p,','.join(["%s:%s" % (s,par_stats[p][s]) for s in par_stats[p].keys()])))
+            self.message(0,'\t\to %s : {%s}' % (p,','.join(["%s:%s" % (s,par_stats[p][s]) for s in par_stats[p].keys()])))
         
         if isinstance(fig,str) :
             ffig = fig+'dataset.png'
@@ -1088,7 +1171,7 @@ class hydro_data(object):
             if self.__dict__.has_key('id_surf') : n=len(self.id_surf)
             else : n=N
 #            p,pmap=self.map(np.ones(n,dtype='bool'),ffig,col=col,show=show,**kwargs)
-            p,pmap=self.map(col=col,show=show,**kwargs)
+            p,pmap=self.map(col=col,show=show,bathy=bathy,**kwargs)
             pmap.setup_map()
             if legend is not None : plt.legend([p],[legend])
             if not show :
@@ -1102,7 +1185,7 @@ class hydro_data(object):
         #Get all platform ID's
         id_list=self.get_id_list().astype('a')
         for id in id_list : 
-            self.platform_summary(id)
+            self.platform_summary(id,functype=functype)
             if isinstance(fig,str) : ffig = fig+'{0}.png'.format(str(id))
             else : ffig = None
             if fig is not None : 
