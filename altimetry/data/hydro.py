@@ -207,6 +207,8 @@ class hydro_data(object):
 
             if any([not d for d in dimOk]) : 
                 notOk = np.where(~np.array(dimOk))[0]
+                print datalen
+                
                 self.Error('Problem with {0} variables : {1}'.format(len(notOk),','.join(np.array(dataStr.keys())[notOk])))
         else :
             ind = [where_list(dlen,dimensions[1]) for dlen in datalen] #Dimensions indices from variable length
@@ -1030,8 +1032,8 @@ class hydro_data(object):
         self.message(0, '\t-> extent : ['+', '.join(['{0:.1f}'.format(x) for x in stats[2]])+']')
         self.message(0, '\t-> size : {0} pts'.format(stats[3]))
         self.message(0, '\t-> variables : [%s]' % ', '.join(['{0}({1:.0f} %)'.format(i[0],i[1]) for i in zip(*(stats[4],stats[5]))])+']')
-        for p in avail_par :
-			self.message(0,'\t\to %s : {%s}' % (p,','.join(["%s:%f" % (s,stats[6][s]) for s in stats[6].keys()])))
+        for p in stats[6].keys() :
+			self.message(0,'\t\to %s : {%s}' % (p,','.join(["%s:%f" % (s,stats[6][p][s]) for s in stats[6][p].keys()])))
         
     def map(self, flag=None,  fname=None, zoom=False, pmap=None, show=True, **kwargs):
         '''
