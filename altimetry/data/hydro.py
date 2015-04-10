@@ -924,6 +924,8 @@ class hydro_data(object):
         
         :keyword flag: use a flag array to know the time range of an indexed slice of the object
         '''
+        if self.count==0: return [[None,None],[None,None]]
+        
         if flag is None : return cnes_convert([self.date.min(),self.date.max()])
         else : return cnes_convert([self.date.compress(flag).min(),self.date.compress(flag).max()])
     
@@ -989,7 +991,8 @@ class hydro_data(object):
         avail_par = par_list.compress(per_valid > 0)
         avail_par_per = per_valid.compress(per_valid > 0)
         
-        if bins is None: bins=(max(trange[1])-min(trange[1])).days + 1
+        if bins is None and trange is not None: bins=(max(trange[1])-min(trange[1])).days + 1
+        else: bins=()
         
         par_stats = OrderedDict()
         for p in avail_par :
@@ -1524,6 +1527,8 @@ class hydro_data(object):
         '''
         obj=ncobj(verbose=self.verbose,limit=self.limit,use_local_dims=True)
         res=obj.push(*args,**kwargs)
+
+    def __len__(self): return self.count
 
 class buoy_data(hydro_data):
     

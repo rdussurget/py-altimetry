@@ -13,7 +13,7 @@
 
 
 \title{altimetry tools Documentation}
-\date{January 08, 2014}
+\date{April 10, 2015}
 \release{0}
 \author{Renaud Dussurget}
 \newcommand{\sphinxlogo}{}
@@ -762,24 +762,82 @@ returns a flag array of the data loaded from a given file pattern
 \index{get\_object\_stats() (altimetry.data.hydro\_data method)}
 
 \begin{fulllineitems}
-\phantomsection\label{altimetry.data:altimetry.data.hydro_data.get_object_stats}\pysiglinewithargsret{\bfcode{get\_object\_stats}}{}{}
+\phantomsection\label{altimetry.data:altimetry.data.hydro_data.get_object_stats}\pysiglinewithargsret{\bfcode{get\_object\_stats}}{\emph{functype='overall'}, \emph{**kwargs}}{}
 get some statistics about the whole dataset.
+\begin{quote}\begin{description}
+\item[{Parameters}] \leavevmode
+\textbf{functype} -- set to `overall' to get variables moments or `time' to get temporal variability
+
+\item[{Returns}] \leavevmode
+par\_list, valid, per\_valid, fname, trange, extent, N, avail\_par, avail\_par\_per, par\_stats
+
+\item[{Example }] \leavevmode
+par\_list, valid, per\_valid, fname, trange, extent, N, avail\_par, avail\_par\_per, par\_stats = self.get\_object\_stats()
+
+\end{description}\end{quote}
 
 \end{fulllineitems}
 
 \index{get\_platform\_stats() (altimetry.data.hydro\_data method)}
 
 \begin{fulllineitems}
-\phantomsection\label{altimetry.data:altimetry.data.hydro_data.get_platform_stats}\pysiglinewithargsret{\bfcode{get\_platform\_stats}}{\emph{id}}{}
+\phantomsection\label{altimetry.data:altimetry.data.hydro_data.get_platform_stats}\pysiglinewithargsret{\bfcode{get\_platform\_stats}}{\emph{id}, \emph{functype='overall'}}{}
 get statistics based on \emph{altimetry.data.hydro\_data.id}
+\begin{quote}\begin{description}
+\item[{Parameters}] \leavevmode
+\textbf{functype} -- set to `overall' to get variables moments or `time'\textbar{}'temporal' to get temporal variability
+
+\end{description}\end{quote}
 
 \end{fulllineitems}
 
 \index{get\_stats() (altimetry.data.hydro\_data method)}
 
 \begin{fulllineitems}
-\phantomsection\label{altimetry.data:altimetry.data.hydro_data.get_stats}\pysiglinewithargsret{\bfcode{get\_stats}}{\emph{flag}}{}
+\phantomsection\label{altimetry.data:altimetry.data.hydro_data.get_stats}\pysiglinewithargsret{\bfcode{get\_stats}}{\emph{flag}, \emph{par\_list=None}, \emph{full=True}}{}
 get some statistics about a part of the dataset
+\begin{quote}\begin{description}
+\item[{Parameters}] \leavevmode\begin{itemize}
+\item {} 
+\textbf{par\_list} -- List of parameters
+
+\item {} 
+\textbf{full} (\href{http://docs.python.org/library/constants.html\#True}{\emph{True}}) -- cf. :return: section
+
+\end{itemize}
+
+\item[{Returns}] \leavevmode
+If not FULL returs par\_stats only (dict of dicts), else returns (par\_list, valid, per\_valid, fname, trange, extent, N, avail\_par, avail\_par\_per, par\_stats)
+
+\item[{Example }] \leavevmode
+par\_list, valid, per\_valid, fname, trange, extent, N, avail\_par, avail\_par\_per, par\_stats = self.stats(flag)
+
+\end{description}\end{quote}
+
+\end{fulllineitems}
+
+\index{get\_timestats() (altimetry.data.hydro\_data method)}
+
+\begin{fulllineitems}
+\phantomsection\label{altimetry.data:altimetry.data.hydro_data.get_timestats}\pysiglinewithargsret{\bfcode{get\_timestats}}{\emph{flag}, \emph{par\_list=None}, \emph{full=True}, \emph{bins=None}}{}
+get temporal statistics about a part of the dataset
+\begin{quote}\begin{description}
+\item[{Parameters}] \leavevmode\begin{itemize}
+\item {} 
+\textbf{par\_list} -- List of parameters
+
+\item {} 
+\textbf{full} (\href{http://docs.python.org/library/constants.html\#True}{\emph{True}}) -- cf. :return: section
+
+\end{itemize}
+
+\item[{Returns}] \leavevmode
+If not FULL returs par\_stats only (dict of dicts), else returns (par\_list, valid, per\_valid, fname, trange, extent, N, avail\_par, avail\_par\_per, par\_stats)
+
+\item[{Example }] \leavevmode
+par\_list, valid, per\_valid, fname, trange, extent, N, avail\_par, avail\_par\_per, par\_stats = self.stats(flag)
+
+\end{description}\end{quote}
 
 \end{fulllineitems}
 
@@ -806,7 +864,7 @@ limits are automatically reset using \code{altimetry.tools.recale\_limits()}
 \index{map() (altimetry.data.hydro\_data method)}
 
 \begin{fulllineitems}
-\phantomsection\label{altimetry.data:altimetry.data.hydro_data.map}\pysiglinewithargsret{\bfcode{map}}{\emph{flag=None}, \emph{fname=None}, \emph{zoom=False}, \emph{pmap=None}, \emph{show=True}, \emph{**kwargs}}{}
+\phantomsection\label{altimetry.data:altimetry.data.hydro_data.map}\pysiglinewithargsret{\bfcode{map}}{\emph{flag=None}, \emph{fname=None}, \emph{zoom=False}, \emph{pmap=None}, \emph{show=True}, \emph{bathy=False}, \emph{**kwargs}}{}
 display (or not) a map based on a \code{altimetry.tools.plot\_map} object.
 \begin{quote}\begin{description}
 \item[{Parameters}] \leavevmode
@@ -864,7 +922,7 @@ array of parameters
 \index{platform\_summary() (altimetry.data.hydro\_data method)}
 
 \begin{fulllineitems}
-\phantomsection\label{altimetry.data:altimetry.data.hydro_data.platform_summary}\pysiglinewithargsret{\bfcode{platform\_summary}}{\emph{id}, \emph{col='.k'}}{}
+\phantomsection\label{altimetry.data:altimetry.data.hydro_data.platform_summary}\pysiglinewithargsret{\bfcode{platform\_summary}}{\emph{id}, \emph{col='.k'}, \emph{functype='overall'}}{}
 outputs a summary of the statistics for a given platform
 
 \end{fulllineitems}
@@ -989,8 +1047,13 @@ flag is computed based on equality to range value.
 \index{summary() (altimetry.data.hydro\_data method)}
 
 \begin{fulllineitems}
-\phantomsection\label{altimetry.data:altimetry.data.hydro_data.summary}\pysiglinewithargsret{\bfcode{summary}}{\emph{all=False}, \emph{fig=None}, \emph{col='.k'}, \emph{legend=None}, \emph{**kwargs}}{}
+\phantomsection\label{altimetry.data:altimetry.data.hydro_data.summary}\pysiglinewithargsret{\bfcode{summary}}{\emph{all=False}, \emph{fig=None}, \emph{col='.k'}, \emph{legend=None}, \emph{bathy=False}, \emph{functype='overall'}, \emph{**kwargs}}{}
 outputs a summary of the whole current dataset
+\begin{quote}\begin{description}
+\item[{Parameters}] \leavevmode
+\textbf{functype} -- set to `overall' to get variables moments or `time' to get temporal variability
+
+\end{description}\end{quote}
 
 \end{fulllineitems}
 
@@ -1287,7 +1350,10 @@ If this keyword is an \code{numpy.array} object : apply this array as taper.
 \textbf{integration} -- If True, integrate the spectrum between 2 frequencies.
 
 \item {} 
-\textbf{sla} -- data
+\textbf{alpha} -- used to compute the input (beta) of the kaiser-bessel taper.
+
+\item {} 
+\textbf{ARspec} -- Applies an Auto-Regression model of the order provided as value of this parameter.
 
 \end{itemize}
 

@@ -268,7 +268,7 @@ class alti_data(htools.hydro_data) :
         
 #        if np.size(stDate) == 1 : stDate.
         
-        DeltaT = self._ncfile.variables['DeltaT'][0]  / 86400. #* self._ncfile.variables['DeltaT'].scale_factor
+        DeltaT = self._ncfile.variables['DeltaT'][:]  / 86400. #* self._ncfile.variables['DeltaT'].scale_factor
         npts = self.load_ncVar('NbPoints',**kwargs)['data']
         dumind=np.cumsum(npts)
         

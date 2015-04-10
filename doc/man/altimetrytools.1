@@ -1,4 +1,4 @@
-.TH "ALTIMETRYTOOLS" "1" "January 08, 2014" "0.1" "altimetry tools"
+.TH "ALTIMETRYTOOLS" "1" "April 10, 2015" "0.1" "altimetry tools"
 .SH NAME
 altimetrytools \- altimetry tools Documentation
 .
@@ -554,18 +554,71 @@ returns a flag array of the data loaded from a given file pattern
 .UNINDENT
 .INDENT 7.0
 .TP
-.B get_object_stats()
+.B get_object_stats(functype=\(aqoverall\(aq, **kwargs)
 get some statistics about the whole dataset.
+.INDENT 7.0
+.TP
+.B Parameters
+\fBfunctype\fP \-\- set to \(aqoverall\(aq to get variables moments or \(aqtime\(aq to get temporal variability
+.TP
+.B Returns
+par_list, valid, per_valid, fname, trange, extent, N, avail_par, avail_par_per, par_stats
+.TP
+.B Example 
+par_list, valid, per_valid, fname, trange, extent, N, avail_par, avail_par_per, par_stats = self.get_object_stats()
+.UNINDENT
 .UNINDENT
 .INDENT 7.0
 .TP
-.B get_platform_stats(id)
+.B get_platform_stats(id, functype=\(aqoverall\(aq)
 get statistics based on \fIaltimetry.data.hydro_data.id\fP
+.INDENT 7.0
+.TP
+.B Parameters
+\fBfunctype\fP \-\- set to \(aqoverall\(aq to get variables moments or \(aqtime\(aq|\(aqtemporal\(aq to get temporal variability
+.UNINDENT
 .UNINDENT
 .INDENT 7.0
 .TP
-.B get_stats(flag)
+.B get_stats(flag, par_list=None, full=True)
 get some statistics about a part of the dataset
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBpar_list\fP \-\- List of parameters
+.IP \(bu 2
+\fBfull\fP (\fI\%True\fP) \-\- cf. :return: section
+.UNINDENT
+.TP
+.B Returns
+If not FULL returs par_stats only (dict of dicts), else returns (par_list, valid, per_valid, fname, trange, extent, N, avail_par, avail_par_per, par_stats)
+.TP
+.B Example 
+par_list, valid, per_valid, fname, trange, extent, N, avail_par, avail_par_per, par_stats = self.stats(flag)
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_timestats(flag, par_list=None, full=True, bins=None)
+get temporal statistics about a part of the dataset
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBpar_list\fP \-\- List of parameters
+.IP \(bu 2
+\fBfull\fP (\fI\%True\fP) \-\- cf. :return: section
+.UNINDENT
+.TP
+.B Returns
+If not FULL returs par_stats only (dict of dicts), else returns (par_list, valid, per_valid, fname, trange, extent, N, avail_par, avail_par_per, par_stats)
+.TP
+.B Example 
+par_list, valid, per_valid, fname, trange, extent, N, avail_par, avail_par_per, par_stats = self.stats(flag)
+.UNINDENT
 .UNINDENT
 .INDENT 7.0
 .TP
@@ -582,7 +635,7 @@ limits are automatically reset using \fBaltimetry.tools.recale_limits()\fP
 .UNINDENT
 .INDENT 7.0
 .TP
-.B map(flag=None, fname=None, zoom=False, pmap=None, show=True, **kwargs)
+.B map(flag=None, fname=None, zoom=False, pmap=None, show=True, bathy=False, **kwargs)
 display (or not) a map based on a \fBaltimetry.tools.plot_map\fP object.
 .INDENT 7.0
 .TP
@@ -629,7 +682,7 @@ array of parameters
 .UNINDENT
 .INDENT 7.0
 .TP
-.B platform_summary(id, col=\(aq.k\(aq)
+.B platform_summary(id, col=\(aq.k\(aq, functype=\(aqoverall\(aq)
 outputs a summary of the statistics for a given platform
 .UNINDENT
 .INDENT 7.0
@@ -722,8 +775,13 @@ flag is computed based on equality to range value.
 .UNINDENT
 .INDENT 7.0
 .TP
-.B summary(all=False, fig=None, col=\(aq.k\(aq, legend=None, **kwargs)
+.B summary(all=False, fig=None, col=\(aq.k\(aq, legend=None, bathy=False, functype=\(aqoverall\(aq, **kwargs)
 outputs a summary of the whole current dataset
+.INDENT 7.0
+.TP
+.B Parameters
+\fBfunctype\fP \-\- set to \(aqoverall\(aq to get variables moments or \(aqtime\(aq to get temporal variability
+.UNINDENT
 .UNINDENT
 .INDENT 7.0
 .TP
@@ -962,7 +1020,9 @@ If this keyword is an \fBnumpy.array\fP object : apply this array as taper.
 .IP \(bu 2
 \fBintegration\fP \-\- If True, integrate the spectrum between 2 frequencies.
 .IP \(bu 2
-\fBsla\fP \-\- data
+\fBalpha\fP \-\- used to compute the input (beta) of the kaiser\-bessel taper.
+.IP \(bu 2
+\fBARspec\fP \-\- Applies an Auto\-Regression model of the order provided as value of this parameter.
 .UNINDENT
 .TP
 .B Returns
