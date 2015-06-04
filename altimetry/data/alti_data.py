@@ -450,6 +450,7 @@ class alti_data(htools.hydro_data) :
         """
         
         self.message(2,'Reading SLAext data ({0})'.format(datatype))
+        self.message(2,'Loading %s' % (filename))
         
         #Open file
         self._filename = filename

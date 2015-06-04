@@ -437,7 +437,7 @@ class plot_map(Basemap):
             
             return self.contour(glon,glat,bat['Z'],V,colors=colors,linestyles=linestyles,linewidths=linewidths,**kwargs)
         else :
-            return self.contour(np.array(self.limit[1,3]),np.array(self.limit[0,2]),np.ones((2,2),dtype=float),np.array([1.,1.]),colors=colors,linestyles=linestyles,linewidths=linewidths,**kwargs)
+	    return self.contour(np.array(self.limit[[1,3]]),np.array(self.limit[[0,2]]),np.ones((2,2),dtype=float),np.array([1.,1.]),colors=colors,linestyles=linestyles,linewidths=linewidths,**kwargs)
         
         
         

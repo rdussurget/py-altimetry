@@ -11,6 +11,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from netCDF4 import Dataset as ncfile
 import copy
+import tempfile
 
 from altimetry.tools.nctools import load_ncVar, load_ncVar_v2, nc as ncobj, dimStr,attrStr,\
     ncStr, varStr
@@ -116,7 +117,13 @@ class hydro_data(object):
         Name of the file currently used
         '''
         
+        self.__tempfile=[]
+        '''
+        Temporary buffer where to unzip data file if asked for
+        '''
+        
         self.filelist=[os.path.basename(j) for i,j in enumerate(ls)]
+        #~ self.filelist=[j for i,j in enumerate(ls)]
         '''
         list of files being loaded
         '''
@@ -162,6 +169,12 @@ class hydro_data(object):
             filename = enum[1][i]
             self.message(1,"Loading "+os.path.basename(filename))
             
+            #Dezip if required
+            filename=self.dezip(filename)
+            
+            if filename != enum[1][i]: self.filelist[i]=os.path.basename(filename)
+                
+            
             res=self.read(filename,output_is_dict=output_is_dict,**kwargs) #read() function is specific of each class
             self.update_dataset(res,flatten=flatten) #update class with loaded data
             
@@ -170,7 +183,6 @@ class hydro_data(object):
         if not self.limit_set : self.limit=self.extension(round=round)
         
         if self.count == 0 : self.warning(1,'Empty object!')
-#        self.update()
 
     def update_dataset(self,dataStr,flatten=False):
         '''
@@ -299,71 +311,6 @@ class hydro_data(object):
         
         for dname,dim in updateDim_List:
             self.update_Dim(dname, np.int(dim))
-        
-            
-    #                curInd = atools.where_list([l_datalen],curDim[1])[0]
-    #                createDim = (curInd == -1) #Get dimensions to be created 
-            
-#            else :
-#                pass
-            
-        
-        
-#        #No data present in the object -> initialisation phase
-#        if self._dimensions['_ndims'] == 0 :
-#            self._dimensions=szstr
-#            
-#        #Append or create data sets.
-#        else :
-#        
-#            pass
-#        #Get current dimensions
-#        self._dimensions['_ndims']
-#        
-#        sz = np.array([szstr.get(szstr.keys()[j]) for j in np.arange(ndims)]) #reforms a vector containing dimensions
-#       for j in ndims : sz[i] = szstr.get(szstr.keys()[j])
-#            
-#        #Fill class looping over keys
-#        #############################
-#        keys=dataStr.keys()
-#        self.message(4, 'Loaded variables : '+str(keys))
-#        for key in keys :
-#            
-#            #Load variable and flatten 2D matrix into vector (for concatenation)
-#            cmd='dum=dataStr[\''+key+'\'][:].flatten()'
-#            self.message(4,'exec : '+cmd)
-#            exec(cmd)
-#            self.update_variable(key,dum)
-#                
-#                #Init variables
-#                if i == 0 : cmd='self.'+key+'=dum'
-#                
-#                #Append data to existing variables
-#                else :
-#                    #Use np.ma.concatenate if masked array
-#                    #and np.append for other cases
-#                    if isinstance(dum,np.ma.core.MaskedArray) : cmd = 'self.'+key+'=np.ma.concatenate((self.'+key+',dum))'
-#                    else : cmd='self.'+key+'=np.append(self.'+key+',dum)'
-#                self.message(4,'exec : '+cmd)
-##                exec(cmd)
-#
-#    def update_variable(self,name,data):
-#        
-#        nelts=len(data)
-#        
-#        
-#        
-#        #Test wether the variable exists or not
-#        if self.__dict__.has_key(name) :
-#        
-#            
-#        
-#        #variable do not exist
-#        else :
-#        
-#        pass
-#
-#    #Update stuff        
     
     def check_variables(self):
         """
@@ -451,7 +398,6 @@ class hydro_data(object):
                 for d in self.__dict__[p]._dimensions.keys():
                     self.__dict__[p]._dimensions.update({d:self._dimensions[d]})
         
-    
     def update_fid_list(self,filename,N):
         '''
         update file indices attribute `altimetry.data.hydro_data.fileid`
@@ -470,7 +416,6 @@ class hydro_data(object):
         self.par_list=self.par_list[self.par_list != name]
         return self.__dict__.pop(name)
         
-    
     def create_Variable(self,name,value,dimensions,toCreate=None,createDim=None,extend=True):
         """
         create_Variable : This function adds data to :class:`altimetry.data.hydro_data`
@@ -695,34 +640,7 @@ class hydro_data(object):
 #        exec(cmd)
          
         return updateDim
-        
-#        if toCreate :
-#            
-#            #This variable do not exists and needs to be created
-#            if not createDim :
-#                dumVar = np.ma.masked_array(np.zeros(curDim[1][curInd]),mask=np.repeat(True,curDim[1][curInd]))
-#                value = np.ma.concatenate((dumVar,value))
-#            cmd='self.'+name+'=value'
-#            self.message(4,'exec : '+cmd)
-#            exec(cmd)
-#            
-#
-#        
-#        #data should be append to existing data
-#        else :
-#            pass
-#        
-        
-        
-#             #Append data to existing variables
-#            else :
-#                #Use np.ma.concatenate if masked array
-#                #and np.append for other cases
-#                if isinstance(dum,np.ma.core.MaskedArray) : cmd = 'self.'+key+'=np.ma.concatenate((self.'+key+',dum))'
-#                else : cmd='self.'+key+'=np.append(self.'+key+',dum)'
-#            self.message(4,'exec : '+cmd)
             
-    
     def get_currentDim(self):
         '''
         returns the current dimensions of the object
@@ -869,8 +787,6 @@ class hydro_data(object):
         :parameter timerange: rime range to be used.
         '''
         return self.slice('date',timerange,surf=surf)
-#        if not surf : return (self.date >= timerange[0]) & (self.date < timerange[1])
-#        else : return (self.date_surf >= timerange[0]) & (self.date_surf < timerange[1])
 
     def update_with_slice(self,flag):
         '''
@@ -914,10 +830,25 @@ class hydro_data(object):
         id=self.fid_list.compress(flag)
         flag = self.fileid == id
         return flag
-    
-#    def get_id(self,id):
-#        return self.id == id
-    
+
+    def dezip(self,filename):
+        
+        fname,extzip = os.path.splitext(filename)
+        __tempfile = [k for k in self.__dict__.keys() if k.endswith("__tempfile")][0]
+        
+        if [".gz"].count(extzip) == 0: return filename
+        
+        _,extension =os.path.splitext(fname)
+        self.__tempfile += [tempfile.mktemp(extension,__tempfile,'/tmp')]
+        
+        self.message(2,"Unzipping %s to %s"  % (os.path.basename(filename),os.path.basename(self.__tempfile[-1])))
+        
+        if extzip == ".gz":
+            self.message(2,"gunzip -c %s > %s" % (filename,self.__tempfile[-1]))
+            os.system("gunzip -c %s > %s" % (filename,self.__tempfile[-1]))
+        
+        return self.__tempfile[-1]
+     
     def time_range(self,flag=None):
         '''
         time range of the current dataset
@@ -1204,10 +1135,7 @@ class hydro_data(object):
                 if show is not True :
                     plt.savefig(ffig)
                     plt.clf()
-            
-#            for enum in enumerate(par_list.compress(per_valid > 0)) : print '\t{0} (valid:{1:4.1f}%)'.format(enum[1], per_valid.compress(per_valid > 0)[enum[0]])
-#            per_valid.compress(per_valid > 0)
-        
+                   
     def in_limits(self,limit=None):
         '''
         wrapper to :func:`altimetry.tools.in_limits` based on dataset limits. 
@@ -1529,6 +1457,9 @@ class hydro_data(object):
         res=obj.push(*args,**kwargs)
 
     def __len__(self): return self.count
+    
+    def __del__(self):
+        for f in self.__tempfile : os.unlink(f)
 
 class buoy_data(hydro_data):
     
