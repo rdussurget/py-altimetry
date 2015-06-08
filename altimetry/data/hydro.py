@@ -786,7 +786,9 @@ class hydro_data(object):
         
         :parameter timerange: rime range to be used.
         '''
-        return self.slice('date',timerange,surf=surf)
+        if isinstance(timerange[0],str): trange = cnes_convert(timerange)[0]
+        else: trange=timerange
+        return self.slice('date',trange,surf=surf)
 
     def update_with_slice(self,flag):
         '''
