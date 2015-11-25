@@ -84,11 +84,13 @@ def get_spec(dx,Vin,verbose=False,gain=1.0,integration=True):
     a = fft.real
     b = fft.imag
     c = np.sqrt(a**2.0 + b**2.0) #This is the magnitude
+    d = np.arctan(b/a)
     
     if verbose : print 'Check parseval theorem 2: SUM|Y(f)|²={0}, SUM|y(t)|²={1}'.format(((c**2)/N).sum(),(V**2).sum()) 
     
     #Normalise data
     c /= np.float32(N)
+    #~ d /= np.float32(N)
     
     if verbose : print 'Check parseval theorem 3: SUM|Y(f)|²={0}, SUM|y(t)|²={1}'.format(((c**2)*N).sum(),(V**2).sum()) 
     
@@ -97,6 +99,7 @@ def get_spec(dx,Vin,verbose=False,gain=1.0,integration=True):
     #Remove negative frequencies
 #    phase=np.angle(2*fft[1:imx]) #Get phase (not used yet)
     c = 2*c[1:imx-1] #Multiply by 2 (because of negative frequencies removal) - loses a bit of energy
+    #~ d = 2*d[1:imx-1]
     
     if verbose : print 'Check parseval theorem 4: SUM|Y(f)|²={0}, SUM|y(t)|²={1}'.format(((c**2)*(N/2.0)).sum(),((V-V.mean())**2).sum()) 
     
@@ -138,7 +141,7 @@ def get_spec(dx,Vin,verbose=False,gain=1.0,integration=True):
     #Get frequencies and period  
     p=1/fq
     
-    return {'psd':psd,'esd':esd,'fq':fq,'p':p,'gain':gain}
+    return {'psd':psd,'esd':esd,'fq':fq,'p':p,'gain':gain, 'phase':d}
     
     # Normalisation (Danioux 2011)
 #    specvar = specvar / (var.size)**2 / dk #No normalization!!
