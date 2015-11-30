@@ -222,7 +222,7 @@ def spectral_analysis(dx,Ain,tapering=None,overlap=None,wsize=None,alpha=3.0,det
         
         #Set tapering defaults
         overlap=0.50 if overlap is None else overlap
-        wsize=0.5*N if wsize is None else wsize
+        wsize=N if wsize is None else wsize
 
         #Get time splitting (tapering) parameters
         #########################################
@@ -296,10 +296,12 @@ def spectral_analysis(dx,Ain,tapering=None,overlap=None,wsize=None,alpha=3.0,det
             esd = spec['esd']
             psd = spec['psd']
             fq = spec['fq']
+            phase = spec['phase']
             if ARspec: model =spec['psd'].model
         else : 
             esd = np.append(esd,spec['esd'])
             psd = np.append(psd,spec['psd'])
+            phase = spec['phase']
             if ARspec: model =np.append(model,spec['psd'].model)
     
 #    factor=((A[:,0]-A[:,0].mean())**2).sum()/spec['esd'].sum()
@@ -340,8 +342,8 @@ def spectral_analysis(dx,Ain,tapering=None,overlap=None,wsize=None,alpha=3.0,det
         esd*=Scaling_Factor
         psd*=Scaling_Factor
     
-    if tapering is not None : return {'params':{'tapering':tapering is not None,'which':which,'wsize':int(wsize),'nwind':int(nn),'overlap':int(100.*overlap),'gain':gain},'psd':psd,'esd':esd,'fq':fq,'p':p}
-    else : return {'params':{'tapering':tapering is not None},'psd':psd,'esd':esd,'fq':fq,'p':p}
+    if tapering is not None : return {'params':{'tapering':tapering is not None,'which':which,'wsize':int(wsize),'nwind':int(nn),'overlap':int(100.*overlap),'gain':gain},'psd':psd,'esd':esd,'fq':fq,'p':p,'phase':phase}
+    else : return {'params':{'tapering':tapering is not None},'psd':psd,'esd':esd,'fq':fq,'p':p,'phase':phase}
 
 #def get_cospec(dx,dy,var1,var2):
 #
