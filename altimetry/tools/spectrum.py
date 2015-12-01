@@ -99,7 +99,7 @@ def get_spec(dx,Vin,verbose=False,gain=1.0,integration=True):
     #Remove negative frequencies
 #    phase=np.angle(2*fft[1:imx]) #Get phase (not used yet)
     c = 2*c[1:imx-1] #Multiply by 2 (because of negative frequencies removal) - loses a bit of energy
-    #~ d = 2*d[1:imx-1]
+    d = 2*d[1:imx-1]
     
     if verbose : print 'Check parseval theorem 4: SUM|Y(f)|²={0}, SUM|y(t)|²={1}'.format(((c**2)*(N/2.0)).sum(),((V-V.mean())**2).sum()) 
     
@@ -383,7 +383,7 @@ def spectral_analysis(dx,Ain,tapering=None,overlap=None,wsize=None,alpha=3.0,det
 #def grid_track(dst,lat,lon,sla,remove_edges=True,backbone=None):
 #    """
 #    # GRID_TRACK
-#    # @summary: This function allow detecting gaps in a set of altimetry data and rebin this data regularlyy, with informations on gaps.
+#    # @summary: This function allow detecting gaps in a set/home/gtaburet/ETUDES/Amelioration_L4/Finalisation_CartoGlobalAmeliore/Validation/CoherenceSpectrale/tmp/altimetry/tools/spectrum.py of altimetry data and rebin this data regularlyy, with informations on gaps.
 #    # @param dst {type:numeric} : along-track distance.
 #    # @param lat {type:numeric} : latitude
 #    # @param lon {type:numeric} : longitude
@@ -569,8 +569,6 @@ def preprocess(lat,lon,sla,
     ntinit=nt
     nt=len(ok)
     
-    
-    
     # 1 - regrid tracks regularly
     #     get gap lengths
     #############################
@@ -593,8 +591,17 @@ def preprocess(lat,lon,sla,
             print '[WARNING] : Pass goes over a land mass, changing the track size from {0} to {1}'.format(nx,nx+lendiff)
             nx+=lendiff
 
+        #~ if i==0:
+            #~ dumint=inter.reshape((1,len(dsla)))
+            #~ dumslaout=dsla.reshape((1,len(dsla)))
+        #~ else:
+            #~ dumint=np.ma.array(np.concatenate([dumint.data,inter.data.reshape((1,len(dsla)))],axis=0),
+                               #~ mask=np.concatenate([dumint.mask,inter.mask.reshape((1,len(dsla)))],axis=0))
+            #~ dumslaout=np.ma.array(np.concatenate([dumslaout.data,dsla.data.reshape((1,len(dsla)))],axis=0),
+                                  #~ mask=np.concatenate([dumslaout.data,dsla.data.reshape((1,len(dsla)))],axis=0))
         dumint=inter.reshape((1,len(dsla))) if i == 0 else np.ma.concatenate([dumint,inter.reshape((1,len(dsla)))],axis=0)
         dumslaout=dsla.reshape((1,len(dsla))) if i == 0 else np.ma.concatenate([dumslaout,dsla.reshape((1,len(dsla)))],axis=0)
+    
         if i == 0 :
             gaplen = [lgaps]
             gapedges= [edges]
@@ -647,6 +654,7 @@ def preprocess(lat,lon,sla,
         if len(id2) == 0 : raise Exception('[ERROR] : All time steps in current track have a percentage of invalid data > than the maximum allowed (%i)' % int(per_min))
         if (len(id2) != len(id1)) : message(2, '%i time steps on %i removed: exceed maximum allowed percentage of invalid data (%i)' %(len(id1) - len(id2), ntinit, int(per_min)),verbose=verbose)
         
+        
         dumsla=dumsla[id2,:]
         
         
@@ -695,8 +703,15 @@ def get_segment(sla,N,last=True,mid=None,first=None,remove_edges=True,truncate_i
     
     #Save input mask
     dumsla.data[dumsla.mask]=dumsla.fill_value
-    mask = np.ma.array(dumsla.mask.copy(),mask=np.zeros(sla.shape,dtype=bool))
-    dumsla.mask[:]=False
+    
+    if len(dumsla.mask.shape) > 0:
+        mask=np.ma.array(dumsla.mask.copy(),mask=np.zeros(sla.shape,dtype=bool))
+    else:
+        mask=np.array([dumsla.mask]*sla.size).reshape(sla.shape)
+        mask=np.ma.array(mask,mask=np.zeros(sla.shape,dtype=bool))
+        dumsla.mask=mask#np.array([dumsla.mask]*sla.size).reshape(sla.shape)
+    
+    #~ dumsla.mask[:]=False
     
     #Get edges
     if remove_edges : xid=np.ma.array(np.repeat(np.arange(nx),nt).reshape(nx,nt).transpose(),mask=mask.data)
