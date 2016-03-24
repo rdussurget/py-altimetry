@@ -1,4 +1,3 @@
-
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 
@@ -14,7 +13,7 @@
     
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
-        URL_ROOT:    '',
+        URL_ROOT:    './',
         VERSION:     '0',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
@@ -29,8 +28,8 @@
     <link rel="next" title="1.1.2.2. NetCDF tools" href="altimetry.tools.nctools.html" />
     <link rel="prev" title="1.1.2. altimetry.tools Module" href="altimetry.tools.html" /> 
   </head>
-  <body>
-    <div class="related">
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
       <h3>Navigation</h3>
       <ul>
         <li class="right" style="margin-right: 10px">
@@ -45,20 +44,20 @@
         <li class="right" >
           <a href="altimetry.tools.html" title="1.1.2. altimetry.tools Module"
              accesskey="P">previous</a> |</li>
-        <li><a href="index.html">altimetry tools 0 documentation</a> &raquo;</li>
-          <li><a href="Modules.html" >1. Description of the modules</a> &raquo;</li>
-          <li><a href="altimetry.tools.html" accesskey="U">1.1.2. altimetry.tools Module</a> &raquo;</li> 
+        <li class="nav-item nav-item-0"><a href="index.html">altimetry tools 0 documentation</a> &raquo;</li>
+          <li class="nav-item nav-item-1"><a href="Modules.html" >1. Description of the modules</a> &raquo;</li>
+          <li class="nav-item nav-item-2"><a href="altimetry.tools.html" accesskey="U">1.1.2. altimetry.tools Module</a> &raquo;</li> 
       </ul>
     </div>  
 
     <div class="document">
       <div class="documentwrapper">
         <div class="bodywrapper">
-          <div class="body">
+          <div class="body" role="main">
             
   <div class="section" id="spectral-analysis">
 <span id="spectral-tools"></span><h1>1.1.2.1. Spectral analysis<a class="headerlink" href="#spectral-analysis" title="Permalink to this headline">¶</a></h1>
-<p>The <a class="reference internal" href="#module-altimetry.tools.spectrum" title="altimetry.tools.spectrum"><tt class="xref py py-mod docutils literal"><span class="pre">altimetry.tools.spectrum</span></tt></a> module contains tools dedicated to spectral analysis.</p>
+<p>The <a class="reference internal" href="#module-altimetry.tools.spectrum" title="altimetry.tools.spectrum"><code class="xref py py-mod docutils literal"><span class="pre">altimetry.tools.spectrum</span></code></a> module contains tools dedicated to spectral analysis.</p>
 <div class="section" id="about-spectral-analysis">
 <h2>1.1.2.1.1. About spectral analysis<a class="headerlink" href="#about-spectral-analysis" title="Permalink to this headline">¶</a></h2>
 <p>Spectral analysis of along-track data is a common thing. There are 2 main steps when computing a spectrum:</p>
@@ -66,12 +65,12 @@
 <div><ul>
 <li><p class="first"><strong>preprocess the data</strong></p>
 <p>It consists in detecting gaps, interpolating over short gaps and rejecting longer gaps, subsampling the data into subsegments of valid data of a given length.</p>
-<p>This step is performed using <a class="reference internal" href="#altimetry.tools.spectrum.preprocess" title="altimetry.tools.spectrum.preprocess"><tt class="xref py py-func docutils literal"><span class="pre">altimetry.tools.spectrum.preprocess()</span></tt></a></p>
+<p>This step is performed using <a class="reference internal" href="#altimetry.tools.spectrum.preprocess" title="altimetry.tools.spectrum.preprocess"><code class="xref py py-func docutils literal"><span class="pre">altimetry.tools.spectrum.preprocess()</span></code></a></p>
 </li>
 <li><p class="first"><strong>compute the spectrum</strong></p>
 <p>This step is made through a transform of the signal to the spectral domain (eg. FFT). Then frequency, energy and power spectral densities are computed and averaged. It is also possible to use <strong>spectral tapers</strong> to lower the noise of the spectrum.</p>
 <blockquote>
-<div><p>This step is performed using <a class="reference internal" href="#altimetry.tools.spectrum.spectral_analysis" title="altimetry.tools.spectrum.spectral_analysis"><tt class="xref py py-func docutils literal"><span class="pre">altimetry.tools.spectrum.spectral_analysis()</span></tt></a> (and <a class="reference internal" href="#altimetry.tools.spectrum.get_spec" title="altimetry.tools.spectrum.get_spec"><tt class="xref py py-func docutils literal"><span class="pre">altimetry.tools.spectrum.get_spec()</span></tt></a> at lower level)</p>
+<div><p>This step is performed using <a class="reference internal" href="#altimetry.tools.spectrum.spectral_analysis" title="altimetry.tools.spectrum.spectral_analysis"><code class="xref py py-func docutils literal"><span class="pre">altimetry.tools.spectrum.spectral_analysis()</span></code></a> (and <a class="reference internal" href="#altimetry.tools.spectrum.get_spec" title="altimetry.tools.spectrum.get_spec"><code class="xref py py-func docutils literal"><span class="pre">altimetry.tools.spectrum.get_spec()</span></code></a> at lower level)</p>
 </div></blockquote>
 </li>
 </ul>
@@ -93,11 +92,11 @@
 </ul>
 </dd>
 </dl>
-<p><a class="reference internal" href="#altimetry.tools.spectrum.preprocess" title="altimetry.tools.spectrum.preprocess"><tt class="xref py py-func docutils literal"><span class="pre">altimetry.tools.spectrum.preprocess()</span></tt></a> allows using tapers through its <tt class="docutils literal"><span class="pre">tapering</span></tt> keyword.</p>
+<p><a class="reference internal" href="#altimetry.tools.spectrum.preprocess" title="altimetry.tools.spectrum.preprocess"><code class="xref py py-func docutils literal"><span class="pre">altimetry.tools.spectrum.preprocess()</span></code></a> allows using tapers through its <code class="docutils literal"><span class="pre">tapering</span></code> keyword.</p>
 <div class="admonition warning">
 <p class="first admonition-title">Warning</p>
-<p>though it is taken into account in <a class="reference internal" href="#altimetry.tools.spectrum.spectral_analysis" title="altimetry.tools.spectrum.spectral_analysis"><tt class="xref py py-func docutils literal"><span class="pre">altimetry.tools.spectrum.spectral_analysis()</span></tt></a>, energy loss caused by the tapering may not be properly resolved.</p>
-<p class="last">It may be therefore necessary to correct this loss by multiplying the tapered spectrum by the ratio of energies of both spectra <img class="math" src="_images/math/16e87b85a830a7f1783de7913d90f5190814eeec.png" alt="\frac{E_{original}}{E_{tapered}}"/></p>
+<p>though it is taken into account in <a class="reference internal" href="#altimetry.tools.spectrum.spectral_analysis" title="altimetry.tools.spectrum.spectral_analysis"><code class="xref py py-func docutils literal"><span class="pre">altimetry.tools.spectrum.spectral_analysis()</span></code></a>, energy loss caused by the tapering may not be properly resolved.</p>
+<p class="last">It may be therefore necessary to correct this loss by multiplying the tapered spectrum by the ratio of energies of both spectra <img class="math" src="_images/math/f7863d4371ef2efb5a859543ea5d23ccad1b0246.png" alt="\frac{E_{original}}{E_{tapered}}"/></p>
 </div>
 </div>
 <div class="section" id="notes-on-ar-spectrum-auto-regression-methods">
@@ -111,17 +110,17 @@
 </ul>
 </dd>
 </dl>
-<p>This approach is made possible through the <tt class="xref std std-keyword docutils literal"><span class="pre">ARspec</span></tt> keyword of <a class="reference internal" href="#altimetry.tools.spectrum.spectral_analysis" title="altimetry.tools.spectrum.spectral_analysis"><tt class="xref py py-func docutils literal"><span class="pre">altimetry.tools.spectrum.spectral_analysis()</span></tt></a> (itself calling <a class="reference internal" href="#altimetry.tools.spectrum.yule_walker_regression" title="altimetry.tools.spectrum.yule_walker_regression"><tt class="xref py py-func docutils literal"><span class="pre">altimetry.tools.spectrum.yule_walker_regression()</span></tt></a>).</p>
+<p>This approach is made possible through the <code class="xref std std-keyword docutils literal"><span class="pre">ARspec</span></code> keyword of <a class="reference internal" href="#altimetry.tools.spectrum.spectral_analysis" title="altimetry.tools.spectrum.spectral_analysis"><code class="xref py py-func docutils literal"><span class="pre">altimetry.tools.spectrum.spectral_analysis()</span></code></a> (itself calling <a class="reference internal" href="#altimetry.tools.spectrum.yule_walker_regression" title="altimetry.tools.spectrum.yule_walker_regression"><code class="xref py py-func docutils literal"><span class="pre">altimetry.tools.spectrum.yule_walker_regression()</span></code></a>).</p>
 </div>
 </div>
 <div class="section" id="list-of-useful-functions">
 <h2>1.1.2.1.2. List of useful functions<a class="headerlink" href="#list-of-useful-functions" title="Permalink to this headline">¶</a></h2>
 <blockquote>
 <div><ul class="simple">
-<li><a class="reference internal" href="#altimetry.tools.spectrum.spectral_analysis" title="altimetry.tools.spectrum.spectral_analysis"><tt class="xref py py-func docutils literal"><span class="pre">altimetry.tools.spectrum.spectral_analysis()</span></tt></a> : Compute the average spectrum over a set of data</li>
-<li><a class="reference internal" href="#altimetry.tools.spectrum.preprocess" title="altimetry.tools.spectrum.preprocess"><tt class="xref py py-func docutils literal"><span class="pre">altimetry.tools.spectrum.preprocess()</span></tt></a> : Preprocess the data to be admissible to spectral analysis</li>
-<li><a class="reference internal" href="#altimetry.tools.spectrum.get_slope" title="altimetry.tools.spectrum.get_slope"><tt class="xref py py-func docutils literal"><span class="pre">altimetry.tools.spectrum.get_slope()</span></tt></a> : Compute the spectral slope</li>
-<li><a class="reference internal" href="#altimetry.tools.spectrum.optimal_AR_spectrum" title="altimetry.tools.spectrum.optimal_AR_spectrum"><tt class="xref py py-func docutils literal"><span class="pre">altimetry.tools.spectrum.optimal_AR_spectrum()</span></tt></a> : Get the order of the optimal AR spectrum</li>
+<li><a class="reference internal" href="#altimetry.tools.spectrum.spectral_analysis" title="altimetry.tools.spectrum.spectral_analysis"><code class="xref py py-func docutils literal"><span class="pre">altimetry.tools.spectrum.spectral_analysis()</span></code></a> : Compute the average spectrum over a set of data</li>
+<li><a class="reference internal" href="#altimetry.tools.spectrum.preprocess" title="altimetry.tools.spectrum.preprocess"><code class="xref py py-func docutils literal"><span class="pre">altimetry.tools.spectrum.preprocess()</span></code></a> : Preprocess the data to be admissible to spectral analysis</li>
+<li><a class="reference internal" href="#altimetry.tools.spectrum.get_slope" title="altimetry.tools.spectrum.get_slope"><code class="xref py py-func docutils literal"><span class="pre">altimetry.tools.spectrum.get_slope()</span></code></a> : Compute the spectral slope</li>
+<li><a class="reference internal" href="#altimetry.tools.spectrum.optimal_AR_spectrum" title="altimetry.tools.spectrum.optimal_AR_spectrum"><code class="xref py py-func docutils literal"><span class="pre">altimetry.tools.spectrum.optimal_AR_spectrum()</span></code></a> : Get the order of the optimal AR spectrum</li>
 </ul>
 </div></blockquote>
 </div>
@@ -129,7 +128,7 @@
 <span id="functions"></span><h2>1.1.2.1.3. Functions<a class="headerlink" href="#module-altimetry.tools.spectrum" title="Permalink to this headline">¶</a></h2>
 <dl class="function">
 <dt id="altimetry.tools.spectrum.spectral_analysis">
-<tt class="descclassname">altimetry.tools.spectrum.</tt><tt class="descname">spectral_analysis</tt><big>(</big><em>dx</em>, <em>Ain</em>, <em>tapering=None</em>, <em>overlap=None</em>, <em>wsize=None</em>, <em>alpha=3.0</em>, <em>detrend=False</em>, <em>normalise=False</em>, <em>integration=True</em>, <em>average=True</em>, <em>ARspec=None</em><big>)</big><a class="reference internal" href="_modules/altimetry/tools/spectrum.html#spectral_analysis"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.tools.spectrum.spectral_analysis" title="Permalink to this definition">¶</a></dt>
+<code class="descclassname">altimetry.tools.spectrum.</code><code class="descname">spectral_analysis</code><span class="sig-paren">(</span><em>dx</em>, <em>Ain</em>, <em>tapering=None</em>, <em>overlap=None</em>, <em>wsize=None</em>, <em>alpha=3.0</em>, <em>detrend=False</em>, <em>normalise=False</em>, <em>integration=True</em>, <em>average=True</em>, <em>ARspec=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/tools/spectrum.html#spectral_analysis"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.tools.spectrum.spectral_analysis" title="Permalink to this definition">¶</a></dt>
 <dd><p>Spectral_Analysis :
 This function performs a spatial spectral analysis with different options on a time series of SLA profiles.</p>
 <table class="docutils field-list" frame="void" rules="none">
@@ -143,7 +142,7 @@ This function performs a spatial spectral analysis with different options on a t
 <ul>
 <li>If this keyword is of type bool : apply hamming window.</li>
 <li>If this keyword is a string : apply a hamming (&#8216;hamm&#8217;), hann (&#8216;hann&#8217;), kaiser-bessel (&#8216;kaiser&#8217;), kaiser-bessel (&#8216;blackman&#8217;) or no (&#8216;none&#8217;) tapering function.</li>
-<li>If this keyword is an <tt class="xref py py-class docutils literal"><span class="pre">numpy.array</span></tt> object : apply this array as taper.</li>
+<li>If this keyword is an <code class="xref py py-class docutils literal"><span class="pre">numpy.array</span></code> object : apply this array as taper.</li>
 </ul>
 </li>
 <li><strong>overlap</strong> &#8211; overlap coefficient of the windows (0.75 means 75% overlap).</li>
@@ -167,10 +166,10 @@ This function performs a spatial spectral analysis with different options on a t
 </p>
 </td>
 </tr>
-<tr class="field-odd field"><th class="field-name">Author :</th><td class="field-body"><p class="first">Renaud DUSSURGET (RD) - LER/PAC, Ifremer</p>
+<tr class="field-odd field"><th class="field-name">Author:</th><td class="field-body"><p class="first">Renaud DUSSURGET (RD) - LER/PAC, Ifremer</p>
 </td>
 </tr>
-<tr class="field-even field"><th class="field-name">Change :</th><td class="field-body"><p class="first last">Created by RD, December 2012</p>
+<tr class="field-even field"><th class="field-name">Change:</th><td class="field-body"><p class="first last">Created by RD, December 2012</p>
 </td>
 </tr>
 </tbody>
@@ -179,7 +178,7 @@ This function performs a spatial spectral analysis with different options on a t
 
 <dl class="function">
 <dt id="altimetry.tools.spectrum.preprocess">
-<tt class="descclassname">altimetry.tools.spectrum.</tt><tt class="descname">preprocess</tt><big>(</big><em>lat</em>, <em>lon</em>, <em>sla</em>, <em>N_min=None</em>, <em>per_min=15.0</em>, <em>max_gap=None</em>, <em>leave_gaps=False</em>, <em>remove_edges=True</em>, <em>interp_over_continents=False</em>, <em>truncate_if_continents=True</em>, <em>discard_continental_gaps=True</em>, <em>flag_interp=False</em>, <em>return_lonlat=False</em>, <em>return_interpolated=False</em>, <em>last=True</em>, <em>mid=None</em>, <em>first=None</em>, <em>verbose=1</em><big>)</big><a class="reference internal" href="_modules/altimetry/tools/spectrum.html#preprocess"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.tools.spectrum.preprocess" title="Permalink to this definition">¶</a></dt>
+<code class="descclassname">altimetry.tools.spectrum.</code><code class="descname">preprocess</code><span class="sig-paren">(</span><em>lat</em>, <em>lon</em>, <em>sla</em>, <em>N_min=None</em>, <em>per_min=15.0</em>, <em>max_gap=None</em>, <em>leave_gaps=False</em>, <em>remove_edges=True</em>, <em>interp_over_continents=False</em>, <em>truncate_if_continents=True</em>, <em>discard_continental_gaps=True</em>, <em>flag_interp=False</em>, <em>return_lonlat=False</em>, <em>return_interpolated=False</em>, <em>last=True</em>, <em>mid=None</em>, <em>first=None</em>, <em>verbose=1</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/tools/spectrum.html#preprocess"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.tools.spectrum.preprocess" title="Permalink to this definition">¶</a></dt>
 <dd><dl class="docutils">
 <dt>Preprocessing of the SLA data ::</dt>
 <dd><ul class="first last">
@@ -215,15 +214,15 @@ This function performs a spatial spectral analysis with different options on a t
 <li><strong>lon</strong> &#8211; longitude</li>
 <li><strong>lat</strong> &#8211; longitude</li>
 <li><strong>sla</strong> &#8211; data</li>
-<li><strong>N_min</strong> &#8211; Length of subsegments (cf <tt class="xref py py-func docutils literal"><span class="pre">altimetry.tools.spectrum.get_segments()</span></tt>)</li>
+<li><strong>N_min</strong> &#8211; Length of subsegments (cf <code class="xref py py-func docutils literal"><span class="pre">altimetry.tools.spectrum.get_segments()</span></code>)</li>
 <li><strong>per_min</strong> &#8211; Minimum percentage of valid data to allow.</li>
 <li><strong>max_gap</strong> &#8211; Maximum gap length to interpolate over (interpolation is done 1st, THEN long gaps are eliminated)</li>
 <li><strong>leave_gaps</strong> &#8211; Leave gaps (equivalent to setting max_gap to number of points in track).</li>
 <li><strong>remove_edges</strong> &#8211; discard data at track edges.</li>
 <li><strong>truncate_if_continents</strong> &#8211; Force truncating data if a continent is found within a segment of data.</li>
-<li><strong>last</strong> &#8211; Get segments of data sticked to the last point in track (cf <tt class="xref py py-func docutils literal"><span class="pre">altimetry.tools.spectrum.get_segments()</span></tt>)</li>
-<li><strong>first</strong> &#8211; Get segments of data sticked to the first point in track (cf <tt class="xref py py-func docutils literal"><span class="pre">altimetry.tools.spectrum.get_segments()</span></tt>)</li>
-<li><strong>mid</strong> &#8211; Get segments of data sticked to the middle point in track (cf <tt class="xref py py-func docutils literal"><span class="pre">altimetry.tools.spectrum.get_segments()</span></tt>)</li>
+<li><strong>last</strong> &#8211; Get segments of data sticked to the last point in track (cf <code class="xref py py-func docutils literal"><span class="pre">altimetry.tools.spectrum.get_segments()</span></code>)</li>
+<li><strong>first</strong> &#8211; Get segments of data sticked to the first point in track (cf <code class="xref py py-func docutils literal"><span class="pre">altimetry.tools.spectrum.get_segments()</span></code>)</li>
+<li><strong>mid</strong> &#8211; Get segments of data sticked to the middle point in track (cf <code class="xref py py-func docutils literal"><span class="pre">altimetry.tools.spectrum.get_segments()</span></code>)</li>
 </ul>
 </td>
 </tr>
@@ -233,7 +232,7 @@ This function performs a spatial spectral analysis with different options on a t
 
 <dl class="function">
 <dt id="altimetry.tools.spectrum.get_kx">
-<tt class="descclassname">altimetry.tools.spectrum.</tt><tt class="descname">get_kx</tt><big>(</big><em>N</em>, <em>dx</em><big>)</big><a class="reference internal" href="_modules/altimetry/tools/spectrum.html#get_kx"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.tools.spectrum.get_kx" title="Permalink to this definition">¶</a></dt>
+<code class="descclassname">altimetry.tools.spectrum.</code><code class="descname">get_kx</code><span class="sig-paren">(</span><em>N</em>, <em>dx</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/tools/spectrum.html#get_kx"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.tools.spectrum.get_kx" title="Permalink to this definition">¶</a></dt>
 <dd><p>GET_KX
 :summary: Returns the frequencies to be used with FFT analysis</p>
 <table class="docutils field-list" frame="void" rules="none">
@@ -252,10 +251,10 @@ This function performs a spatial spectral analysis with different options on a t
 * imx: index of maximum frequency (for separating positive and negative frequencies)</p>
 </td>
 </tr>
-<tr class="field-odd field"><th class="field-name">Author :</th><td class="field-body"><p class="first">Renaud DUSSURGET (RD) - LER/PAC, Ifremer</p>
+<tr class="field-odd field"><th class="field-name">Author:</th><td class="field-body"><p class="first">Renaud DUSSURGET (RD) - LER/PAC, Ifremer</p>
 </td>
 </tr>
-<tr class="field-even field"><th class="field-name">Change :</th><td class="field-body"><p class="first last">Created by RD, July 2012</p>
+<tr class="field-even field"><th class="field-name">Change:</th><td class="field-body"><p class="first last">Created by RD, July 2012</p>
 </td>
 </tr>
 </tbody>
@@ -264,7 +263,7 @@ This function performs a spatial spectral analysis with different options on a t
 
 <dl class="function">
 <dt id="altimetry.tools.spectrum.get_spec">
-<tt class="descclassname">altimetry.tools.spectrum.</tt><tt class="descname">get_spec</tt><big>(</big><em>dx</em>, <em>Vin</em>, <em>verbose=False</em>, <em>gain=1.0</em>, <em>integration=True</em><big>)</big><a class="reference internal" href="_modules/altimetry/tools/spectrum.html#get_spec"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.tools.spectrum.get_spec" title="Permalink to this definition">¶</a></dt>
+<code class="descclassname">altimetry.tools.spectrum.</code><code class="descname">get_spec</code><span class="sig-paren">(</span><em>dx</em>, <em>Vin</em>, <em>verbose=False</em>, <em>gain=1.0</em>, <em>integration=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/tools/spectrum.html#get_spec"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.tools.spectrum.get_spec" title="Permalink to this definition">¶</a></dt>
 <dd><p>GET_SPEC
 :summary: Returns the spectrum of a regularly sampled dataset</p>
 <table class="docutils field-list" frame="void" rules="none">
@@ -277,7 +276,7 @@ This function performs a spatial spectral analysis with different options on a t
 </ul>
 </td>
 </tr>
-<tr class="field-even field"><th class="field-name">Note :</th><td class="field-body"><p class="first">NaN can not be used.</p>
+<tr class="field-even field"><th class="field-name">Note:</th><td class="field-body"><p class="first">NaN can not be used.</p>
 </td>
 </tr>
 <tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><ul class="simple">
@@ -289,10 +288,10 @@ This function performs a spatial spectral analysis with different options on a t
 </p>
 </td>
 </tr>
-<tr class="field-even field"><th class="field-name">Author :</th><td class="field-body"><p class="first">Renaud DUSSURGET (RD) - LER/PAC, Ifremer</p>
+<tr class="field-even field"><th class="field-name">Author:</th><td class="field-body"><p class="first">Renaud DUSSURGET (RD) - LER/PAC, Ifremer</p>
 </td>
 </tr>
-<tr class="field-odd field"><th class="field-name">Change :</th><td class="field-body"><p class="first last">Created by RD, July 2012. Changes
+<tr class="field-odd field"><th class="field-name">Change:</th><td class="field-body"><p class="first last">Created by RD, July 2012. Changes
 * 29/08/2012 : Changed the computation of frequencies and the spectral integration (spectrum is averaged at mid-width frequencies)
 * 30/11/2012 : Outstanding changes : corrected the spectral integration for computing psd and corrected the normalisation</p>
 </td>
@@ -303,7 +302,7 @@ This function performs a spatial spectral analysis with different options on a t
 
 <dl class="function">
 <dt id="altimetry.tools.spectrum.get_segment">
-<tt class="descclassname">altimetry.tools.spectrum.</tt><tt class="descname">get_segment</tt><big>(</big><em>sla</em>, <em>N</em>, <em>last=True</em>, <em>mid=None</em>, <em>first=None</em>, <em>remove_edges=True</em>, <em>truncate_if_continents=True</em><big>)</big><a class="reference internal" href="_modules/altimetry/tools/spectrum.html#get_segment"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.tools.spectrum.get_segment" title="Permalink to this definition">¶</a></dt>
+<code class="descclassname">altimetry.tools.spectrum.</code><code class="descname">get_segment</code><span class="sig-paren">(</span><em>sla</em>, <em>N</em>, <em>last=True</em>, <em>mid=None</em>, <em>first=None</em>, <em>remove_edges=True</em>, <em>truncate_if_continents=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/tools/spectrum.html#get_segment"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.tools.spectrum.get_segment" title="Permalink to this definition">¶</a></dt>
 <dd><p>Intelligent segmentation of data.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -324,7 +323,7 @@ This function performs a spatial spectral analysis with different options on a t
 
 <dl class="function">
 <dt id="altimetry.tools.spectrum.get_slope">
-<tt class="descclassname">altimetry.tools.spectrum.</tt><tt class="descname">get_slope</tt><big>(</big><em>fq</em>, <em>spec</em>, <em>degree=1</em>, <em>frange=None</em>, <em>threshold=0.0</em><big>)</big><a class="reference internal" href="_modules/altimetry/tools/spectrum.html#get_slope"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.tools.spectrum.get_slope" title="Permalink to this definition">¶</a></dt>
+<code class="descclassname">altimetry.tools.spectrum.</code><code class="descname">get_slope</code><span class="sig-paren">(</span><em>fq</em>, <em>spec</em>, <em>degree=1</em>, <em>frange=None</em>, <em>threshold=0.0</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/tools/spectrum.html#get_slope"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.tools.spectrum.get_slope" title="Permalink to this definition">¶</a></dt>
 <dd><p>GET_SLOPE
 :summary: This function returns the spectral slope of a spectrum using a least-square regression</p>
 <table class="docutils field-list" frame="void" rules="none">
@@ -345,10 +344,10 @@ This function performs a spatial spectral analysis with different options on a t
 </p>
 </td>
 </tr>
-<tr class="field-odd field"><th class="field-name">Author :</th><td class="field-body"><p class="first">Renaud DUSSURGET (RD) - LER/PAC, Ifremer</p>
+<tr class="field-odd field"><th class="field-name">Author:</th><td class="field-body"><p class="first">Renaud DUSSURGET (RD) - LER/PAC, Ifremer</p>
 </td>
 </tr>
-<tr class="field-even field"><th class="field-name">Change :</th><td class="field-body"><p class="first last">Created by RD, August 2012</p>
+<tr class="field-even field"><th class="field-name">Change:</th><td class="field-body"><p class="first last">Created by RD, August 2012</p>
 </td>
 </tr>
 </tbody>
@@ -357,19 +356,19 @@ This function performs a spatial spectral analysis with different options on a t
 
 <dl class="function">
 <dt id="altimetry.tools.spectrum.yule_walker">
-<tt class="descclassname">altimetry.tools.spectrum.</tt><tt class="descname">yule_walker</tt><big>(</big><em>acf</em>, <em>orden</em><big>)</big><a class="reference internal" href="_modules/altimetry/tools/spectrum.html#yule_walker"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.tools.spectrum.yule_walker" title="Permalink to this definition">¶</a></dt>
+<code class="descclassname">altimetry.tools.spectrum.</code><code class="descname">yule_walker</code><span class="sig-paren">(</span><em>acf</em>, <em>orden</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/tools/spectrum.html#yule_walker"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.tools.spectrum.yule_walker" title="Permalink to this definition">¶</a></dt>
 <dd><p>Program to solve Yule-Walker equations for AutoRegressive Models</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Author :</th><td class="field-body"><p class="first">XAVI LLORT (llort(at)grahi.upc.edu)</p>
+<tr class="field-odd field"><th class="field-name">Author:</th><td class="field-body"><p class="first">XAVI LLORT (llort(at)grahi.upc.edu)</p>
 </td>
 </tr>
-<tr class="field-even field"><th class="field-name">Created :</th><td class="field-body"><p class="first">MAY 2007</p>
+<tr class="field-even field"><th class="field-name">Created:</th><td class="field-body"><p class="first">MAY 2007</p>
 </td>
 </tr>
-<tr class="field-odd field"><th class="field-name">Changes :</th><td class="field-body"><p class="first">adapted to python by R.Dussurget</p>
+<tr class="field-odd field"><th class="field-name">Changes:</th><td class="field-body"><p class="first">adapted to python by R.Dussurget</p>
 </td>
 </tr>
 <tr class="field-even field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
@@ -391,7 +390,7 @@ This function performs a spatial spectral analysis with different options on a t
 
 <dl class="function">
 <dt id="altimetry.tools.spectrum.yule_walker_regression">
-<tt class="descclassname">altimetry.tools.spectrum.</tt><tt class="descname">yule_walker_regression</tt><big>(</big><em>dx</em>, <em>Y</em>, <em>deg</em>, <em>res=None</em><big>)</big><a class="reference internal" href="_modules/altimetry/tools/spectrum.html#yule_walker_regression"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.tools.spectrum.yule_walker_regression" title="Permalink to this definition">¶</a></dt>
+<code class="descclassname">altimetry.tools.spectrum.</code><code class="descname">yule_walker_regression</code><span class="sig-paren">(</span><em>dx</em>, <em>Y</em>, <em>deg</em>, <em>res=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/tools/spectrum.html#yule_walker_regression"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.tools.spectrum.yule_walker_regression" title="Permalink to this definition">¶</a></dt>
 <dd><table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
@@ -430,27 +429,28 @@ This function performs a spatial spectral analysis with different options on a t
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Example :</th><td class="field-body"><p class="first">IDL example :</p>
-<div class="last highlight-IDL"><pre>#Define an n-element vector of time-series samples  
-X = [6.63, 6.59, 6.46, 6.49, 6.45, 6.41, 6.38, 6.26, 6.09, 5.99, $  
-    5.92, 5.93, 5.83, 5.82, 5.95, 5.91, 5.81, 5.64, 5.51, 5.31, $  
-    5.36, 5.17, 5.07, 4.97, 5.00, 5.01, 4.85, 4.79, 4.73, 4.76]  
+<tr class="field-odd field"><th class="field-name">Example:</th><td class="field-body"><p class="first">IDL example :</p>
+<div class="last highlight-IDL"><div class="highlight"><pre><span class="o">#</span>Define an n<span class="o">-</span>element <span class="nb">vector</span> <span class="k">of</span> time<span class="o">-</span>series samples  
+X <span class="o">=</span> [<span class="m">6</span>.63, <span class="m">6</span>.59, <span class="m">6</span>.46, <span class="m">6</span>.49, <span class="m">6</span>.45, <span class="m">6</span>.41, <span class="m">6</span>.38, <span class="m">6</span>.26, <span class="m">6</span>.09, <span class="m">5</span>.99, $  
+    <span class="m">5</span>.92, <span class="m">5</span>.93, <span class="m">5</span>.83, <span class="m">5</span>.82, <span class="m">5</span>.95, <span class="m">5</span>.91, <span class="m">5</span>.81, <span class="m">5</span>.64, <span class="m">5</span>.51, <span class="m">5</span>.31, $  
+    <span class="m">5</span>.36, <span class="m">5</span>.17, <span class="m">5</span>.07, <span class="m">4</span>.97, <span class="m">5</span>.00, <span class="m">5</span>.01, <span class="m">4</span>.85, <span class="m">4</span>.79, <span class="m">4</span>.73, <span class="m">4</span>.76]  
 
-#Compute auto_correlation function
-acorr=A_CORRELATE(X,INDGEN(30))
+<span class="o">#</span>Compute auto_correlation <span class="k">function</span>
+acorr<span class="o">=</span><span class="nb">A_CORRELATE</span>(X,<span class="nb">INDGEN</span>(30))
 
-#Solve YW equation to get auto-regression coefficients for AR(2) model
-YULE_WALKER, acorr, 2, a, sig
+<span class="o">#</span>Solve YW equation to get auto<span class="o">-</span>regression coefficients <span class="k">for</span> AR(<span class="m">2</span>) model
+YULE_WALKER, acorr, <span class="m">2</span>, a, sig
 
-#Process auto-regression model
-ar=DBLARR(28)
-FOR i = 2, 29 DO ar[i-2] = SQRT(a[0]*X[i-1]*X[i] + a[1]*x[i-2]*x[i]+sig*x[i])
+<span class="o">#</span>Process auto<span class="o">-</span>regression model
+ar<span class="o">=</span><span class="nb">DBLARR</span>(28)
+<span class="k">FOR</span> i <span class="o">=</span> <span class="m">2</span>, 29 <span class="k">DO</span> ar[i<span class="o">-</span><span class="m">2</span>] <span class="o">=</span> <span class="nb">SQRT</span>(a[<span class="m">0</span>]<span class="o">*</span>X[i<span class="o">-</span><span class="m">1</span>]<span class="o">*</span>X[i] <span class="o">+</span> a[<span class="m">1</span>]<span class="o">*</span>x[i<span class="o">-</span><span class="m">2</span>]<span class="o">*</span>x[i]<span class="o">+</span>sig<span class="o">*</span>x[i])
 
-#Compute spectrum
-spec=spectrogram(TRANSPOSE(X), INDGEN(N), WSIZE=N, OVERLAY=1.0, DISPLAY_IMAGE=0)
+<span class="o">#</span>Compute spectrum
+spec<span class="o">=</span>spectrogram(<span class="nb">TRANSPOSE</span>(X), <span class="nb">INDGEN</span>(N), WSIZE<span class="o">=</span>N, OVERLAY<span class="o">=</span><span class="m">1</span>.<span class="m">0</span>, DISPLAY_IMAGE<span class="o">=</span><span class="m">0</span>)
 
-#Compute AR(2) model spectrum
-ar2=spectrogram(TRANSPOSE(ar), INDGEN(28), WSIZE=28, OVERLAY=1.0, DISPLAY_IMAGE=0)</pre>
+<span class="o">#</span>Compute AR(<span class="m">2</span>) model spectrum
+ar2<span class="o">=</span>spectrogram(<span class="nb">TRANSPOSE</span>(ar), <span class="nb">INDGEN</span>(28), WSIZE<span class="o">=</span>28, OVERLAY<span class="o">=</span><span class="m">1</span>.<span class="m">0</span>, DISPLAY_IMAGE<span class="o">=</span><span class="m">0</span>)
+</pre></div>
 </div>
 </td>
 </tr>
@@ -460,7 +460,7 @@ ar2=spectrogram(TRANSPOSE(ar), INDGEN(28), WSIZE=28, OVERLAY=1.0, DISPLAY_IMAGE=
 
 <dl class="function">
 <dt id="altimetry.tools.spectrum.optimal_AR_spectrum">
-<tt class="descclassname">altimetry.tools.spectrum.</tt><tt class="descname">optimal_AR_spectrum</tt><big>(</big><em>dx</em>, <em>Y</em>, <em>ndegrees=None</em>, <em>return_min=True</em><big>)</big><a class="reference internal" href="_modules/altimetry/tools/spectrum.html#optimal_AR_spectrum"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.tools.spectrum.optimal_AR_spectrum" title="Permalink to this definition">¶</a></dt>
+<code class="descclassname">altimetry.tools.spectrum.</code><code class="descname">optimal_AR_spectrum</code><span class="sig-paren">(</span><em>dx</em>, <em>Y</em>, <em>ndegrees=None</em>, <em>return_min=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/tools/spectrum.html#optimal_AR_spectrum"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.tools.spectrum.optimal_AR_spectrum" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get the optimal order AR spectrum by minimizing the BIC.</p>
 </dd></dl>
 
@@ -471,7 +471,7 @@ ar2=spectrogram(TRANSPOSE(ar), INDGEN(28), WSIZE=28, OVERLAY=1.0, DISPLAY_IMAGE=
           </div>
         </div>
       </div>
-      <div class="sphinxsidebar">
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
         <div class="sphinxsidebarwrapper">
   <h3><a href="index.html">Table Of Contents</a></h3>
   <ul>
@@ -493,12 +493,14 @@ ar2=spectrogram(TRANSPOSE(ar), INDGEN(28), WSIZE=28, OVERLAY=1.0, DISPLAY_IMAGE=
   <h4>Next topic</h4>
   <p class="topless"><a href="altimetry.tools.nctools.html"
                         title="next chapter">1.1.2.2. NetCDF tools</a></p>
-  <h3>This Page</h3>
-  <ul class="this-page-menu">
-    <li><a href="_sources/altimetry.tools.spectrum.txt"
-           rel="nofollow">Show Source</a></li>
-  </ul>
-<div id="searchbox" style="display: none">
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/altimetry.tools.spectrum.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
   <h3>Quick search</h3>
     <form class="search" action="search.html" method="get">
       <input type="text" name="q" />
@@ -515,7 +517,7 @@ ar2=spectrogram(TRANSPOSE(ar), INDGEN(28), WSIZE=28, OVERLAY=1.0, DISPLAY_IMAGE=
       </div>
       <div class="clearer"></div>
     </div>
-    <div class="related">
+    <div class="related" role="navigation" aria-label="related navigation">
       <h3>Navigation</h3>
       <ul>
         <li class="right" style="margin-right: 10px">
@@ -530,14 +532,14 @@ ar2=spectrogram(TRANSPOSE(ar), INDGEN(28), WSIZE=28, OVERLAY=1.0, DISPLAY_IMAGE=
         <li class="right" >
           <a href="altimetry.tools.html" title="1.1.2. altimetry.tools Module"
              >previous</a> |</li>
-        <li><a href="index.html">altimetry tools 0 documentation</a> &raquo;</li>
-          <li><a href="Modules.html" >1. Description of the modules</a> &raquo;</li>
-          <li><a href="altimetry.tools.html" >1.1.2. altimetry.tools Module</a> &raquo;</li> 
+        <li class="nav-item nav-item-0"><a href="index.html">altimetry tools 0 documentation</a> &raquo;</li>
+          <li class="nav-item nav-item-1"><a href="Modules.html" >1. Description of the modules</a> &raquo;</li>
+          <li class="nav-item nav-item-2"><a href="altimetry.tools.html" >1.1.2. altimetry.tools Module</a> &raquo;</li> 
       </ul>
     </div>
-    <div class="footer">
+    <div class="footer" role="contentinfo">
         &copy; Copyright 2013, Renaud Dussurget.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.3.1.
     </div>
   </body>
 </html>

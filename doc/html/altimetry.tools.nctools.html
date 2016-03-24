@@ -1,4 +1,3 @@
-
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 
@@ -14,7 +13,7 @@
     
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
-        URL_ROOT:    '',
+        URL_ROOT:    './',
         VERSION:     '0',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
@@ -29,8 +28,8 @@
     <link rel="next" title="2. Some examples to illustrate py-altimetry functionalities" href="Examples.html" />
     <link rel="prev" title="1.1.2.1. Spectral analysis" href="altimetry.tools.spectrum.html" /> 
   </head>
-  <body>
-    <div class="related">
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
       <h3>Navigation</h3>
       <ul>
         <li class="right" style="margin-right: 10px">
@@ -45,36 +44,36 @@
         <li class="right" >
           <a href="altimetry.tools.spectrum.html" title="1.1.2.1. Spectral analysis"
              accesskey="P">previous</a> |</li>
-        <li><a href="index.html">altimetry tools 0 documentation</a> &raquo;</li>
-          <li><a href="Modules.html" >1. Description of the modules</a> &raquo;</li>
-          <li><a href="altimetry.tools.html" accesskey="U">1.1.2. altimetry.tools Module</a> &raquo;</li> 
+        <li class="nav-item nav-item-0"><a href="index.html">altimetry tools 0 documentation</a> &raquo;</li>
+          <li class="nav-item nav-item-1"><a href="Modules.html" >1. Description of the modules</a> &raquo;</li>
+          <li class="nav-item nav-item-2"><a href="altimetry.tools.html" accesskey="U">1.1.2. altimetry.tools Module</a> &raquo;</li> 
       </ul>
     </div>  
 
     <div class="document">
       <div class="documentwrapper">
         <div class="bodywrapper">
-          <div class="body">
+          <div class="body" role="main">
             
   <div class="section" id="netcdf-tools">
 <h1>1.1.2.2. NetCDF tools<a class="headerlink" href="#netcdf-tools" title="Permalink to this headline">¶</a></h1>
-<p>The <a class="reference internal" href="#module-altimetry.tools.nctools" title="altimetry.tools.nctools"><tt class="xref py py-mod docutils literal"><span class="pre">altimetry.tools.nctools</span></tt></a> module contains tools dedicated to easily handle NetCDF data.</p>
+<p>The <a class="reference internal" href="#module-altimetry.tools.nctools" title="altimetry.tools.nctools"><code class="xref py py-mod docutils literal"><span class="pre">altimetry.tools.nctools</span></code></a> module contains tools dedicated to easily handle NetCDF data.</p>
 <table class="hlist"><tr><td><ul class="simple">
-<li><a class="reference internal" href="#nc"><em>An easy to use wrapper to NetCDF4 package - altimetry.tools.nctools.nc</em></a></li>
-<li><a class="reference internal" href="#load-ncvar"><em>Addionnal function</em></a></li>
+<li><a class="reference internal" href="#nc"><span>An easy to use wrapper to NetCDF4 package - altimetry.tools.nctools.nc</span></a></li>
+<li><a class="reference internal" href="#load-ncvar"><span>Addionnal function</span></a></li>
 </ul>
 </td></tr></table>
 <div class="section" id="an-easy-to-use-wrapper-to-netcdf4-package-altimetry-tools-nctools-nc">
 <span id="nc"></span><h2>1.1.2.2.1. An easy to use wrapper to NetCDF4 package - altimetry.tools.nctools.nc<a class="headerlink" href="#an-easy-to-use-wrapper-to-netcdf4-package-altimetry-tools-nctools-nc" title="Permalink to this headline">¶</a></h2>
 <dl class="class">
 <dt id="altimetry.tools.nctools.nc">
-<em class="property">class </em><tt class="descclassname">altimetry.tools.nctools.</tt><tt class="descname">nc</tt><big>(</big><em>limit=[-90.0, 0.0, 90.0, 360.0], verbose=0, zero_2pi=False, transpose=False, use_local_dims=False, **kwargs</em><big>)</big><a class="reference internal" href="_modules/altimetry/tools/nctools.html#nc"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.tools.nctools.nc" title="Permalink to this definition">¶</a></dt>
-<dd><p>A class for easy-handling of NetCDF data based on <tt class="xref py py-mod docutils literal"><span class="pre">NetCDF4</span></tt> package.</p>
+<em class="property">class </em><code class="descclassname">altimetry.tools.nctools.</code><code class="descname">nc</code><span class="sig-paren">(</span><em>limit=[-90.0, 0.0, 90.0, 360.0], verbose=0, zero_2pi=False, transpose=False, use_local_dims=False, **kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/tools/nctools.html#nc"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.tools.nctools.nc" title="Permalink to this definition">¶</a></dt>
+<dd><p>A class for easy-handling of NetCDF data based on <code class="xref py py-mod docutils literal"><span class="pre">NetCDF4</span></code> package.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Example :</th><td class="field-body"><p class="first">To load different sets of data, try these :</p>
+<tr class="field-odd field"><th class="field-name">Example:</th><td class="field-body"><p class="first">To load different sets of data, try these :</p>
 <ul class="last">
 <li><p class="first">Simply load a NetCDF file</p>
 <ul class="simple">
@@ -194,7 +193,7 @@
 </table>
 <dl class="method">
 <dt id="altimetry.tools.nctools.nc.attributes">
-<tt class="descname">attributes</tt><big>(</big><em>filename</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/altimetry/tools/nctools.html#nc.attributes"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.tools.nctools.nc.attributes" title="Permalink to this definition">¶</a></dt>
+<code class="descname">attributes</code><span class="sig-paren">(</span><em>filename</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/tools/nctools.html#nc.attributes"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.tools.nctools.nc.attributes" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get attributes of a NetCDF file</p>
 <p>:return {type:dict} outStr: Attribute structure.
 :author: Renaud Dussurget</p>
@@ -202,29 +201,29 @@
 
 <dl class="attribute">
 <dt id="altimetry.tools.nctools.nc.count">
-<tt class="descname">count</tt><em class="property"> = None</em><a class="headerlink" href="#altimetry.tools.nctools.nc.count" title="Permalink to this definition">¶</a></dt>
+<code class="descname">count</code><em class="property"> = None</em><a class="headerlink" href="#altimetry.tools.nctools.nc.count" title="Permalink to this definition">¶</a></dt>
 <dd><p>number of files loaded</p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="altimetry.tools.nctools.nc.fileid">
-<tt class="descname">fileid</tt><em class="property"> = None</em><a class="headerlink" href="#altimetry.tools.nctools.nc.fileid" title="Permalink to this definition">¶</a></dt>
+<code class="descname">fileid</code><em class="property"> = None</em><a class="headerlink" href="#altimetry.tools.nctools.nc.fileid" title="Permalink to this definition">¶</a></dt>
 <dd><p>array of file IDs</p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="altimetry.tools.nctools.nc.limit">
-<tt class="descname">limit</tt><em class="property"> = None</em><a class="headerlink" href="#altimetry.tools.nctools.nc.limit" title="Permalink to this definition">¶</a></dt>
+<code class="descname">limit</code><em class="property"> = None</em><a class="headerlink" href="#altimetry.tools.nctools.nc.limit" title="Permalink to this definition">¶</a></dt>
 <dd><p>limits of the domain : [latmin,lonmin,latmax,lonmax] (default = [-90.,0.,90.,360.])</p>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
-<p class="last">limits are automatically reset using <tt class="xref py py-func docutils literal"><span class="pre">altimetry.tools.recale_limits()</span></tt></p>
+<p class="last">limits are automatically reset using <code class="xref py py-func docutils literal"><span class="pre">altimetry.tools.recale_limits()</span></code></p>
 </div>
 </dd></dl>
 
 <dl class="method">
 <dt id="altimetry.tools.nctools.nc.load">
-<tt class="descname">load</tt><big>(</big><em>filename</em>, <em>params=None</em>, <em>force=False</em>, <em>depthrange=None</em>, <em>timerange=None</em>, <em>output_is_dict=True</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/altimetry/tools/nctools.html#nc.load"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.tools.nctools.nc.load" title="Permalink to this definition">¶</a></dt>
+<code class="descname">load</code><span class="sig-paren">(</span><em>filename</em>, <em>params=None</em>, <em>force=False</em>, <em>depthrange=None</em>, <em>timerange=None</em>, <em>output_is_dict=True</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/tools/nctools.html#nc.load"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.tools.nctools.nc.load" title="Permalink to this definition">¶</a></dt>
 <dd><p>NetCDF data loader</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -242,7 +241,7 @@
 </table>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
-<p class="last">using <tt class="xref py py-attr docutils literal"><span class="pre">altimetry.tools.nctools.limit</span></tt> allows subsetting to a given region.</p>
+<p class="last">using <code class="xref py py-attr docutils literal"><span class="pre">altimetry.tools.nctools.limit</span></code> allows subsetting to a given region.</p>
 </div>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -254,7 +253,7 @@
 </table>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
-<p class="last">You can index along any dimension by providing the name of the dimensions to subsample along. Values associated to the provided keywords should be a length 2 or 3 tuple (min,max,&lt;step&gt;) (cf. <tt class="xref py py-func docutils literal"><span class="pre">altimetry.data.nctools.load_ncVar()</span></tt>).</p>
+<p class="last">You can index along any dimension by providing the name of the dimensions to subsample along. Values associated to the provided keywords should be a length 2 or 3 tuple (min,max,&lt;step&gt;) (cf. <code class="xref py py-func docutils literal"><span class="pre">altimetry.data.nctools.load_ncVar()</span></code>).</p>
 </div>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -269,7 +268,7 @@
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Author :</th><td class="field-body">Renaud Dussurget</td>
+<tr class="field-odd field"><th class="field-name">Author:</th><td class="field-body">Renaud Dussurget</td>
 </tr>
 </tbody>
 </table>
@@ -277,7 +276,7 @@
 
 <dl class="method">
 <dt id="altimetry.tools.nctools.nc.message">
-<tt class="descname">message</tt><big>(</big><em>MSG_LEVEL</em>, <em>str</em><big>)</big><a class="reference internal" href="_modules/altimetry/tools/nctools.html#nc.message"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.tools.nctools.nc.message" title="Permalink to this definition">¶</a></dt>
+<code class="descname">message</code><span class="sig-paren">(</span><em>MSG_LEVEL</em>, <em>str</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/tools/nctools.html#nc.message"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.tools.nctools.nc.message" title="Permalink to this definition">¶</a></dt>
 <dd><p>print function wrapper. Print a message depending on the verbose level</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -286,16 +285,16 @@
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>MSG_LEVEL</strong> (<em>{in}{required}{type=int}</em>) &#8211; level of the message to be compared with self.verbose</p>
 </td>
 </tr>
-<tr class="field-even field"><th class="field-name">Example :</th><td class="field-body"><p class="first">display a message</p>
+<tr class="field-even field"><th class="field-name">Example:</th><td class="field-body"><p class="first">display a message</p>
 <div class="highlight-python"><div class="highlight"><pre><span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="s">&#39;This message will be shown for any verbose level&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
 </td>
 </tr>
-<tr class="field-odd field"><th class="field-name">Author :</th><td class="field-body"><p class="first">Renaud DUSSURGET (RD), LER PAC/IFREMER</p>
+<tr class="field-odd field"><th class="field-name">Author:</th><td class="field-body"><p class="first">Renaud DUSSURGET (RD), LER PAC/IFREMER</p>
 </td>
 </tr>
-<tr class="field-even field"><th class="field-name">Change :</th><td class="field-body"><p class="first last">Added a case for variables with missing dimensions</p>
+<tr class="field-even field"><th class="field-name">Change:</th><td class="field-body"><p class="first last">Added a case for variables with missing dimensions</p>
 </td>
 </tr>
 </tbody>
@@ -304,7 +303,7 @@
 
 <dl class="method">
 <dt id="altimetry.tools.nctools.nc.push">
-<tt class="descname">push</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/altimetry/tools/nctools.html#nc.push"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.tools.nctools.nc.push" title="Permalink to this definition">¶</a></dt>
+<code class="descname">push</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/tools/nctools.html#nc.push"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.tools.nctools.nc.push" title="Permalink to this definition">¶</a></dt>
 <dd><p>append a variable from a given data structure to the existing dataset.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -326,15 +325,15 @@
 
 <dl class="method">
 <dt id="altimetry.tools.nctools.nc.read">
-<tt class="descname">read</tt><big>(</big><em>file_pattern</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/altimetry/tools/nctools.html#nc.read"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.tools.nctools.nc.read" title="Permalink to this definition">¶</a></dt>
+<code class="descname">read</code><span class="sig-paren">(</span><em>file_pattern</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/tools/nctools.html#nc.read"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.tools.nctools.nc.read" title="Permalink to this definition">¶</a></dt>
 <dd><p>Read data from a NetCDF file</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
-<li><strong>file_pattern</strong> &#8211; a file pattern to be globbed (<a class="reference external" href="http://docs.python.org/library/glob.html#glob.glob" title="(in Python v2.7)"><tt class="xref py py-func docutils literal"><span class="pre">glob.glob()</span></tt></a>) or a file list.</li>
-<li><strong>kwargs</strong> &#8211; additional keywords to be passed to <a class="reference internal" href="#altimetry.tools.nctools.nc.load" title="altimetry.tools.nctools.nc.load"><tt class="xref py py-meth docutils literal"><span class="pre">altimetry.tools.nctools.nc.load()</span></tt></a> (eg. extracting a subset of the file)</li>
+<li><strong>file_pattern</strong> &#8211; a file pattern to be globbed (<a class="reference external" href="http://docs.python.org/library/glob.html#glob.glob" title="(in Python v2.7)"><code class="xref py py-func docutils literal"><span class="pre">glob.glob()</span></code></a>) or a file list.</li>
+<li><strong>kwargs</strong> &#8211; additional keywords to be passed to <a class="reference internal" href="#altimetry.tools.nctools.nc.load" title="altimetry.tools.nctools.nc.load"><code class="xref py py-meth docutils literal"><span class="pre">altimetry.tools.nctools.nc.load()</span></code></a> (eg. extracting a subset of the file)</li>
 </ul>
 </td>
 </tr>
@@ -344,13 +343,13 @@
 
 <dl class="attribute">
 <dt id="altimetry.tools.nctools.nc.size">
-<tt class="descname">size</tt><em class="property"> = None</em><a class="headerlink" href="#altimetry.tools.nctools.nc.size" title="Permalink to this definition">¶</a></dt>
+<code class="descname">size</code><em class="property"> = None</em><a class="headerlink" href="#altimetry.tools.nctools.nc.size" title="Permalink to this definition">¶</a></dt>
 <dd><p>length of the dataset</p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="altimetry.tools.nctools.nc.use_local_dims">
-<tt class="descname">use_local_dims</tt><em class="property"> = None</em><a class="headerlink" href="#altimetry.tools.nctools.nc.use_local_dims" title="Permalink to this definition">¶</a></dt>
+<code class="descname">use_local_dims</code><em class="property"> = None</em><a class="headerlink" href="#altimetry.tools.nctools.nc.use_local_dims" title="Permalink to this definition">¶</a></dt>
 <dd><p>this option prevent from trying to detect standard CF dimensions such longitude, latitude, time in the file and keep the original dimensions of the file</p>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
@@ -368,13 +367,13 @@
 
 <dl class="attribute">
 <dt id="altimetry.tools.nctools.nc.verbose">
-<tt class="descname">verbose</tt><em class="property"> = None</em><a class="headerlink" href="#altimetry.tools.nctools.nc.verbose" title="Permalink to this definition">¶</a></dt>
+<code class="descname">verbose</code><em class="property"> = None</em><a class="headerlink" href="#altimetry.tools.nctools.nc.verbose" title="Permalink to this definition">¶</a></dt>
 <dd><p>verbosity level on a scale of 0 (silent) to 4 (max verbosity)</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="altimetry.tools.nctools.nc.write">
-<tt class="descname">write</tt><big>(</big><em>data</em>, <em>outfile</em>, <em>clobber=False</em>, <em>format='NETCDF4'</em><big>)</big><a class="reference internal" href="_modules/altimetry/tools/nctools.html#nc.write"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.tools.nctools.nc.write" title="Permalink to this definition">¶</a></dt>
+<code class="descname">write</code><span class="sig-paren">(</span><em>data</em>, <em>outfile</em>, <em>clobber=False</em>, <em>format='NETCDF4'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/tools/nctools.html#nc.write"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.tools.nctools.nc.write" title="Permalink to this definition">¶</a></dt>
 <dd><p>Write a netCDF file using a data structure.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -403,7 +402,7 @@
 <span id="addionnal-function"></span><span id="load-ncvar"></span><h2>1.1.2.2.2. Addionnal function<a class="headerlink" href="#module-altimetry.tools.nctools" title="Permalink to this headline">¶</a></h2>
 <dl class="function">
 <dt id="altimetry.tools.nctools.load_ncVar">
-<tt class="descclassname">altimetry.tools.nctools.</tt><tt class="descname">load_ncVar</tt><big>(</big><em>varName</em>, <em>nc=None</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/altimetry/tools/nctools.html#load_ncVar"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.tools.nctools.load_ncVar" title="Permalink to this definition">¶</a></dt>
+<code class="descclassname">altimetry.tools.nctools.</code><code class="descname">load_ncVar</code><span class="sig-paren">(</span><em>varName</em>, <em>nc=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/tools/nctools.html#load_ncVar"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.tools.nctools.load_ncVar" title="Permalink to this definition">¶</a></dt>
 <dd><p>Loads a variable from the NetCDF file and saves it as a data structure.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -425,7 +424,7 @@
           </div>
         </div>
       </div>
-      <div class="sphinxsidebar">
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
         <div class="sphinxsidebarwrapper">
   <h3><a href="index.html">Table Of Contents</a></h3>
   <ul>
@@ -442,12 +441,14 @@
   <h4>Next topic</h4>
   <p class="topless"><a href="Examples.html"
                         title="next chapter">2. Some examples to illustrate py-altimetry functionalities</a></p>
-  <h3>This Page</h3>
-  <ul class="this-page-menu">
-    <li><a href="_sources/altimetry.tools.nctools.txt"
-           rel="nofollow">Show Source</a></li>
-  </ul>
-<div id="searchbox" style="display: none">
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/altimetry.tools.nctools.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
   <h3>Quick search</h3>
     <form class="search" action="search.html" method="get">
       <input type="text" name="q" />
@@ -464,7 +465,7 @@
       </div>
       <div class="clearer"></div>
     </div>
-    <div class="related">
+    <div class="related" role="navigation" aria-label="related navigation">
       <h3>Navigation</h3>
       <ul>
         <li class="right" style="margin-right: 10px">
@@ -479,14 +480,14 @@
         <li class="right" >
           <a href="altimetry.tools.spectrum.html" title="1.1.2.1. Spectral analysis"
              >previous</a> |</li>
-        <li><a href="index.html">altimetry tools 0 documentation</a> &raquo;</li>
-          <li><a href="Modules.html" >1. Description of the modules</a> &raquo;</li>
-          <li><a href="altimetry.tools.html" >1.1.2. altimetry.tools Module</a> &raquo;</li> 
+        <li class="nav-item nav-item-0"><a href="index.html">altimetry tools 0 documentation</a> &raquo;</li>
+          <li class="nav-item nav-item-1"><a href="Modules.html" >1. Description of the modules</a> &raquo;</li>
+          <li class="nav-item nav-item-2"><a href="altimetry.tools.html" >1.1.2. altimetry.tools Module</a> &raquo;</li> 
       </ul>
     </div>
-    <div class="footer">
+    <div class="footer" role="contentinfo">
         &copy; Copyright 2013, Renaud Dussurget.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.3.1.
     </div>
   </body>
 </html>

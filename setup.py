@@ -1,8 +1,9 @@
-from distutils.core import setup
+#from distutils.core import setup
+from setuptools import setup
 
 setup(
     name='py-altimetry',
-    version='0.3.2',
+    version='0.3.2.post1',
     author='R. Dussurget',
     author_email='renaud.dussurget@gmail.com',
     packages=['altimetry','altimetry.config','altimetry.data','altimetry.tools','altimetry.externals'],

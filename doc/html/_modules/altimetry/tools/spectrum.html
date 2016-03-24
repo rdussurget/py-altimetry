@@ -1,4 +1,3 @@
-
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 
@@ -27,8 +26,8 @@
     <link rel="top" title="altimetry tools 0 documentation" href="../../../index.html" />
     <link rel="up" title="Module code" href="../../index.html" /> 
   </head>
-  <body>
-    <div class="related">
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
       <h3>Navigation</h3>
       <ul>
         <li class="right" style="margin-right: 10px">
@@ -37,15 +36,15 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../index.html">altimetry tools 0 documentation</a> &raquo;</li>
-          <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
+        <li class="nav-item nav-item-0"><a href="../../../index.html">altimetry tools 0 documentation</a> &raquo;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
 
     <div class="document">
       <div class="documentwrapper">
         <div class="bodywrapper">
-          <div class="body">
+          <div class="body" role="main">
             
   <h1>Source code for altimetry.tools.spectrum</h1><div class="highlight"><pre>
 <span class="c"># -*- coding: utf-8 -*-</span>
@@ -134,11 +133,13 @@
     <span class="n">a</span> <span class="o">=</span> <span class="n">fft</span><span class="o">.</span><span class="n">real</span>
     <span class="n">b</span> <span class="o">=</span> <span class="n">fft</span><span class="o">.</span><span class="n">imag</span>
     <span class="n">c</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">a</span><span class="o">**</span><span class="mf">2.0</span> <span class="o">+</span> <span class="n">b</span><span class="o">**</span><span class="mf">2.0</span><span class="p">)</span> <span class="c">#This is the magnitude</span>
+    <span class="n">d</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arctan</span><span class="p">(</span><span class="n">b</span><span class="o">/</span><span class="n">a</span><span class="p">)</span>
     
     <span class="k">if</span> <span class="n">verbose</span> <span class="p">:</span> <span class="k">print</span> <span class="s">&#39;Check parseval theorem 2: SUM|Y(f)|²={0}, SUM|y(t)|²={1}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(((</span><span class="n">c</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">/</span><span class="n">N</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(),(</span><span class="n">V</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span> 
     
     <span class="c">#Normalise data</span>
     <span class="n">c</span> <span class="o">/=</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">(</span><span class="n">N</span><span class="p">)</span>
+    <span class="c">#~ d /= np.float32(N)</span>
     
     <span class="k">if</span> <span class="n">verbose</span> <span class="p">:</span> <span class="k">print</span> <span class="s">&#39;Check parseval theorem 3: SUM|Y(f)|²={0}, SUM|y(t)|²={1}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(((</span><span class="n">c</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">*</span><span class="n">N</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(),(</span><span class="n">V</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span> 
     
@@ -147,6 +148,7 @@
     <span class="c">#Remove negative frequencies</span>
 <span class="c">#    phase=np.angle(2*fft[1:imx]) #Get phase (not used yet)</span>
     <span class="n">c</span> <span class="o">=</span> <span class="mi">2</span><span class="o">*</span><span class="n">c</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="n">imx</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="c">#Multiply by 2 (because of negative frequencies removal) - loses a bit of energy</span>
+    <span class="n">d</span> <span class="o">=</span> <span class="mi">2</span><span class="o">*</span><span class="n">d</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="n">imx</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
     
     <span class="k">if</span> <span class="n">verbose</span> <span class="p">:</span> <span class="k">print</span> <span class="s">&#39;Check parseval theorem 4: SUM|Y(f)|²={0}, SUM|y(t)|²={1}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(((</span><span class="n">c</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">*</span><span class="p">(</span><span class="n">N</span><span class="o">/</span><span class="mf">2.0</span><span class="p">))</span><span class="o">.</span><span class="n">sum</span><span class="p">(),((</span><span class="n">V</span><span class="o">-</span><span class="n">V</span><span class="o">.</span><span class="n">mean</span><span class="p">())</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span> 
     
@@ -188,7 +190,7 @@
     <span class="c">#Get frequencies and period  </span>
     <span class="n">p</span><span class="o">=</span><span class="mi">1</span><span class="o">/</span><span class="n">fq</span>
     
-    <span class="k">return</span> <span class="p">{</span><span class="s">&#39;psd&#39;</span><span class="p">:</span><span class="n">psd</span><span class="p">,</span><span class="s">&#39;esd&#39;</span><span class="p">:</span><span class="n">esd</span><span class="p">,</span><span class="s">&#39;fq&#39;</span><span class="p">:</span><span class="n">fq</span><span class="p">,</span><span class="s">&#39;p&#39;</span><span class="p">:</span><span class="n">p</span><span class="p">,</span><span class="s">&#39;gain&#39;</span><span class="p">:</span><span class="n">gain</span><span class="p">}</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s">&#39;psd&#39;</span><span class="p">:</span><span class="n">psd</span><span class="p">,</span><span class="s">&#39;esd&#39;</span><span class="p">:</span><span class="n">esd</span><span class="p">,</span><span class="s">&#39;fq&#39;</span><span class="p">:</span><span class="n">fq</span><span class="p">,</span><span class="s">&#39;p&#39;</span><span class="p">:</span><span class="n">p</span><span class="p">,</span><span class="s">&#39;gain&#39;</span><span class="p">:</span><span class="n">gain</span><span class="p">,</span> <span class="s">&#39;phase&#39;</span><span class="p">:</span><span class="n">d</span><span class="p">}</span>
     
     <span class="c"># Normalisation (Danioux 2011)</span>
 <span class="c">#    specvar = specvar / (var.size)**2 / dk #No normalization!!</span>
@@ -268,8 +270,8 @@
     <span class="k">if</span> <span class="n">tapering</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
         
         <span class="c">#Set tapering defaults</span>
-        <span class="n">overlap</span><span class="o">=</span><span class="mf">0.50</span> <span class="k">if</span> <span class="n">overlap</span> <span class="ow">is</span> <span class="bp">None</span> <span class="k">else</span> <span class="n">overlap</span>
-        <span class="n">wsize</span><span class="o">=</span><span class="mf">0.5</span><span class="o">*</span><span class="n">N</span> <span class="k">if</span> <span class="n">wsize</span> <span class="ow">is</span> <span class="bp">None</span> <span class="k">else</span> <span class="n">wsize</span>
+        <span class="n">overlap</span><span class="o">=</span><span class="mi">0</span> <span class="k">if</span> <span class="n">overlap</span> <span class="ow">is</span> <span class="bp">None</span> <span class="k">else</span> <span class="n">overlap</span>
+        <span class="n">wsize</span><span class="o">=</span><span class="n">N</span> <span class="k">if</span> <span class="n">wsize</span> <span class="ow">is</span> <span class="bp">None</span> <span class="k">else</span> <span class="n">wsize</span>
 
         <span class="c">#Get time splitting (tapering) parameters</span>
         <span class="c">#########################################</span>
@@ -343,10 +345,12 @@
             <span class="n">esd</span> <span class="o">=</span> <span class="n">spec</span><span class="p">[</span><span class="s">&#39;esd&#39;</span><span class="p">]</span>
             <span class="n">psd</span> <span class="o">=</span> <span class="n">spec</span><span class="p">[</span><span class="s">&#39;psd&#39;</span><span class="p">]</span>
             <span class="n">fq</span> <span class="o">=</span> <span class="n">spec</span><span class="p">[</span><span class="s">&#39;fq&#39;</span><span class="p">]</span>
+            <span class="n">phase</span> <span class="o">=</span> <span class="n">spec</span><span class="p">[</span><span class="s">&#39;phase&#39;</span><span class="p">]</span>
             <span class="k">if</span> <span class="n">ARspec</span><span class="p">:</span> <span class="n">model</span> <span class="o">=</span><span class="n">spec</span><span class="p">[</span><span class="s">&#39;psd&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">model</span>
         <span class="k">else</span> <span class="p">:</span> 
             <span class="n">esd</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">esd</span><span class="p">,</span><span class="n">spec</span><span class="p">[</span><span class="s">&#39;esd&#39;</span><span class="p">])</span>
             <span class="n">psd</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">psd</span><span class="p">,</span><span class="n">spec</span><span class="p">[</span><span class="s">&#39;psd&#39;</span><span class="p">])</span>
+            <span class="n">phase</span> <span class="o">=</span> <span class="n">spec</span><span class="p">[</span><span class="s">&#39;phase&#39;</span><span class="p">]</span>
             <span class="k">if</span> <span class="n">ARspec</span><span class="p">:</span> <span class="n">model</span> <span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">model</span><span class="p">,</span><span class="n">spec</span><span class="p">[</span><span class="s">&#39;psd&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">model</span><span class="p">)</span>
     
 <span class="c">#    factor=((A[:,0]-A[:,0].mean())**2).sum()/spec[&#39;esd&#39;].sum()</span>
@@ -387,8 +391,8 @@
         <span class="n">esd</span><span class="o">*=</span><span class="n">Scaling_Factor</span>
         <span class="n">psd</span><span class="o">*=</span><span class="n">Scaling_Factor</span>
     
-    <span class="k">if</span> <span class="n">tapering</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span> <span class="p">:</span> <span class="k">return</span> <span class="p">{</span><span class="s">&#39;params&#39;</span><span class="p">:{</span><span class="s">&#39;tapering&#39;</span><span class="p">:</span><span class="n">tapering</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">,</span><span class="s">&#39;which&#39;</span><span class="p">:</span><span class="n">which</span><span class="p">,</span><span class="s">&#39;wsize&#39;</span><span class="p">:</span><span class="nb">int</span><span class="p">(</span><span class="n">wsize</span><span class="p">),</span><span class="s">&#39;nwind&#39;</span><span class="p">:</span><span class="nb">int</span><span class="p">(</span><span class="n">nn</span><span class="p">),</span><span class="s">&#39;overlap&#39;</span><span class="p">:</span><span class="nb">int</span><span class="p">(</span><span class="mf">100.</span><span class="o">*</span><span class="n">overlap</span><span class="p">),</span><span class="s">&#39;gain&#39;</span><span class="p">:</span><span class="n">gain</span><span class="p">},</span><span class="s">&#39;psd&#39;</span><span class="p">:</span><span class="n">psd</span><span class="p">,</span><span class="s">&#39;esd&#39;</span><span class="p">:</span><span class="n">esd</span><span class="p">,</span><span class="s">&#39;fq&#39;</span><span class="p">:</span><span class="n">fq</span><span class="p">,</span><span class="s">&#39;p&#39;</span><span class="p">:</span><span class="n">p</span><span class="p">}</span>
-    <span class="k">else</span> <span class="p">:</span> <span class="k">return</span> <span class="p">{</span><span class="s">&#39;params&#39;</span><span class="p">:{</span><span class="s">&#39;tapering&#39;</span><span class="p">:</span><span class="n">tapering</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">},</span><span class="s">&#39;psd&#39;</span><span class="p">:</span><span class="n">psd</span><span class="p">,</span><span class="s">&#39;esd&#39;</span><span class="p">:</span><span class="n">esd</span><span class="p">,</span><span class="s">&#39;fq&#39;</span><span class="p">:</span><span class="n">fq</span><span class="p">,</span><span class="s">&#39;p&#39;</span><span class="p">:</span><span class="n">p</span><span class="p">}</span>
+    <span class="k">if</span> <span class="n">tapering</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span> <span class="p">:</span> <span class="k">return</span> <span class="p">{</span><span class="s">&#39;params&#39;</span><span class="p">:{</span><span class="s">&#39;tapering&#39;</span><span class="p">:</span><span class="n">tapering</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">,</span><span class="s">&#39;which&#39;</span><span class="p">:</span><span class="n">which</span><span class="p">,</span><span class="s">&#39;wsize&#39;</span><span class="p">:</span><span class="nb">int</span><span class="p">(</span><span class="n">wsize</span><span class="p">),</span><span class="s">&#39;nwind&#39;</span><span class="p">:</span><span class="nb">int</span><span class="p">(</span><span class="n">nn</span><span class="p">),</span><span class="s">&#39;overlap&#39;</span><span class="p">:</span><span class="nb">int</span><span class="p">(</span><span class="mf">100.</span><span class="o">*</span><span class="n">overlap</span><span class="p">),</span><span class="s">&#39;gain&#39;</span><span class="p">:</span><span class="n">gain</span><span class="p">},</span><span class="s">&#39;psd&#39;</span><span class="p">:</span><span class="n">psd</span><span class="p">,</span><span class="s">&#39;esd&#39;</span><span class="p">:</span><span class="n">esd</span><span class="p">,</span><span class="s">&#39;fq&#39;</span><span class="p">:</span><span class="n">fq</span><span class="p">,</span><span class="s">&#39;p&#39;</span><span class="p">:</span><span class="n">p</span><span class="p">,</span><span class="s">&#39;phase&#39;</span><span class="p">:</span><span class="n">phase</span><span class="p">}</span>
+    <span class="k">else</span> <span class="p">:</span> <span class="k">return</span> <span class="p">{</span><span class="s">&#39;params&#39;</span><span class="p">:{</span><span class="s">&#39;tapering&#39;</span><span class="p">:</span><span class="n">tapering</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">},</span><span class="s">&#39;psd&#39;</span><span class="p">:</span><span class="n">psd</span><span class="p">,</span><span class="s">&#39;esd&#39;</span><span class="p">:</span><span class="n">esd</span><span class="p">,</span><span class="s">&#39;fq&#39;</span><span class="p">:</span><span class="n">fq</span><span class="p">,</span><span class="s">&#39;p&#39;</span><span class="p">:</span><span class="n">p</span><span class="p">,</span><span class="s">&#39;phase&#39;</span><span class="p">:</span><span class="n">phase</span><span class="p">}</span>
 
 <span class="c">#def get_cospec(dx,dy,var1,var2):</span>
 <span class="c">#</span>
@@ -430,7 +434,7 @@
 <span class="c">#def grid_track(dst,lat,lon,sla,remove_edges=True,backbone=None):</span>
 <span class="c">#    &quot;&quot;&quot;</span>
 <span class="c">#    # GRID_TRACK</span>
-<span class="c">#    # @summary: This function allow detecting gaps in a set of altimetry data and rebin this data regularlyy, with informations on gaps.</span>
+<span class="c">#    # @summary: This function allow detecting gaps in a set/home/gtaburet/ETUDES/Amelioration_L4/Finalisation_CartoGlobalAmeliore/Validation/CoherenceSpectrale/tmp/altimetry/tools/spectrum.py of altimetry data and rebin this data regularlyy, with informations on gaps.</span>
 <span class="c">#    # @param dst {type:numeric} : along-track distance.</span>
 <span class="c">#    # @param lat {type:numeric} : latitude</span>
 <span class="c">#    # @param lon {type:numeric} : longitude</span>
@@ -616,8 +620,6 @@
     <span class="n">ntinit</span><span class="o">=</span><span class="n">nt</span>
     <span class="n">nt</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">ok</span><span class="p">)</span>
     
-    
-    
     <span class="c"># 1 - regrid tracks regularly</span>
     <span class="c">#     get gap lengths</span>
     <span class="c">#############################</span>
@@ -640,8 +642,17 @@
             <span class="k">print</span> <span class="s">&#39;[WARNING] : Pass goes over a land mass, changing the track size from {0} to {1}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">nx</span><span class="p">,</span><span class="n">nx</span><span class="o">+</span><span class="n">lendiff</span><span class="p">)</span>
             <span class="n">nx</span><span class="o">+=</span><span class="n">lendiff</span>
 
+        <span class="c">#~ if i==0:</span>
+            <span class="c">#~ dumint=inter.reshape((1,len(dsla)))</span>
+            <span class="c">#~ dumslaout=dsla.reshape((1,len(dsla)))</span>
+        <span class="c">#~ else:</span>
+            <span class="c">#~ dumint=np.ma.array(np.concatenate([dumint.data,inter.data.reshape((1,len(dsla)))],axis=0),</span>
+                               <span class="c">#~ mask=np.concatenate([dumint.mask,inter.mask.reshape((1,len(dsla)))],axis=0))</span>
+            <span class="c">#~ dumslaout=np.ma.array(np.concatenate([dumslaout.data,dsla.data.reshape((1,len(dsla)))],axis=0),</span>
+                                  <span class="c">#~ mask=np.concatenate([dumslaout.data,dsla.data.reshape((1,len(dsla)))],axis=0))</span>
         <span class="n">dumint</span><span class="o">=</span><span class="n">inter</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="n">dsla</span><span class="p">)))</span> <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">else</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">dumint</span><span class="p">,</span><span class="n">inter</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="n">dsla</span><span class="p">)))],</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
         <span class="n">dumslaout</span><span class="o">=</span><span class="n">dsla</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="n">dsla</span><span class="p">)))</span> <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">else</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">dumslaout</span><span class="p">,</span><span class="n">dsla</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="n">dsla</span><span class="p">)))],</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    
         <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="mi">0</span> <span class="p">:</span>
             <span class="n">gaplen</span> <span class="o">=</span> <span class="p">[</span><span class="n">lgaps</span><span class="p">]</span>
             <span class="n">gapedges</span><span class="o">=</span> <span class="p">[</span><span class="n">edges</span><span class="p">]</span>
@@ -694,6 +705,7 @@
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">id2</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="p">:</span> <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s">&#39;[ERROR] : All time steps in current track have a percentage of invalid data &gt; than the maximum allowed (</span><span class="si">%i</span><span class="s">)&#39;</span> <span class="o">%</span> <span class="nb">int</span><span class="p">(</span><span class="n">per_min</span><span class="p">))</span>
         <span class="k">if</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">id2</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">id1</span><span class="p">))</span> <span class="p">:</span> <span class="n">message</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s">&#39;</span><span class="si">%i</span><span class="s"> time steps on </span><span class="si">%i</span><span class="s"> removed: exceed maximum allowed percentage of invalid data (</span><span class="si">%i</span><span class="s">)&#39;</span> <span class="o">%</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">id1</span><span class="p">)</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">id2</span><span class="p">),</span> <span class="n">ntinit</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">per_min</span><span class="p">)),</span><span class="n">verbose</span><span class="o">=</span><span class="n">verbose</span><span class="p">)</span>
         
+        
         <span class="n">dumsla</span><span class="o">=</span><span class="n">dumsla</span><span class="p">[</span><span class="n">id2</span><span class="p">,:]</span>
         
         
@@ -742,8 +754,15 @@
     
     <span class="c">#Save input mask</span>
     <span class="n">dumsla</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">dumsla</span><span class="o">.</span><span class="n">mask</span><span class="p">]</span><span class="o">=</span><span class="n">dumsla</span><span class="o">.</span><span class="n">fill_value</span>
-    <span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">dumsla</span><span class="o">.</span><span class="n">mask</span><span class="o">.</span><span class="n">copy</span><span class="p">(),</span><span class="n">mask</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">sla</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span><span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">))</span>
-    <span class="n">dumsla</span><span class="o">.</span><span class="n">mask</span><span class="p">[:]</span><span class="o">=</span><span class="bp">False</span>
+    
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">dumsla</span><span class="o">.</span><span class="n">mask</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">mask</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">dumsla</span><span class="o">.</span><span class="n">mask</span><span class="o">.</span><span class="n">copy</span><span class="p">(),</span><span class="n">mask</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">sla</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span><span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">mask</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">dumsla</span><span class="o">.</span><span class="n">mask</span><span class="p">]</span><span class="o">*</span><span class="n">sla</span><span class="o">.</span><span class="n">size</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">sla</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+        <span class="n">mask</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span><span class="n">mask</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">sla</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span><span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">))</span>
+        <span class="n">dumsla</span><span class="o">.</span><span class="n">mask</span><span class="o">=</span><span class="n">mask</span><span class="c">#np.array([dumsla.mask]*sla.size).reshape(sla.shape)</span>
+    
+    <span class="c">#~ dumsla.mask[:]=False</span>
     
     <span class="c">#Get edges</span>
     <span class="k">if</span> <span class="n">remove_edges</span> <span class="p">:</span> <span class="n">xid</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">nx</span><span class="p">),</span><span class="n">nt</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">nx</span><span class="p">,</span><span class="n">nt</span><span class="p">)</span><span class="o">.</span><span class="n">transpose</span><span class="p">(),</span><span class="n">mask</span><span class="o">=</span><span class="n">mask</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
@@ -916,7 +935,7 @@
     <span class="k">for</span> <span class="n">ii</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="n">nt</span><span class="p">):</span>
     <span class="c">#     pass</span>
     <span class="c">#     arspec = sig**2 / (np.abs(1.-np.sum(a[p-1]*np.exp(-2.0 * np.pi * 1j *p*F[t])))**2)</span>
-        <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">NF</span><span class="p">,</span><span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span> <span class="p">:</span> <span class="n">arspec</span><span class="p">[</span><span class="n">f</span><span class="p">,</span><span class="n">ii</span><span class="p">]</span> <span class="o">=</span> <span class="n">sig</span><span class="p">[</span><span class="n">ii</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span> <span class="o">/</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="mf">1.</span><span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">a</span><span class="p">[</span><span class="n">ii</span><span class="p">,</span><span class="n">p</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="mi">1</span><span class="n">j</span> <span class="o">*</span><span class="n">p</span><span class="o">*</span><span class="n">F</span><span class="p">[</span><span class="n">f</span><span class="p">,</span><span class="n">ii</span><span class="p">])))</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">NF</span><span class="p">,</span><span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span> <span class="p">:</span> <span class="n">arspec</span><span class="p">[</span><span class="n">f</span><span class="p">,</span><span class="n">ii</span><span class="p">]</span> <span class="o">=</span> <span class="n">sig</span><span class="p">[</span><span class="n">ii</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span> <span class="o">/</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="mf">1.</span><span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">a</span><span class="p">[</span><span class="n">ii</span><span class="p">,</span><span class="n">p</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="mi">1j</span> <span class="o">*</span><span class="n">p</span><span class="o">*</span><span class="n">F</span><span class="p">[</span><span class="n">f</span><span class="p">,</span><span class="n">ii</span><span class="p">])))</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">sh</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span> <span class="n">arspec</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="n">arspec</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">arspec</span>
@@ -1038,7 +1057,7 @@
 <span class="c">#     arspec = sig**2 / (np.abs(1.-np.sum(a[p-1]*np.exp(-2.0 * np.pi * 1j *p*F)))**2)</span>
     <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">NF</span><span class="p">,</span><span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span> <span class="p">:</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="n">arspec</span><span class="p">[</span><span class="n">t</span><span class="p">]</span> <span class="o">=</span> <span class="n">sig</span><span class="o">**</span><span class="mi">2</span> <span class="o">/</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="mf">1.</span><span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">a</span><span class="p">[</span><span class="n">p</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="mi">1</span><span class="n">j</span> <span class="o">*</span><span class="n">p</span><span class="o">*</span><span class="n">F</span><span class="p">[</span><span class="n">t</span><span class="p">])))</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+            <span class="n">arspec</span><span class="p">[</span><span class="n">t</span><span class="p">]</span> <span class="o">=</span> <span class="n">sig</span><span class="o">**</span><span class="mi">2</span> <span class="o">/</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="mf">1.</span><span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">a</span><span class="p">[</span><span class="n">p</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="mi">1j</span> <span class="o">*</span><span class="n">p</span><span class="o">*</span><span class="n">F</span><span class="p">[</span><span class="n">t</span><span class="p">])))</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
             <span class="k">pass</span>
     
@@ -1129,9 +1148,9 @@
           </div>
         </div>
       </div>
-      <div class="sphinxsidebar">
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
         <div class="sphinxsidebarwrapper">
-<div id="searchbox" style="display: none">
+<div id="searchbox" style="display: none" role="search">
   <h3>Quick search</h3>
     <form class="search" action="../../../search.html" method="get">
       <input type="text" name="q" />
@@ -1148,7 +1167,7 @@
       </div>
       <div class="clearer"></div>
     </div>
-    <div class="related">
+    <div class="related" role="navigation" aria-label="related navigation">
       <h3>Navigation</h3>
       <ul>
         <li class="right" style="margin-right: 10px">
@@ -1157,13 +1176,13 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../index.html">altimetry tools 0 documentation</a> &raquo;</li>
-          <li><a href="../../index.html" >Module code</a> &raquo;</li> 
+        <li class="nav-item nav-item-0"><a href="../../../index.html">altimetry tools 0 documentation</a> &raquo;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>
-    <div class="footer">
+    <div class="footer" role="contentinfo">
         &copy; Copyright 2013, Renaud Dussurget.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.3.1.
     </div>
   </body>
 </html>

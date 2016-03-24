@@ -1,4 +1,3 @@
-
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 
@@ -14,7 +13,7 @@
     
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
-        URL_ROOT:    '',
+        URL_ROOT:    './',
         VERSION:     '0',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
@@ -29,8 +28,8 @@
     <link rel="next" title="1.1.2. altimetry.tools Module" href="altimetry.tools.html" />
     <link rel="prev" title="1. Description of the modules" href="Modules.html" /> 
   </head>
-  <body>
-    <div class="related">
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
       <h3>Navigation</h3>
       <ul>
         <li class="right" style="margin-right: 10px">
@@ -45,25 +44,25 @@
         <li class="right" >
           <a href="Modules.html" title="1. Description of the modules"
              accesskey="P">previous</a> |</li>
-        <li><a href="index.html">altimetry tools 0 documentation</a> &raquo;</li>
-          <li><a href="Modules.html" accesskey="U">1. Description of the modules</a> &raquo;</li> 
+        <li class="nav-item nav-item-0"><a href="index.html">altimetry tools 0 documentation</a> &raquo;</li>
+          <li class="nav-item nav-item-1"><a href="Modules.html" accesskey="U">1. Description of the modules</a> &raquo;</li> 
       </ul>
     </div>  
 
     <div class="document">
       <div class="documentwrapper">
         <div class="bodywrapper">
-          <div class="body">
+          <div class="body" role="main">
             
   <div class="section" id="altimetry-data-module">
 <h1>1.1.1. altimetry.data Module<a class="headerlink" href="#altimetry-data-module" title="Permalink to this headline">¶</a></h1>
 <p>This module contains special classes and tools to handle oceanographic data.</p>
 <table class="hlist"><tr><td><ul>
 <li><dl class="first docutils">
-<dt><a class="reference internal" href="#class"><em>Data objects:</em></a></dt>
+<dt><a class="reference internal" href="#class"><span>Data objects:</span></a></dt>
 <dd><ul class="first last simple">
-<li><a class="reference internal" href="#alti-data"><em>alti_data class - handles altimetry data:</em></a></li>
-<li><a class="reference internal" href="#hydro-data"><em>hydro_data class - handles oceanographic (in-situ or remotely sensed) data:</em></a></li>
+<li><a class="reference internal" href="#alti-data"><span>alti_data class - handles altimetry data:</span></a></li>
+<li><a class="reference internal" href="#hydro-data"><span>hydro_data class - handles oceanographic (in-situ or remotely sensed) data:</span></a></li>
 </ul>
 </dd>
 </dl>
@@ -76,13 +75,13 @@
 <span id="alti-data"></span><h3>1.1.1.1.1. alti_data class - handles altimetry data:<a class="headerlink" href="#alti-data-class-handles-altimetry-data" title="Permalink to this headline">¶</a></h3>
 <dl class="class">
 <dt id="altimetry.data.alti_data">
-<em class="property">class </em><tt class="descclassname">altimetry.data.</tt><tt class="descname">alti_data</tt><big>(</big><em>file_pattern</em>, <em>time_range=None</em>, <em>output_is_dict=True</em>, <em>**kwargs</em><big>)</big><a class="headerlink" href="#altimetry.data.alti_data" title="Permalink to this definition">¶</a></dt>
-<dd><p>An <a class="reference internal" href="#altimetry.data.hydro_data" title="altimetry.data.hydro_data"><tt class="xref py py-class docutils literal"><span class="pre">altimetry.data.hydro_data</span></tt></a> object dedicated to handling along-track altimetry data.</p>
+<em class="property">class </em><code class="descclassname">altimetry.data.</code><code class="descname">alti_data</code><span class="sig-paren">(</span><em>file_pattern</em>, <em>time_range=None</em>, <em>output_is_dict=True</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/data/alti_data.html#alti_data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.data.alti_data" title="Permalink to this definition">¶</a></dt>
+<dd><p>An <a class="reference internal" href="#altimetry.data.hydro_data" title="altimetry.data.hydro_data"><code class="xref py py-class docutils literal"><span class="pre">altimetry.data.hydro_data</span></code></a> object dedicated to handling along-track altimetry data.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Example :</th><td class="field-body"><p class="first">To load different sets of data, try these :</p>
+<tr class="field-odd field"><th class="field-name">Example:</th><td class="field-body"><p class="first">To load different sets of data, try these :</p>
 <ul class="simple">
 <li>Concatenate a set of <strong>AVISO&#8217;s MFSTEP NRT along-track data</strong> and plot a 2D hovmoller matrix:</li>
 </ul>
@@ -133,7 +132,7 @@
 </pre></div>
 </div>
 <ul class="simple">
-<li>Load any <strong>NetCDF file</strong> using <a class="reference internal" href="altimetry.tools.nctools.html#altimetry.tools.nctools.nc" title="altimetry.tools.nctools.nc"><tt class="xref py py-class docutils literal"><span class="pre">altimetry.tools.nctools.nc</span></tt></a> :</li>
+<li>Load any <strong>NetCDF file</strong> using <a class="reference internal" href="altimetry.tools.nctools.html#altimetry.tools.nctools.nc" title="altimetry.tools.nctools.nc"><code class="xref py py-class docutils literal"><span class="pre">altimetry.tools.nctools.nc</span></code></a> :</li>
 </ul>
 <div class="last highlight-python"><div class="highlight"><pre><span class="n">data</span><span class="o">=</span><span class="n">AD</span><span class="o">.</span><span class="n">alti_data</span><span class="p">(</span><span class="n">fout</span><span class="p">,</span><span class="n">verbose</span><span class="o">=</span><span class="n">opts</span><span class="o">.</span><span class="n">verbose</span><span class="p">,</span><span class="n">datatype</span><span class="o">=</span><span class="s">&#39;RAW&#39;</span><span class="p">,</span><span class="n">transpose</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
 </pre></div>
@@ -144,15 +143,15 @@
 </table>
 <dl class="method">
 <dt id="altimetry.data.alti_data.__init__">
-<tt class="descname">__init__</tt><big>(</big><em>file_pattern</em>, <em>time_range=None</em>, <em>output_is_dict=True</em>, <em>**kwargs</em><big>)</big><a class="headerlink" href="#altimetry.data.alti_data.__init__" title="Permalink to this definition">¶</a></dt>
-<dd><p>returns a dataset from a single file or multiple concatenated files. cf. <a class="reference internal" href="#altimetry.data.hydro_data" title="altimetry.data.hydro_data"><tt class="xref py py-class docutils literal"><span class="pre">altimetry.data.hydro_data</span></tt></a> for further informations</p>
+<code class="descname">__init__</code><span class="sig-paren">(</span><em>file_pattern</em>, <em>time_range=None</em>, <em>output_is_dict=True</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/data/alti_data.html#alti_data.__init__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.data.alti_data.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><p>returns a dataset from a single file or multiple concatenated files. cf. <a class="reference internal" href="#altimetry.data.hydro_data" title="altimetry.data.hydro_data"><code class="xref py py-class docutils literal"><span class="pre">altimetry.data.hydro_data</span></code></a> for further informations</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
 <li><strong>time_range</strong> &#8211; get start dates from file names (cf. notes on file names when using this option)</li>
-<li><strong>kwargs</strong> &#8211; additionnal keywords to be passed to <a class="reference internal" href="#altimetry.data.hydro_data.__init__" title="altimetry.data.hydro_data.__init__"><tt class="xref py py-meth docutils literal"><span class="pre">altimetry.data.hydro_data.__init__()</span></tt></a></li>
+<li><strong>kwargs</strong> &#8211; additionnal keywords to be passed to <a class="reference internal" href="#altimetry.data.hydro_data.__init__" title="altimetry.data.hydro_data.__init__"><code class="xref py py-meth docutils literal"><span class="pre">altimetry.data.hydro_data.__init__()</span></code></a></li>
 </ul>
 </td>
 </tr>
@@ -171,17 +170,17 @@
 
 <dl class="method">
 <dt id="altimetry.data.alti_data.cycle_list">
-<tt class="descname">cycle_list</tt><big>(</big><em>*args</em><big>)</big><a class="headerlink" href="#altimetry.data.alti_data.cycle_list" title="Permalink to this definition">¶</a></dt>
+<code class="descname">cycle_list</code><span class="sig-paren">(</span><em>*args</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/data/alti_data.html#alti_data.cycle_list"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.data.alti_data.cycle_list" title="Permalink to this definition">¶</a></dt>
 <dd><p>return the list of cycles contained if the dataset</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="altimetry.data.alti_data.pass_time">
-<tt class="descname">pass_time</tt><big>(</big><big>)</big><a class="headerlink" href="#altimetry.data.alti_data.pass_time" title="Permalink to this definition">¶</a></dt>
+<code class="descname">pass_time</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/data/alti_data.html#alti_data.pass_time"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.data.alti_data.pass_time" title="Permalink to this definition">¶</a></dt>
 <dd><p>Compute the central time for each passes.</p>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
-<p class="last">this must be called AFTER having called <a class="reference internal" href="#altimetry.data.alti_data.reorder" title="altimetry.data.alti_data.reorder"><tt class="xref py py-meth docutils literal"><span class="pre">altimetry.data.alti_data.reorder()</span></tt></a> as it looks for the CYCLE and RECORD dimensions.</p>
+<p class="last">this must be called AFTER having called <a class="reference internal" href="#altimetry.data.alti_data.reorder" title="altimetry.data.alti_data.reorder"><code class="xref py py-meth docutils literal"><span class="pre">altimetry.data.alti_data.reorder()</span></code></a> as it looks for the CYCLE and RECORD dimensions.</p>
 </div>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
@@ -191,7 +190,7 @@
 
 <dl class="method">
 <dt id="altimetry.data.alti_data.read">
-<tt class="descname">read</tt><big>(</big><em>filename</em>, <em>datatype=None</em>, <em>slaext=False</em>, <em>**kwargs</em><big>)</big><a class="headerlink" href="#altimetry.data.alti_data.read" title="Permalink to this definition">¶</a></dt>
+<code class="descname">read</code><span class="sig-paren">(</span><em>filename</em>, <em>datatype=None</em>, <em>slaext=False</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/data/alti_data.html#alti_data.read"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.data.alti_data.read" title="Permalink to this definition">¶</a></dt>
 <dd><p>reader method.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -201,12 +200,12 @@
 <li><strong>filename</strong> &#8211; name of the file to load.</li>
 <li><strong>datatype</strong> &#8211; <p>choose between DT/NRT/PISTACH/CTOH or other formats to call the corresponding reader. If datatype is :</p>
 <ul>
-<li>DT or NRT or PISTACH : calls <a class="reference internal" href="#altimetry.data.alti_data.read_sla" title="altimetry.data.alti_data.read_sla"><tt class="xref py py-func docutils literal"><span class="pre">altimetry.data.alti_data.read_sla()</span></tt></a> or <a class="reference internal" href="#altimetry.data.alti_data.read_slaext" title="altimetry.data.alti_data.read_slaext"><tt class="xref py py-func docutils literal"><span class="pre">altimetry.data.alti_data.read_slaext()</span></tt></a></li>
-<li>CTOH : calls <a class="reference internal" href="#altimetry.data.alti_data.read_CTOH" title="altimetry.data.alti_data.read_CTOH"><tt class="xref py py-func docutils literal"><span class="pre">altimetry.data.alti_data.read_CTOH()</span></tt></a></li>
-<li>else : calls <a class="reference internal" href="#altimetry.data.alti_data.read_nc" title="altimetry.data.alti_data.read_nc"><tt class="xref py py-func docutils literal"><span class="pre">altimetry.data.alti_data.read_nc()</span></tt></a>, based on <a class="reference internal" href="altimetry.tools.nctools.html#altimetry.tools.nctools.nc" title="altimetry.tools.nctools.nc"><tt class="xref py py-class docutils literal"><span class="pre">altimetry.tools.nctools.nc</span></tt></a> object.</li>
+<li>DT or NRT or PISTACH : calls <a class="reference internal" href="#altimetry.data.alti_data.read_sla" title="altimetry.data.alti_data.read_sla"><code class="xref py py-func docutils literal"><span class="pre">altimetry.data.alti_data.read_sla()</span></code></a> or <a class="reference internal" href="#altimetry.data.alti_data.read_slaext" title="altimetry.data.alti_data.read_slaext"><code class="xref py py-func docutils literal"><span class="pre">altimetry.data.alti_data.read_slaext()</span></code></a></li>
+<li>CTOH : calls <a class="reference internal" href="#altimetry.data.alti_data.read_CTOH" title="altimetry.data.alti_data.read_CTOH"><code class="xref py py-func docutils literal"><span class="pre">altimetry.data.alti_data.read_CTOH()</span></code></a></li>
+<li>else : calls <a class="reference internal" href="#altimetry.data.alti_data.read_nc" title="altimetry.data.alti_data.read_nc"><code class="xref py py-func docutils literal"><span class="pre">altimetry.data.alti_data.read_nc()</span></code></a>, based on <a class="reference internal" href="altimetry.tools.nctools.html#altimetry.tools.nctools.nc" title="altimetry.tools.nctools.nc"><code class="xref py py-class docutils literal"><span class="pre">altimetry.tools.nctools.nc</span></code></a> object.</li>
 </ul>
 </li>
-<li><strong>slaext</strong> &#8211; force using <a class="reference internal" href="#altimetry.data.alti_data.read_slaext" title="altimetry.data.alti_data.read_slaext"><tt class="xref py py-func docutils literal"><span class="pre">altimetry.data.alti_data.read_slaext()</span></tt></a></li>
+<li><strong>slaext</strong> &#8211; force using <a class="reference internal" href="#altimetry.data.alti_data.read_slaext" title="altimetry.data.alti_data.read_slaext"><code class="xref py py-func docutils literal"><span class="pre">altimetry.data.alti_data.read_slaext()</span></code></a></li>
 </ul>
 </td>
 </tr>
@@ -214,13 +213,13 @@
 </table>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
-<p class="last">This method is call from <a class="reference internal" href="#altimetry.data.hydro_data.__init__" title="altimetry.data.hydro_data.__init__"><tt class="xref py py-meth docutils literal"><span class="pre">altimetry.data.hydro_data.__init__()</span></tt></a> and returns a data structure to be handled by <a class="reference internal" href="#altimetry.data.hydro_data.update_dataset" title="altimetry.data.hydro_data.update_dataset"><tt class="xref py py-meth docutils literal"><span class="pre">altimetry.data.hydro_data.update_dataset()</span></tt></a></p>
+<p class="last">This method is call from <a class="reference internal" href="#altimetry.data.hydro_data.__init__" title="altimetry.data.hydro_data.__init__"><code class="xref py py-meth docutils literal"><span class="pre">altimetry.data.hydro_data.__init__()</span></code></a> and returns a data structure to be handled by <a class="reference internal" href="#altimetry.data.hydro_data.update_dataset" title="altimetry.data.hydro_data.update_dataset"><code class="xref py py-meth docutils literal"><span class="pre">altimetry.data.hydro_data.update_dataset()</span></code></a></p>
 </div>
 </dd></dl>
 
 <dl class="method">
 <dt id="altimetry.data.alti_data.read_CTOH">
-<tt class="descname">read_CTOH</tt><big>(</big><em>filename</em>, <em>params=None</em>, <em>force=False</em>, <em>timerange=None</em>, <em>datatype=None</em>, <em>**kwargs</em><big>)</big><a class="headerlink" href="#altimetry.data.alti_data.read_CTOH" title="Permalink to this definition">¶</a></dt>
+<code class="descname">read_CTOH</code><span class="sig-paren">(</span><em>filename</em>, <em>params=None</em>, <em>force=False</em>, <em>timerange=None</em>, <em>datatype=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/data/alti_data.html#alti_data.read_CTOH"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.data.alti_data.read_CTOH" title="Permalink to this definition">¶</a></dt>
 <dd><p>Read AVISO Along-Track SLA regional products</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -228,7 +227,7 @@
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Return outStr:</th><td class="field-body">Output data structure containing all recorded parameters as specificied by NetCDF file PARAMETER list.</td>
 </tr>
-<tr class="field-even field"><th class="field-name">Author :</th><td class="field-body">Renaud Dussurget</td>
+<tr class="field-even field"><th class="field-name">Author:</th><td class="field-body">Renaud Dussurget</td>
 </tr>
 </tbody>
 </table>
@@ -236,8 +235,8 @@
 
 <dl class="method">
 <dt id="altimetry.data.alti_data.read_nc">
-<tt class="descname">read_nc</tt><big>(</big><em>filename</em>, <em>**kwargs</em><big>)</big><a class="headerlink" href="#altimetry.data.alti_data.read_nc" title="Permalink to this definition">¶</a></dt>
-<dd><p>data reader based on <a class="reference internal" href="altimetry.tools.nctools.html#altimetry.tools.nctools.nc" title="altimetry.tools.nctools.nc"><tt class="xref py py-class docutils literal"><span class="pre">altimetry.tools.nctools.nc</span></tt></a> object.</p>
+<code class="descname">read_nc</code><span class="sig-paren">(</span><em>filename</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/data/alti_data.html#alti_data.read_nc"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.data.alti_data.read_nc" title="Permalink to this definition">¶</a></dt>
+<dd><p>data reader based on <a class="reference internal" href="altimetry.tools.nctools.html#altimetry.tools.nctools.nc" title="altimetry.tools.nctools.nc"><code class="xref py py-class docutils literal"><span class="pre">altimetry.tools.nctools.nc</span></code></a> object.</p>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
 <p class="last">THIS can be VERY powerful!</p>
@@ -246,7 +245,7 @@
 
 <dl class="method">
 <dt id="altimetry.data.alti_data.read_sla">
-<tt class="descname">read_sla</tt><big>(</big><em>filename</em>, <em>params=None</em>, <em>force=False</em>, <em>timerange=None</em>, <em>datatype=None</em>, <em>**kwargs</em><big>)</big><a class="headerlink" href="#altimetry.data.alti_data.read_sla" title="Permalink to this definition">¶</a></dt>
+<code class="descname">read_sla</code><span class="sig-paren">(</span><em>filename</em>, <em>params=None</em>, <em>force=False</em>, <em>timerange=None</em>, <em>datatype=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/data/alti_data.html#alti_data.read_sla"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.data.alti_data.read_sla" title="Permalink to this definition">¶</a></dt>
 <dd><p>Read AVISO Along-Track products</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -254,7 +253,7 @@
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Return outStr:</th><td class="field-body">Output data structure containing all recorded parameters as specificied by NetCDF file PARAMETER list.</td>
 </tr>
-<tr class="field-even field"><th class="field-name">Author :</th><td class="field-body">Renaud Dussurget</td>
+<tr class="field-even field"><th class="field-name">Author:</th><td class="field-body">Renaud Dussurget</td>
 </tr>
 </tbody>
 </table>
@@ -262,7 +261,7 @@
 
 <dl class="method">
 <dt id="altimetry.data.alti_data.read_slaext">
-<tt class="descname">read_slaext</tt><big>(</big><em>filename</em>, <em>params=None</em>, <em>force=False</em>, <em>timerange=None</em>, <em>datatype=None</em>, <em>**kwargs</em><big>)</big><a class="headerlink" href="#altimetry.data.alti_data.read_slaext" title="Permalink to this definition">¶</a></dt>
+<code class="descname">read_slaext</code><span class="sig-paren">(</span><em>filename</em>, <em>params=None</em>, <em>force=False</em>, <em>timerange=None</em>, <em>datatype=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/data/alti_data.html#alti_data.read_slaext"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.data.alti_data.read_slaext" title="Permalink to this definition">¶</a></dt>
 <dd><p>Read AVISO Along-Track SLAEXT regional products</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -270,7 +269,7 @@
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Return outStr:</th><td class="field-body">Output data structure containing all recorded parameters as specificied by NetCDF file PARAMETER list.</td>
 </tr>
-<tr class="field-even field"><th class="field-name">Author :</th><td class="field-body">Renaud Dussurget</td>
+<tr class="field-even field"><th class="field-name">Author:</th><td class="field-body">Renaud Dussurget</td>
 </tr>
 </tbody>
 </table>
@@ -278,14 +277,15 @@
 
 <dl class="method">
 <dt id="altimetry.data.alti_data.reorder">
-<tt class="descname">reorder</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="headerlink" href="#altimetry.data.alti_data.reorder" title="Permalink to this definition">¶</a></dt>
+<code class="descname">reorder</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/data/alti_data.html#alti_data.reorder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.data.alti_data.reorder" title="Permalink to this definition">¶</a></dt>
 <dd><p>Reorders data vectors in 2D (ie. with dimensions (CYCLE,RECORD)). This is useful to get a hovmoller-type matrix of each variable.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Example :</th><td class="field-body"><p class="first">To plot a hovmoller for a given variable, do</p>
-<div class="highlight-python"><pre>.. code-block:: pyhton</pre>
+<tr class="field-odd field"><th class="field-name">Example:</th><td class="field-body"><p class="first">To plot a hovmoller for a given variable, do</p>
+<div class="highlight-python"><div class="highlight"><pre>.. code-block:: pyhton
+</pre></div>
 </div>
 <blockquote class="last">
 <div><p>data=alti_data(&#8216;/my/dir/my_files_pattern*.nc&#8217;) #concatenate the files
@@ -304,13 +304,13 @@ pcolormesh(data.lat,data.cycle,data.sla); show() #plot the hovmoller</p>
 
 <dl class="method">
 <dt id="altimetry.data.alti_data.set_sats">
-<tt class="descname">set_sats</tt><big>(</big><big>)</big><a class="headerlink" href="#altimetry.data.alti_data.set_sats" title="Permalink to this definition">¶</a></dt>
+<code class="descname">set_sats</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/data/alti_data.html#alti_data.set_sats"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.data.alti_data.set_sats" title="Permalink to this definition">¶</a></dt>
 <dd><p>set satellite name using (cf. notes on file names in <cite>altimetry.data.alti_data.__init__</cite>)</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="altimetry.data.alti_data.track_list">
-<tt class="descname">track_list</tt><big>(</big><em>*args</em><big>)</big><a class="headerlink" href="#altimetry.data.alti_data.track_list" title="Permalink to this definition">¶</a></dt>
+<code class="descname">track_list</code><span class="sig-paren">(</span><em>*args</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/data/alti_data.html#alti_data.track_list"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.data.alti_data.track_list" title="Permalink to this definition">¶</a></dt>
 <dd><p>return the list of tracks contained if the dataset</p>
 </dd></dl>
 
@@ -321,31 +321,31 @@ pcolormesh(data.lat,data.cycle,data.sla); show() #plot the hovmoller</p>
 <span id="hydro-data"></span><h3>1.1.1.1.2. hydro_data class - handles oceanographic (in-situ or remotely sensed) data:<a class="headerlink" href="#hydro-data-class-handles-oceanographic-in-situ-or-remotely-sensed-data" title="Permalink to this headline">¶</a></h3>
 <dl class="class">
 <dt id="altimetry.data.hydro_data">
-<em class="property">class </em><tt class="descclassname">altimetry.data.</tt><tt class="descname">hydro_data</tt><big>(</big><em>file_pattern</em>, <em>limit=None</em>, <em>verbose=1</em>, <em>round=True</em>, <em>zero_2pi=True</em>, <em>output_is_dict=True</em>, <em>flatten=False</em>, <em>**kwargs</em><big>)</big><a class="headerlink" href="#altimetry.data.hydro_data" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="descclassname">altimetry.data.</code><code class="descname">hydro_data</code><span class="sig-paren">(</span><em>file_pattern</em>, <em>limit=None</em>, <em>verbose=1</em>, <em>round=True</em>, <em>zero_2pi=True</em>, <em>output_is_dict=True</em>, <em>flatten=False</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/data/hydro.html#hydro_data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.data.hydro_data" title="Permalink to this definition">¶</a></dt>
 <dd><p>A base object dedicated to handle oceanographic data (in-situ or remote sensing) with upper level processing methods.</p>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
-<p class="last">This object SHOULD NOT be called directly but through a subclass heritating of it (eg. <a class="reference internal" href="#altimetry.data.alti_data" title="altimetry.data.alti_data"><tt class="xref py py-class docutils literal"><span class="pre">altimetry.data.alti_data</span></tt></a>)</p>
+<p class="last">This object SHOULD NOT be called directly but through a subclass heritating of it (eg. <a class="reference internal" href="#altimetry.data.alti_data" title="altimetry.data.alti_data"><code class="xref py py-class docutils literal"><span class="pre">altimetry.data.alti_data</span></code></a>)</p>
 </div>
 <dl class="method">
 <dt id="altimetry.data.hydro_data.Error">
-<tt class="descname">Error</tt><big>(</big><em>ErrorMsg</em><big>)</big><a class="headerlink" href="#altimetry.data.hydro_data.Error" title="Permalink to this definition">¶</a></dt>
+<code class="descname">Error</code><span class="sig-paren">(</span><em>ErrorMsg</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/data/hydro.html#hydro_data.Error"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.data.hydro_data.Error" title="Permalink to this definition">¶</a></dt>
 <dd><p>raises an exception</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="altimetry.data.hydro_data.__init__">
-<tt class="descname">__init__</tt><big>(</big><em>file_pattern</em>, <em>limit=None</em>, <em>verbose=1</em>, <em>round=True</em>, <em>zero_2pi=True</em>, <em>output_is_dict=True</em>, <em>flatten=False</em>, <em>**kwargs</em><big>)</big><a class="headerlink" href="#altimetry.data.hydro_data.__init__" title="Permalink to this definition">¶</a></dt>
+<code class="descname">__init__</code><span class="sig-paren">(</span><em>file_pattern</em>, <em>limit=None</em>, <em>verbose=1</em>, <em>round=True</em>, <em>zero_2pi=True</em>, <em>output_is_dict=True</em>, <em>flatten=False</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/data/hydro.html#hydro_data.__init__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.data.hydro_data.__init__" title="Permalink to this definition">¶</a></dt>
 <dd><p>Returns the object filled with the data loaded from a single file or a concatenated set of files</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
-<li><strong>file_pattern</strong> &#8211; a pattern of files to be globbed (<a class="reference external" href="http://docs.python.org/library/glob.html#glob.glob" title="(in Python v2.7)"><tt class="xref py py-func docutils literal"><span class="pre">glob.glob()</span></tt></a>) or a list of file names.</li>
+<li><strong>file_pattern</strong> &#8211; a pattern of files to be globbed (<a class="reference external" href="http://docs.python.org/library/glob.html#glob.glob" title="(in Python v2.7)"><code class="xref py py-func docutils literal"><span class="pre">glob.glob()</span></code></a>) or a list of file names.</li>
 <li><strong>limit</strong> &#8211; the limits of the domain to handle ([latmin,lonmin,latmax,lonmax]).</li>
 <li><strong>verbose</strong> &#8211; verbosity level on a scale of 0 (silent) to 4 (max verobsity)</li>
-<li><strong>round</strong> &#8211; round limits (cf. <tt class="xref py py-func docutils literal"><span class="pre">altimetry.tools.in_limits()</span></tt>)</li>
+<li><strong>round</strong> &#8211; round limits (cf. <code class="xref py py-func docutils literal"><span class="pre">altimetry.tools.in_limits()</span></code>)</li>
 <li><strong>zero_2pi</strong> &#8211; limits goes from 0 to 360 degrees (not -180/180).</li>
 <li><strong>output_is_dict</strong> &#8211; data structures are dictionnaries (eg. my_hydro_data.variable[&#8216;data&#8217;]). If false uses an object with attributes (eg. my_hydro_data.variable.data).</li>
 </ul>
@@ -355,39 +355,33 @@ pcolormesh(data.lat,data.cycle,data.sla); show() #plot the hovmoller</p>
 </table>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
-<p class="last">This methodes init all the attributes, then loads the data from files (<tt class="xref py py-meth docutils literal"><span class="pre">altimetry.data.hydro_data.read()</span></tt>) and appends it to the object (<a class="reference internal" href="#altimetry.data.hydro_data.update_dataset" title="altimetry.data.hydro_data.update_dataset"><tt class="xref py py-meth docutils literal"><span class="pre">altimetry.data.hydro_data.update_dataset()</span></tt></a>) before checking its content (<a class="reference internal" href="#altimetry.data.hydro_data.check_variables" title="altimetry.data.hydro_data.check_variables"><tt class="xref py py-meth docutils literal"><span class="pre">altimetry.data.hydro_data.check_variables()</span></tt></a>).</p>
+<p class="last">This methodes init all the attributes, then loads the data from files (<code class="xref py py-meth docutils literal"><span class="pre">altimetry.data.hydro_data.read()</span></code>) and appends it to the object (<a class="reference internal" href="#altimetry.data.hydro_data.update_dataset" title="altimetry.data.hydro_data.update_dataset"><code class="xref py py-meth docutils literal"><span class="pre">altimetry.data.hydro_data.update_dataset()</span></code></a>) before checking its content (<a class="reference internal" href="#altimetry.data.hydro_data.check_variables" title="altimetry.data.hydro_data.check_variables"><code class="xref py py-meth docutils literal"><span class="pre">altimetry.data.hydro_data.check_variables()</span></code></a>).</p>
 </div>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
-<p class="last">The method <tt class="xref py py-meth docutils literal"><span class="pre">altimetry.data.hydro_data.read()</span></tt> MUST be defined (typically by overloading it). This method must return a data structure.</p>
+<p class="last">The method <code class="xref py py-meth docutils literal"><span class="pre">altimetry.data.hydro_data.read()</span></code> MUST be defined (typically by overloading it). This method must return a data structure.</p>
 </div>
-</dd></dl>
-
-<dl class="attribute">
-<dt id="altimetry.data.hydro_data.__weakref__">
-<tt class="descname">__weakref__</tt><a class="headerlink" href="#altimetry.data.hydro_data.__weakref__" title="Permalink to this definition">¶</a></dt>
-<dd><p>list of weak references to the object (if defined)</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="altimetry.data.hydro_data.check_variables">
-<tt class="descname">check_variables</tt><big>(</big><big>)</big><a class="headerlink" href="#altimetry.data.hydro_data.check_variables" title="Permalink to this definition">¶</a></dt>
+<code class="descname">check_variables</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/data/hydro.html#hydro_data.check_variables"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.data.hydro_data.check_variables" title="Permalink to this definition">¶</a></dt>
 <dd><p>Forces variables to respect dimensions</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="altimetry.data.hydro_data.contour_transect">
-<tt class="descname">contour_transect</tt><big>(</big><em>x</em>, <em>z</em>, <em>var</em>, <em>xrange=None</em>, <em>zrange=None</em>, <em>xstep=1</em>, <em>zstep=10</em>, <em>vmin=None</em>, <em>vmax=None</em>, <em>marker='.k'</em>, <em>**kwargs</em><big>)</big><a class="headerlink" href="#altimetry.data.hydro_data.contour_transect" title="Permalink to this definition">¶</a></dt>
+<code class="descname">contour_transect</code><span class="sig-paren">(</span><em>x</em>, <em>z</em>, <em>var</em>, <em>xrange=None</em>, <em>zrange=None</em>, <em>xstep=1</em>, <em>zstep=10</em>, <em>vmin=None</em>, <em>vmax=None</em>, <em>marker='.k'</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/data/hydro.html#hydro_data.contour_transect"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.data.hydro_data.contour_transect" title="Permalink to this definition">¶</a></dt>
 <dd><p>shows a 2d space-depth section by interpolating the data along the section.</p>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
-<p class="last">This method interpolates using <tt class="xref py py-func docutils literal"><span class="pre">scipy.interpolate.griddata()</span></tt> and plots using <tt class="xref py py-func docutils literal"><span class="pre">matplotlib.pyplot.meshcolorgrid()</span></tt></p>
+<p class="last">This method interpolates using <code class="xref py py-func docutils literal"><span class="pre">scipy.interpolate.griddata()</span></code> and plots using <code class="xref py py-func docutils literal"><span class="pre">matplotlib.pyplot.meshcolorgrid()</span></code></p>
 </div>
 </dd></dl>
 
 <dl class="method">
 <dt id="altimetry.data.hydro_data.copy">
-<tt class="descname">copy</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="headerlink" href="#altimetry.data.hydro_data.copy" title="Permalink to this definition">¶</a></dt>
+<code class="descname">copy</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/data/hydro.html#hydro_data.copy"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.data.hydro_data.copy" title="Permalink to this definition">¶</a></dt>
 <dd><p>Returns a copy of the current data object</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -405,13 +399,13 @@ pcolormesh(data.lat,data.cycle,data.sla); show() #plot the hovmoller</p>
 
 <dl class="attribute">
 <dt id="altimetry.data.hydro_data.count">
-<tt class="descname">count</tt><em class="property"> = None</em><a class="headerlink" href="#altimetry.data.hydro_data.count" title="Permalink to this definition">¶</a></dt>
+<code class="descname">count</code><em class="property"> = None</em><a class="headerlink" href="#altimetry.data.hydro_data.count" title="Permalink to this definition">¶</a></dt>
 <dd><p>number of files loaded</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="altimetry.data.hydro_data.create_Dim">
-<tt class="descname">create_Dim</tt><big>(</big><em>name</em>, <em>value</em><big>)</big><a class="headerlink" href="#altimetry.data.hydro_data.create_Dim" title="Permalink to this definition">¶</a></dt>
+<code class="descname">create_Dim</code><span class="sig-paren">(</span><em>name</em>, <em>value</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/data/hydro.html#hydro_data.create_Dim"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.data.hydro_data.create_Dim" title="Permalink to this definition">¶</a></dt>
 <dd><p>Adds a dimension to class.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -429,8 +423,8 @@ pcolormesh(data.lat,data.cycle,data.sla); show() #plot the hovmoller</p>
 
 <dl class="method">
 <dt id="altimetry.data.hydro_data.create_Variable">
-<tt class="descname">create_Variable</tt><big>(</big><em>name</em>, <em>value</em>, <em>dimensions</em>, <em>toCreate=None</em>, <em>createDim=None</em>, <em>extend=True</em><big>)</big><a class="headerlink" href="#altimetry.data.hydro_data.create_Variable" title="Permalink to this definition">¶</a></dt>
-<dd><p>create_Variable : This function adds data to <a class="reference internal" href="#altimetry.data.hydro_data" title="altimetry.data.hydro_data"><tt class="xref py py-class docutils literal"><span class="pre">altimetry.data.hydro_data</span></tt></a></p>
+<code class="descname">create_Variable</code><span class="sig-paren">(</span><em>name</em>, <em>value</em>, <em>dimensions</em>, <em>toCreate=None</em>, <em>createDim=None</em>, <em>extend=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/data/hydro.html#hydro_data.create_Variable"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.data.hydro_data.create_Variable" title="Permalink to this definition">¶</a></dt>
+<dd><p>create_Variable : This function adds data to <a class="reference internal" href="#altimetry.data.hydro_data" title="altimetry.data.hydro_data"><code class="xref py py-class docutils literal"><span class="pre">altimetry.data.hydro_data</span></code></a></p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
@@ -459,7 +453,7 @@ pcolormesh(data.lat,data.cycle,data.sla); show() #plot the hovmoller</p>
 </div>
 <p>In standard NetCDF files, dimensions are always associated to a variable.
 If it is not the case, an array of indices the length of the dimension is generated and a warning is issued.</p>
-<p>Moreover, dimensions MUST be defined to be accepted by <a class="reference internal" href="altimetry.tools.nctools.html#altimetry.tools.nctools.nc" title="altimetry.tools.nctools.nc"><tt class="xref py py-class docutils literal"><span class="pre">altimetry.tools.nctools.nc</span></tt></a> (empty NetCDF files would fail).</p>
+<p>Moreover, dimensions MUST be defined to be accepted by <a class="reference internal" href="altimetry.tools.nctools.html#altimetry.tools.nctools.nc" title="altimetry.tools.nctools.nc"><code class="xref py py-class docutils literal"><span class="pre">altimetry.tools.nctools.nc</span></code></a> (empty NetCDF files would fail).</p>
 <ul class="simple">
 <li>a dimensional structure should be of the form :</li>
 </ul>
@@ -495,13 +489,13 @@ If it is not the case, an array of indices the length of the dimension is genera
 </div>
 <p>DATA and _DIMENSIONS fields are compulsory.
 Other fields are optional and will be treated as attributes.</p>
-<p class="last">Furthermore, code will have a special look at <strong>scale</strong>, <strong>scale_factor</strong> and <strong>add_offset</strong> while reading and writing data and to <strong>_FillValue</strong> and missing_value while reading (_FillValue being automatically filled by <tt class="xref py py-class docutils literal"><span class="pre">NetCDF4.Dataset</span></tt> when writing)</p>
+<p class="last">Furthermore, code will have a special look at <strong>scale</strong>, <strong>scale_factor</strong> and <strong>add_offset</strong> while reading and writing data and to <strong>_FillValue</strong> and missing_value while reading (_FillValue being automatically filled by <code class="xref py py-class docutils literal"><span class="pre">NetCDF4.Dataset</span></code> when writing)</p>
 </div>
 </dd></dl>
 
 <dl class="method">
 <dt id="altimetry.data.hydro_data.delete_Variable">
-<tt class="descname">delete_Variable</tt><big>(</big><em>name</em><big>)</big><a class="headerlink" href="#altimetry.data.hydro_data.delete_Variable" title="Permalink to this definition">¶</a></dt>
+<code class="descname">delete_Variable</code><span class="sig-paren">(</span><em>name</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/data/hydro.html#hydro_data.delete_Variable"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.data.hydro_data.delete_Variable" title="Permalink to this definition">¶</a></dt>
 <dd><p>pops a variable from class and delete it from parameter list</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -515,19 +509,19 @@ Other fields are optional and will be treated as attributes.</p>
 
 <dl class="attribute">
 <dt id="altimetry.data.hydro_data.dim_list">
-<tt class="descname">dim_list</tt><em class="property"> = None</em><a class="headerlink" href="#altimetry.data.hydro_data.dim_list" title="Permalink to this definition">¶</a></dt>
+<code class="descname">dim_list</code><em class="property"> = None</em><a class="headerlink" href="#altimetry.data.hydro_data.dim_list" title="Permalink to this definition">¶</a></dt>
 <dd><p>array containing the dimensions of each parameter</p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="altimetry.data.hydro_data.dirname">
-<tt class="descname">dirname</tt><em class="property"> = None</em><a class="headerlink" href="#altimetry.data.hydro_data.dirname" title="Permalink to this definition">¶</a></dt>
-<dd><p>Directory name of the file pattern being globbed (<a class="reference external" href="http://docs.python.org/library/glob.html#glob.glob" title="(in Python v2.7)"><tt class="xref py py-func docutils literal"><span class="pre">glob.glob()</span></tt></a>). Defaulted to current directory</p>
+<code class="descname">dirname</code><em class="property"> = None</em><a class="headerlink" href="#altimetry.data.hydro_data.dirname" title="Permalink to this definition">¶</a></dt>
+<dd><p>Directory name of the file pattern being globbed (<a class="reference external" href="http://docs.python.org/library/glob.html#glob.glob" title="(in Python v2.7)"><code class="xref py py-func docutils literal"><span class="pre">glob.glob()</span></code></a>). Defaulted to current directory</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="altimetry.data.hydro_data.extension">
-<tt class="descname">extension</tt><big>(</big><em>flag=None</em>, <em>round=True</em><big>)</big><a class="headerlink" href="#altimetry.data.hydro_data.extension" title="Permalink to this definition">¶</a></dt>
+<code class="descname">extension</code><span class="sig-paren">(</span><em>flag=None</em>, <em>round=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/data/hydro.html#hydro_data.extension"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.data.hydro_data.extension" title="Permalink to this definition">¶</a></dt>
 <dd><p>returns the limits of the dataset.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -545,37 +539,37 @@ Other fields are optional and will be treated as attributes.</p>
 
 <dl class="attribute">
 <dt id="altimetry.data.hydro_data.fileid">
-<tt class="descname">fileid</tt><em class="property"> = None</em><a class="headerlink" href="#altimetry.data.hydro_data.fileid" title="Permalink to this definition">¶</a></dt>
+<code class="descname">fileid</code><em class="property"> = None</em><a class="headerlink" href="#altimetry.data.hydro_data.fileid" title="Permalink to this definition">¶</a></dt>
 <dd><p>array of file IDs</p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="altimetry.data.hydro_data.filelist">
-<tt class="descname">filelist</tt><em class="property"> = None</em><a class="headerlink" href="#altimetry.data.hydro_data.filelist" title="Permalink to this definition">¶</a></dt>
+<code class="descname">filelist</code><em class="property"> = None</em><a class="headerlink" href="#altimetry.data.hydro_data.filelist" title="Permalink to this definition">¶</a></dt>
 <dd><p>list of files being loaded</p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="altimetry.data.hydro_data.filelist_count">
-<tt class="descname">filelist_count</tt><em class="property"> = None</em><a class="headerlink" href="#altimetry.data.hydro_data.filelist_count" title="Permalink to this definition">¶</a></dt>
+<code class="descname">filelist_count</code><em class="property"> = None</em><a class="headerlink" href="#altimetry.data.hydro_data.filelist_count" title="Permalink to this definition">¶</a></dt>
 <dd><p>number of counted values by files</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="altimetry.data.hydro_data.get">
-<tt class="descname">get</tt><big>(</big><em>name</em><big>)</big><a class="headerlink" href="#altimetry.data.hydro_data.get" title="Permalink to this definition">¶</a></dt>
+<code class="descname">get</code><span class="sig-paren">(</span><em>name</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/data/hydro.html#hydro_data.get"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.data.hydro_data.get" title="Permalink to this definition">¶</a></dt>
 <dd><p>retunrs a variable</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="altimetry.data.hydro_data.get_currentDim">
-<tt class="descname">get_currentDim</tt><big>(</big><big>)</big><a class="headerlink" href="#altimetry.data.hydro_data.get_currentDim" title="Permalink to this definition">¶</a></dt>
+<code class="descname">get_currentDim</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/data/hydro.html#hydro_data.get_currentDim"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.data.hydro_data.get_currentDim" title="Permalink to this definition">¶</a></dt>
 <dd><p>returns the current dimensions of the object</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="altimetry.data.hydro_data.get_file">
-<tt class="descname">get_file</tt><big>(</big><em>pattern</em><big>)</big><a class="headerlink" href="#altimetry.data.hydro_data.get_file" title="Permalink to this definition">¶</a></dt>
+<code class="descname">get_file</code><span class="sig-paren">(</span><em>pattern</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/data/hydro.html#hydro_data.get_file"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.data.hydro_data.get_file" title="Permalink to this definition">¶</a></dt>
 <dd><p>returns a flag array of the data loaded from a given file pattern</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -589,7 +583,7 @@ Other fields are optional and will be treated as attributes.</p>
 
 <dl class="method">
 <dt id="altimetry.data.hydro_data.get_object_stats">
-<tt class="descname">get_object_stats</tt><big>(</big><em>functype='overall'</em>, <em>**kwargs</em><big>)</big><a class="headerlink" href="#altimetry.data.hydro_data.get_object_stats" title="Permalink to this definition">¶</a></dt>
+<code class="descname">get_object_stats</code><span class="sig-paren">(</span><em>functype='overall'</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/data/hydro.html#hydro_data.get_object_stats"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.data.hydro_data.get_object_stats" title="Permalink to this definition">¶</a></dt>
 <dd><p>get some statistics about the whole dataset.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -599,7 +593,7 @@ Other fields are optional and will be treated as attributes.</p>
 </tr>
 <tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">par_list, valid, per_valid, fname, trange, extent, N, avail_par, avail_par_per, par_stats</td>
 </tr>
-<tr class="field-odd field"><th class="field-name">Example :</th><td class="field-body">par_list, valid, per_valid, fname, trange, extent, N, avail_par, avail_par_per, par_stats = self.get_object_stats()</td>
+<tr class="field-odd field"><th class="field-name">Example:</th><td class="field-body">par_list, valid, per_valid, fname, trange, extent, N, avail_par, avail_par_per, par_stats = self.get_object_stats()</td>
 </tr>
 </tbody>
 </table>
@@ -607,7 +601,7 @@ Other fields are optional and will be treated as attributes.</p>
 
 <dl class="method">
 <dt id="altimetry.data.hydro_data.get_platform_stats">
-<tt class="descname">get_platform_stats</tt><big>(</big><em>id</em>, <em>functype='overall'</em><big>)</big><a class="headerlink" href="#altimetry.data.hydro_data.get_platform_stats" title="Permalink to this definition">¶</a></dt>
+<code class="descname">get_platform_stats</code><span class="sig-paren">(</span><em>id</em>, <em>functype='overall'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/data/hydro.html#hydro_data.get_platform_stats"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.data.hydro_data.get_platform_stats" title="Permalink to this definition">¶</a></dt>
 <dd><p>get statistics based on <cite>altimetry.data.hydro_data.id</cite></p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -621,7 +615,7 @@ Other fields are optional and will be treated as attributes.</p>
 
 <dl class="method">
 <dt id="altimetry.data.hydro_data.get_stats">
-<tt class="descname">get_stats</tt><big>(</big><em>flag</em>, <em>par_list=None</em>, <em>full=True</em><big>)</big><a class="headerlink" href="#altimetry.data.hydro_data.get_stats" title="Permalink to this definition">¶</a></dt>
+<code class="descname">get_stats</code><span class="sig-paren">(</span><em>flag</em>, <em>par_list=None</em>, <em>full=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/data/hydro.html#hydro_data.get_stats"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.data.hydro_data.get_stats" title="Permalink to this definition">¶</a></dt>
 <dd><p>get some statistics about a part of the dataset</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -636,7 +630,7 @@ Other fields are optional and will be treated as attributes.</p>
 <tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">If not FULL returs par_stats only (dict of dicts), else returns (par_list, valid, per_valid, fname, trange, extent, N, avail_par, avail_par_per, par_stats)</p>
 </td>
 </tr>
-<tr class="field-odd field"><th class="field-name">Example :</th><td class="field-body"><p class="first last">par_list, valid, per_valid, fname, trange, extent, N, avail_par, avail_par_per, par_stats = self.stats(flag)</p>
+<tr class="field-odd field"><th class="field-name">Example:</th><td class="field-body"><p class="first last">par_list, valid, per_valid, fname, trange, extent, N, avail_par, avail_par_per, par_stats = self.stats(flag)</p>
 </td>
 </tr>
 </tbody>
@@ -645,7 +639,7 @@ Other fields are optional and will be treated as attributes.</p>
 
 <dl class="method">
 <dt id="altimetry.data.hydro_data.get_timestats">
-<tt class="descname">get_timestats</tt><big>(</big><em>flag</em>, <em>par_list=None</em>, <em>full=True</em>, <em>bins=None</em><big>)</big><a class="headerlink" href="#altimetry.data.hydro_data.get_timestats" title="Permalink to this definition">¶</a></dt>
+<code class="descname">get_timestats</code><span class="sig-paren">(</span><em>flag</em>, <em>par_list=None</em>, <em>full=True</em>, <em>bins=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/data/hydro.html#hydro_data.get_timestats"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.data.hydro_data.get_timestats" title="Permalink to this definition">¶</a></dt>
 <dd><p>get temporal statistics about a part of the dataset</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -660,7 +654,7 @@ Other fields are optional and will be treated as attributes.</p>
 <tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">If not FULL returs par_stats only (dict of dicts), else returns (par_list, valid, per_valid, fname, trange, extent, N, avail_par, avail_par_per, par_stats)</p>
 </td>
 </tr>
-<tr class="field-odd field"><th class="field-name">Example :</th><td class="field-body"><p class="first last">par_list, valid, per_valid, fname, trange, extent, N, avail_par, avail_par_per, par_stats = self.stats(flag)</p>
+<tr class="field-odd field"><th class="field-name">Example:</th><td class="field-body"><p class="first last">par_list, valid, per_valid, fname, trange, extent, N, avail_par, avail_par_per, par_stats = self.stats(flag)</p>
 </td>
 </tr>
 </tbody>
@@ -669,41 +663,41 @@ Other fields are optional and will be treated as attributes.</p>
 
 <dl class="method">
 <dt id="altimetry.data.hydro_data.in_limits">
-<tt class="descname">in_limits</tt><big>(</big><em>limit=None</em><big>)</big><a class="headerlink" href="#altimetry.data.hydro_data.in_limits" title="Permalink to this definition">¶</a></dt>
-<dd><p>wrapper to <tt class="xref py py-func docutils literal"><span class="pre">altimetry.tools.in_limits()</span></tt> based on dataset limits.</p>
+<code class="descname">in_limits</code><span class="sig-paren">(</span><em>limit=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/data/hydro.html#hydro_data.in_limits"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.data.hydro_data.in_limits" title="Permalink to this definition">¶</a></dt>
+<dd><p>wrapper to <code class="xref py py-func docutils literal"><span class="pre">altimetry.tools.in_limits()</span></code> based on dataset limits.</p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="altimetry.data.hydro_data.limit">
-<tt class="descname">limit</tt><em class="property"> = None</em><a class="headerlink" href="#altimetry.data.hydro_data.limit" title="Permalink to this definition">¶</a></dt>
+<code class="descname">limit</code><em class="property"> = None</em><a class="headerlink" href="#altimetry.data.hydro_data.limit" title="Permalink to this definition">¶</a></dt>
 <dd><p>limits of the domain : [latmin,lonmin,latmax,lonmax] (default = [-90.,0.,90.,360.])/</p>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
-<p class="last">limits are automatically reset using <tt class="xref py py-func docutils literal"><span class="pre">altimetry.tools.recale_limits()</span></tt></p>
+<p class="last">limits are automatically reset using <code class="xref py py-func docutils literal"><span class="pre">altimetry.tools.recale_limits()</span></code></p>
 </div>
 </dd></dl>
 
 <dl class="method">
 <dt id="altimetry.data.hydro_data.map">
-<tt class="descname">map</tt><big>(</big><em>flag=None</em>, <em>fname=None</em>, <em>zoom=False</em>, <em>pmap=None</em>, <em>show=True</em>, <em>bathy=False</em>, <em>**kwargs</em><big>)</big><a class="headerlink" href="#altimetry.data.hydro_data.map" title="Permalink to this definition">¶</a></dt>
-<dd><p>display (or not) a map based on a <tt class="xref py py-class docutils literal"><span class="pre">altimetry.tools.plot_map</span></tt> object.</p>
+<code class="descname">map</code><span class="sig-paren">(</span><em>flag=None</em>, <em>fname=None</em>, <em>zoom=False</em>, <em>pmap=None</em>, <em>show=True</em>, <em>bathy=False</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/data/hydro.html#hydro_data.map"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.data.hydro_data.map" title="Permalink to this definition">¶</a></dt>
+<dd><p>display (or not) a map based on a <code class="xref py py-class docutils literal"><span class="pre">altimetry.tools.plot_map</span></code> object.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>show</strong> &#8211; set to False not to show (and neither apply <tt class="xref py py-meth docutils literal"><span class="pre">altimetry.tools.plot_map.setup_map()</span></tt>)</td>
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>show</strong> &#8211; set to False not to show (and neither apply <code class="xref py py-meth docutils literal"><span class="pre">altimetry.tools.plot_map.setup_map()</span></code>)</td>
 </tr>
 </tbody>
 </table>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
-<p class="last">This function creates a <tt class="xref py py-class docutils literal"><span class="pre">altimetry.tools.plot_map</span></tt> instance, plot a partion of the dataset using <a class="reference internal" href="#altimetry.data.hydro_data.plot_track" title="altimetry.data.hydro_data.plot_track"><tt class="xref py py-meth docutils literal"><span class="pre">altimetry.data.hydro_data.plot_track()</span></tt></a> and displays it if asked to.</p>
+<p class="last">This function creates a <code class="xref py py-class docutils literal"><span class="pre">altimetry.tools.plot_map</span></code> instance, plot a partion of the dataset using <a class="reference internal" href="#altimetry.data.hydro_data.plot_track" title="altimetry.data.hydro_data.plot_track"><code class="xref py py-meth docutils literal"><span class="pre">altimetry.data.hydro_data.plot_track()</span></code></a> and displays it if asked to.</p>
 </div>
 </dd></dl>
 
 <dl class="method">
 <dt id="altimetry.data.hydro_data.message">
-<tt class="descname">message</tt><big>(</big><em>MSG_LEVEL</em>, <em>str</em><big>)</big><a class="headerlink" href="#altimetry.data.hydro_data.message" title="Permalink to this definition">¶</a></dt>
+<code class="descname">message</code><span class="sig-paren">(</span><em>MSG_LEVEL</em>, <em>str</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/data/hydro.html#hydro_data.message"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.data.hydro_data.message" title="Permalink to this definition">¶</a></dt>
 <dd><p>print function wrapper. Print a message depending on the verbose level</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -712,7 +706,7 @@ Other fields are optional and will be treated as attributes.</p>
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>MSG_LEVEL</strong> (<em>{in}{required}{type=int}</em>) &#8211; level of the message to be compared with self.verbose</p>
 </td>
 </tr>
-<tr class="field-even field"><th class="field-name">Example :</th><td class="field-body"><p class="first">To write a message</p>
+<tr class="field-even field"><th class="field-name">Example:</th><td class="field-body"><p class="first">To write a message</p>
 <div class="last highlight-python"><div class="highlight"><pre><span class="bp">self</span><span class="o">.</span><span class="n">message</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="s">&#39;This message will be shown for any verbose level&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
@@ -724,7 +718,7 @@ Other fields are optional and will be treated as attributes.</p>
 
 <dl class="method">
 <dt id="altimetry.data.hydro_data.ncstruct">
-<tt class="descname">ncstruct</tt><big>(</big><em>**kwargs</em><big>)</big><a class="headerlink" href="#altimetry.data.hydro_data.ncstruct" title="Permalink to this definition">¶</a></dt>
+<code class="descname">ncstruct</code><span class="sig-paren">(</span><em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/data/hydro.html#hydro_data.ncstruct"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.data.hydro_data.ncstruct" title="Permalink to this definition">¶</a></dt>
 <dd><p>returns a data structure (dict) of the dataset.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -738,27 +732,27 @@ Other fields are optional and will be treated as attributes.</p>
 
 <dl class="attribute">
 <dt id="altimetry.data.hydro_data.par_list">
-<tt class="descname">par_list</tt><em class="property"> = None</em><a class="headerlink" href="#altimetry.data.hydro_data.par_list" title="Permalink to this definition">¶</a></dt>
+<code class="descname">par_list</code><em class="property"> = None</em><a class="headerlink" href="#altimetry.data.hydro_data.par_list" title="Permalink to this definition">¶</a></dt>
 <dd><p>array of parameters</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="altimetry.data.hydro_data.platform_summary">
-<tt class="descname">platform_summary</tt><big>(</big><em>id</em>, <em>col='.k'</em>, <em>functype='overall'</em><big>)</big><a class="headerlink" href="#altimetry.data.hydro_data.platform_summary" title="Permalink to this definition">¶</a></dt>
+<code class="descname">platform_summary</code><span class="sig-paren">(</span><em>id</em>, <em>col='.k'</em>, <em>functype='overall'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/data/hydro.html#hydro_data.platform_summary"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.data.hydro_data.platform_summary" title="Permalink to this definition">¶</a></dt>
 <dd><p>outputs a summary of the statistics for a given platform</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="altimetry.data.hydro_data.plot_track">
-<tt class="descname">plot_track</tt><big>(</big><em>pmap</em>, <em>flag=None</em>, <em>col='.k'</em>, <em>endpoint='*r'</em>, <em>endpoint_size=None</em>, <em>title=None</em>, <em>fontsize=8</em>, <em>textcolor='b'</em>, <em>ms=5</em>, <em>linewidth=1</em>, <em>**kwargs</em><big>)</big><a class="headerlink" href="#altimetry.data.hydro_data.plot_track" title="Permalink to this definition">¶</a></dt>
+<code class="descname">plot_track</code><span class="sig-paren">(</span><em>pmap</em>, <em>flag=None</em>, <em>col='.k'</em>, <em>endpoint='*r'</em>, <em>endpoint_size=None</em>, <em>title=None</em>, <em>fontsize=8</em>, <em>textcolor='b'</em>, <em>ms=5</em>, <em>linewidth=1</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/data/hydro.html#hydro_data.plot_track"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.data.hydro_data.plot_track" title="Permalink to this definition">¶</a></dt>
 <dd><p>plot trajectories based on platform IDs</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
-<li><strong>pmap</strong> &#8211; a <tt class="xref py py-class docutils literal"><span class="pre">altimetry.tools.plot_map</span></tt> instance</li>
-<li><strong>col</strong> &#8211; color to be used along the trajectory. If this is an array of values, calls <tt class="xref py py-func docutils literal"><span class="pre">altimetry.tools.plot_map.scatter()</span></tt> instead of <tt class="xref py py-func docutils literal"><span class="pre">altimetry.tools.plot_map.plot()</span></tt></li>
+<li><strong>pmap</strong> &#8211; a <code class="xref py py-class docutils literal"><span class="pre">altimetry.tools.plot_map</span></code> instance</li>
+<li><strong>col</strong> &#8211; color to be used along the trajectory. If this is an array of values, calls <code class="xref py py-func docutils literal"><span class="pre">altimetry.tools.plot_map.scatter()</span></code> instead of <code class="xref py py-func docutils literal"><span class="pre">altimetry.tools.plot_map.plot()</span></code></li>
 </ul>
 </td>
 </tr>
@@ -766,13 +760,13 @@ Other fields are optional and will be treated as attributes.</p>
 </table>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
-<p class="last">This method loops on data IDs. Then it calls <tt class="xref py py-func docutils literal"><span class="pre">altimetry.tools.plot_map.plot()</span></tt> or <tt class="xref py py-func docutils literal"><span class="pre">altimetry.tools.plot_map.scatter()</span></tt> to plot the trajectory and then labels the trajectory using <tt class="xref py py-func docutils literal"><span class="pre">altimetry.tools.plot_map.text()</span></tt></p>
+<p class="last">This method loops on data IDs. Then it calls <code class="xref py py-func docutils literal"><span class="pre">altimetry.tools.plot_map.plot()</span></code> or <code class="xref py py-func docutils literal"><span class="pre">altimetry.tools.plot_map.scatter()</span></code> to plot the trajectory and then labels the trajectory using <code class="xref py py-func docutils literal"><span class="pre">altimetry.tools.plot_map.text()</span></code></p>
 </div>
 </dd></dl>
 
 <dl class="method">
 <dt id="altimetry.data.hydro_data.plot_track_old">
-<tt class="descname">plot_track_old</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="headerlink" href="#altimetry.data.hydro_data.plot_track_old" title="Permalink to this definition">¶</a></dt>
+<code class="descname">plot_track_old</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/data/hydro.html#hydro_data.plot_track_old"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.data.hydro_data.plot_track_old" title="Permalink to this definition">¶</a></dt>
 <dd><p>plot a surface map of sampling track</p>
 <div class="admonition warning">
 <p class="first admonition-title">Warning</p>
@@ -782,13 +776,13 @@ Other fields are optional and will be treated as attributes.</p>
 
 <dl class="method">
 <dt id="altimetry.data.hydro_data.plot_transect">
-<tt class="descname">plot_transect</tt><big>(</big><em>x</em>, <em>z</em>, <em>var</em>, <em>xrange=None</em>, <em>zrange=None</em>, <em>vmin=None</em>, <em>vmax=None</em>, <em>xstep=1</em>, <em>zstep=10</em>, <em>s=10</em>, <em>edgecolor='none'</em>, <em>**kwargs</em><big>)</big><a class="headerlink" href="#altimetry.data.hydro_data.plot_transect" title="Permalink to this definition">¶</a></dt>
-<dd><p>shows a 2d space-depth section plotting point (using <tt class="xref py py-func docutils literal"><span class="pre">altimetry.tools.plot_map.scatter()</span></tt>)</p>
+<code class="descname">plot_transect</code><span class="sig-paren">(</span><em>x</em>, <em>z</em>, <em>var</em>, <em>xrange=None</em>, <em>zrange=None</em>, <em>vmin=None</em>, <em>vmax=None</em>, <em>xstep=1</em>, <em>zstep=10</em>, <em>s=10</em>, <em>edgecolor='none'</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/data/hydro.html#hydro_data.plot_transect"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.data.hydro_data.plot_transect" title="Permalink to this definition">¶</a></dt>
+<dd><p>shows a 2d space-depth section plotting point (using <code class="xref py py-func docutils literal"><span class="pre">altimetry.tools.plot_map.scatter()</span></code>)</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Example :</th><td class="field-body">plot a temperature section along a glider transect</td>
+<tr class="field-odd field"><th class="field-name">Example:</th><td class="field-body">plot a temperature section along a glider transect</td>
 </tr>
 </tbody>
 </table>
@@ -796,19 +790,19 @@ Other fields are optional and will be treated as attributes.</p>
 
 <dl class="method">
 <dt id="altimetry.data.hydro_data.pop">
-<tt class="descname">pop</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="headerlink" href="#altimetry.data.hydro_data.pop" title="Permalink to this definition">¶</a></dt>
-<dd><p>This is a wrapper to <a class="reference internal" href="#altimetry.data.hydro_data.delete_Variable" title="altimetry.data.hydro_data.delete_Variable"><tt class="xref py py-meth docutils literal"><span class="pre">altimetry.data.hydro_data.delete_Variable()</span></tt></a></p>
+<code class="descname">pop</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/data/hydro.html#hydro_data.pop"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.data.hydro_data.pop" title="Permalink to this definition">¶</a></dt>
+<dd><p>This is a wrapper to <a class="reference internal" href="#altimetry.data.hydro_data.delete_Variable" title="altimetry.data.hydro_data.delete_Variable"><code class="xref py py-meth docutils literal"><span class="pre">altimetry.data.hydro_data.delete_Variable()</span></code></a></p>
 </dd></dl>
 
 <dl class="method">
 <dt id="altimetry.data.hydro_data.push_nc">
-<tt class="descname">push_nc</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="headerlink" href="#altimetry.data.hydro_data.push_nc" title="Permalink to this definition">¶</a></dt>
+<code class="descname">push_nc</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/data/hydro.html#hydro_data.push_nc"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.data.hydro_data.push_nc" title="Permalink to this definition">¶</a></dt>
 <dd><p>append a data structure to an exisiting netcdf file</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="altimetry.data.hydro_data.read_ArgoNC">
-<tt class="descname">read_ArgoNC</tt><big>(</big><em>filename</em>, <em>params=None</em>, <em>force=False</em>, <em>dephrange=None</em>, <em>timerange=None</em>, <em>**kwargs</em><big>)</big><a class="headerlink" href="#altimetry.data.hydro_data.read_ArgoNC" title="Permalink to this definition">¶</a></dt>
+<code class="descname">read_ArgoNC</code><span class="sig-paren">(</span><em>filename</em>, <em>params=None</em>, <em>force=False</em>, <em>dephrange=None</em>, <em>timerange=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/data/hydro.html#hydro_data.read_ArgoNC"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.data.hydro_data.read_ArgoNC" title="Permalink to this definition">¶</a></dt>
 <dd><p>An Argo network NetCDF reader</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -816,7 +810,7 @@ Other fields are optional and will be treated as attributes.</p>
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Return outStr:</th><td class="field-body">Output data stricture (dict) containing all recorded parameters as specificied by NetCDF file PARAMETER list.</td>
 </tr>
-<tr class="field-even field"><th class="field-name">Author :</th><td class="field-body">Renaud Dussurget</td>
+<tr class="field-even field"><th class="field-name">Author:</th><td class="field-body">Renaud Dussurget</td>
 </tr>
 </tbody>
 </table>
@@ -824,13 +818,13 @@ Other fields are optional and will be treated as attributes.</p>
 
 <dl class="attribute">
 <dt id="altimetry.data.hydro_data.size">
-<tt class="descname">size</tt><em class="property"> = None</em><a class="headerlink" href="#altimetry.data.hydro_data.size" title="Permalink to this definition">¶</a></dt>
+<code class="descname">size</code><em class="property"> = None</em><a class="headerlink" href="#altimetry.data.hydro_data.size" title="Permalink to this definition">¶</a></dt>
 <dd><p>length of the dataset</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="altimetry.data.hydro_data.slice">
-<tt class="descname">slice</tt><big>(</big><em>param</em>, <em>range</em>, <em>surf=False</em><big>)</big><a class="headerlink" href="#altimetry.data.hydro_data.slice" title="Permalink to this definition">¶</a></dt>
+<code class="descname">slice</code><span class="sig-paren">(</span><em>param</em>, <em>range</em>, <em>surf=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/data/hydro.html#hydro_data.slice"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.data.hydro_data.slice" title="Permalink to this definition">¶</a></dt>
 <dd><p>get a flag for indexing based on values (ange of fixed values).</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -853,7 +847,7 @@ Other fields are optional and will be treated as attributes.</p>
 
 <dl class="method">
 <dt id="altimetry.data.hydro_data.summary">
-<tt class="descname">summary</tt><big>(</big><em>all=False</em>, <em>fig=None</em>, <em>col='.k'</em>, <em>legend=None</em>, <em>bathy=False</em>, <em>functype='overall'</em>, <em>**kwargs</em><big>)</big><a class="headerlink" href="#altimetry.data.hydro_data.summary" title="Permalink to this definition">¶</a></dt>
+<code class="descname">summary</code><span class="sig-paren">(</span><em>all=False</em>, <em>fig=None</em>, <em>col='.k'</em>, <em>legend=None</em>, <em>bathy=False</em>, <em>functype='overall'</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/data/hydro.html#hydro_data.summary"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.data.hydro_data.summary" title="Permalink to this definition">¶</a></dt>
 <dd><p>outputs a summary of the whole current dataset</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -867,7 +861,7 @@ Other fields are optional and will be treated as attributes.</p>
 
 <dl class="method">
 <dt id="altimetry.data.hydro_data.time_range">
-<tt class="descname">time_range</tt><big>(</big><em>flag=None</em><big>)</big><a class="headerlink" href="#altimetry.data.hydro_data.time_range" title="Permalink to this definition">¶</a></dt>
+<code class="descname">time_range</code><span class="sig-paren">(</span><em>flag=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/data/hydro.html#hydro_data.time_range"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.data.hydro_data.time_range" title="Permalink to this definition">¶</a></dt>
 <dd><p>time range of the current dataset</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -881,7 +875,7 @@ Other fields are optional and will be treated as attributes.</p>
 
 <dl class="method">
 <dt id="altimetry.data.hydro_data.time_slice">
-<tt class="descname">time_slice</tt><big>(</big><em>timerange</em>, <em>surf=False</em><big>)</big><a class="headerlink" href="#altimetry.data.hydro_data.time_slice" title="Permalink to this definition">¶</a></dt>
+<code class="descname">time_slice</code><span class="sig-paren">(</span><em>timerange</em>, <em>surf=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/data/hydro.html#hydro_data.time_slice"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.data.hydro_data.time_slice" title="Permalink to this definition">¶</a></dt>
 <dd><p>slice object given a time range</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -895,21 +889,22 @@ Other fields are optional and will be treated as attributes.</p>
 
 <dl class="method">
 <dt id="altimetry.data.hydro_data.update">
-<tt class="descname">update</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="headerlink" href="#altimetry.data.hydro_data.update" title="Permalink to this definition">¶</a></dt>
-<dd><p>Wrapper to <a class="reference internal" href="#altimetry.data.hydro_data.update_with_slice" title="altimetry.data.hydro_data.update_with_slice"><tt class="xref py py-func docutils literal"><span class="pre">altimetry.data.hydro_data.update_with_slice()</span></tt></a>.</p>
+<code class="descname">update</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/data/hydro.html#hydro_data.update"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.data.hydro_data.update" title="Permalink to this definition">¶</a></dt>
+<dd><p>Wrapper to <a class="reference internal" href="#altimetry.data.hydro_data.update_with_slice" title="altimetry.data.hydro_data.update_with_slice"><code class="xref py py-func docutils literal"><span class="pre">altimetry.data.hydro_data.update_with_slice()</span></code></a>.</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="altimetry.data.hydro_data.update_Dim">
-<tt class="descname">update_Dim</tt><big>(</big><em>name</em>, <em>value</em><big>)</big><a class="headerlink" href="#altimetry.data.hydro_data.update_Dim" title="Permalink to this definition">¶</a></dt>
+<code class="descname">update_Dim</code><span class="sig-paren">(</span><em>name</em>, <em>value</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/data/hydro.html#hydro_data.update_Dim"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.data.hydro_data.update_Dim" title="Permalink to this definition">¶</a></dt>
 <dd><p>update a dimension by appending the number of added elements to the dimensions</p>
-<div class="highlight-python"><pre>&lt;upddated dimension&gt; = &lt;old dimension&gt; + &lt;number of added elements along this dimension&gt;</pre>
+<div class="highlight-python"><div class="highlight"><pre>&lt;upddated dimension&gt; = &lt;old dimension&gt; + &lt;number of added elements along this dimension&gt;
+</pre></div>
 </div>
 </dd></dl>
 
 <dl class="method">
 <dt id="altimetry.data.hydro_data.update_dataset">
-<tt class="descname">update_dataset</tt><big>(</big><em>dataStr</em>, <em>flatten=False</em><big>)</big><a class="headerlink" href="#altimetry.data.hydro_data.update_dataset" title="Permalink to this definition">¶</a></dt>
+<code class="descname">update_dataset</code><span class="sig-paren">(</span><em>dataStr</em>, <em>flatten=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/data/hydro.html#hydro_data.update_dataset"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.data.hydro_data.update_dataset" title="Permalink to this definition">¶</a></dt>
 <dd><p>update class with a data structure.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -923,13 +918,13 @@ Other fields are optional and will be treated as attributes.</p>
 
 <dl class="method">
 <dt id="altimetry.data.hydro_data.update_fid_list">
-<tt class="descname">update_fid_list</tt><big>(</big><em>filename</em>, <em>N</em><big>)</big><a class="headerlink" href="#altimetry.data.hydro_data.update_fid_list" title="Permalink to this definition">¶</a></dt>
+<code class="descname">update_fid_list</code><span class="sig-paren">(</span><em>filename</em>, <em>N</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/data/hydro.html#hydro_data.update_fid_list"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.data.hydro_data.update_fid_list" title="Permalink to this definition">¶</a></dt>
 <dd><p>update file indices attribute <cite>altimetry.data.hydro_data.fileid</cite></p>
 </dd></dl>
 
 <dl class="method">
 <dt id="altimetry.data.hydro_data.update_with_slice">
-<tt class="descname">update_with_slice</tt><big>(</big><em>flag</em><big>)</big><a class="headerlink" href="#altimetry.data.hydro_data.update_with_slice" title="Permalink to this definition">¶</a></dt>
+<code class="descname">update_with_slice</code><span class="sig-paren">(</span><em>flag</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/data/hydro.html#hydro_data.update_with_slice"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.data.hydro_data.update_with_slice" title="Permalink to this definition">¶</a></dt>
 <dd><p>update object with a given time slice flag</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -943,32 +938,32 @@ Other fields are optional and will be treated as attributes.</p>
 
 <dl class="method">
 <dt id="altimetry.data.hydro_data.updated_copy">
-<tt class="descname">updated_copy</tt><big>(</big><em>flag</em>, <em>deep=True</em><big>)</big><a class="headerlink" href="#altimetry.data.hydro_data.updated_copy" title="Permalink to this definition">¶</a></dt>
+<code class="descname">updated_copy</code><span class="sig-paren">(</span><em>flag</em>, <em>deep=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/data/hydro.html#hydro_data.updated_copy"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.data.hydro_data.updated_copy" title="Permalink to this definition">¶</a></dt>
 <dd><p>Returns a sliced (updated) copy of current data object</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Summary :</th><td class="field-body">This has the same effect as <cite>obj.copy();obj.update(flag)</cite> but is much less memory consumming.</td>
+<tr class="field-odd field"><th class="field-name">Summary:</th><td class="field-body">This has the same effect as <cite>obj.copy();obj.update(flag)</cite> but is much less memory consumming.</td>
 </tr>
 </tbody>
 </table>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
-<p class="last">TypeError could arise if some object attributes are setted outside the <tt class="xref py py-func docutils literal"><span class="pre">__init__()</span></tt> function (eg. for data objects derived from <tt class="xref py py-class docutils literal"><span class="pre">hydro_data</span></tt>). If this is the case, initialise these attributes within their respective <tt class="xref py py-func docutils literal"><span class="pre">__init__()</span></tt>.</p>
+<p class="last">TypeError could arise if some object attributes are setted outside the <code class="xref py py-func docutils literal"><span class="pre">__init__()</span></code> function (eg. for data objects derived from <code class="xref py py-class docutils literal"><span class="pre">hydro_data</span></code>). If this is the case, initialise these attributes within their respective <code class="xref py py-func docutils literal"><span class="pre">__init__()</span></code>.</p>
 </div>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="altimetry.data.hydro_data.verbose">
-<tt class="descname">verbose</tt><em class="property"> = None</em><a class="headerlink" href="#altimetry.data.hydro_data.verbose" title="Permalink to this definition">¶</a></dt>
+<code class="descname">verbose</code><em class="property"> = None</em><a class="headerlink" href="#altimetry.data.hydro_data.verbose" title="Permalink to this definition">¶</a></dt>
 <dd><p>verbosity level on a scale of 0 (silent) to 4 (max verbosity)</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="altimetry.data.hydro_data.warning">
-<tt class="descname">warning</tt><big>(</big><em>MSG_LEVEL</em>, <em>str</em><big>)</big><a class="headerlink" href="#altimetry.data.hydro_data.warning" title="Permalink to this definition">¶</a></dt>
-<dd><p>Wrapper to <tt class="xref py py-func docutils literal"><span class="pre">warning.warn()</span></tt>. Returns a warning when verbose level is not 0.</p>
+<code class="descname">warning</code><span class="sig-paren">(</span><em>MSG_LEVEL</em>, <em>str</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/data/hydro.html#hydro_data.warning"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.data.hydro_data.warning" title="Permalink to this definition">¶</a></dt>
+<dd><p>Wrapper to <code class="xref py py-func docutils literal"><span class="pre">warning.warn()</span></code>. Returns a warning when verbose level is not 0.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
@@ -976,7 +971,7 @@ Other fields are optional and will be treated as attributes.</p>
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>MSG_LEVEL</strong> &#8211; level of the message to be compared with self.verbose</p>
 </td>
 </tr>
-<tr class="field-even field"><th class="field-name">Example :</th><td class="field-body"><p class="first">To issued a warning</p>
+<tr class="field-even field"><th class="field-name">Example:</th><td class="field-body"><p class="first">To issued a warning</p>
 <div class="last highlight-python"><div class="highlight"><pre><span class="bp">self</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="s">&#39;Warning being issued)</span>
 </pre></div>
 </div>
@@ -988,13 +983,13 @@ Other fields are optional and will be treated as attributes.</p>
 
 <dl class="method">
 <dt id="altimetry.data.hydro_data.write_nc">
-<tt class="descname">write_nc</tt><big>(</big><em>filename</em>, <em>clobber=False</em>, <em>**kwargs</em><big>)</big><a class="headerlink" href="#altimetry.data.hydro_data.write_nc" title="Permalink to this definition">¶</a></dt>
+<code class="descname">write_nc</code><span class="sig-paren">(</span><em>filename</em>, <em>clobber=False</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/altimetry/data/hydro.html#hydro_data.write_nc"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#altimetry.data.hydro_data.write_nc" title="Permalink to this definition">¶</a></dt>
 <dd><p>write a NetCDF file from current dataset</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>kwargs</strong> &#8211; additional arguments are passed to <a class="reference internal" href="altimetry.tools.nctools.html#altimetry.tools.nctools.nc.write" title="altimetry.tools.nctools.nc.write"><tt class="xref py py-meth docutils literal"><span class="pre">altimetry.tools.nctools.nc.write()</span></tt></a></td>
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>kwargs</strong> &#8211; additional arguments are passed to <a class="reference internal" href="altimetry.tools.nctools.html#altimetry.tools.nctools.nc.write" title="altimetry.tools.nctools.nc.write"><code class="xref py py-meth docutils literal"><span class="pre">altimetry.tools.nctools.nc.write()</span></code></a></td>
 </tr>
 </tbody>
 </table>
@@ -1010,7 +1005,7 @@ Other fields are optional and will be treated as attributes.</p>
           </div>
         </div>
       </div>
-      <div class="sphinxsidebar">
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
         <div class="sphinxsidebarwrapper">
   <h3><a href="index.html">Table Of Contents</a></h3>
   <ul>
@@ -1030,12 +1025,14 @@ Other fields are optional and will be treated as attributes.</p>
   <h4>Next topic</h4>
   <p class="topless"><a href="altimetry.tools.html"
                         title="next chapter">1.1.2. altimetry.tools Module</a></p>
-  <h3>This Page</h3>
-  <ul class="this-page-menu">
-    <li><a href="_sources/altimetry.data.txt"
-           rel="nofollow">Show Source</a></li>
-  </ul>
-<div id="searchbox" style="display: none">
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/altimetry.data.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
   <h3>Quick search</h3>
     <form class="search" action="search.html" method="get">
       <input type="text" name="q" />
@@ -1052,7 +1049,7 @@ Other fields are optional and will be treated as attributes.</p>
       </div>
       <div class="clearer"></div>
     </div>
-    <div class="related">
+    <div class="related" role="navigation" aria-label="related navigation">
       <h3>Navigation</h3>
       <ul>
         <li class="right" style="margin-right: 10px">
@@ -1067,13 +1064,13 @@ Other fields are optional and will be treated as attributes.</p>
         <li class="right" >
           <a href="Modules.html" title="1. Description of the modules"
              >previous</a> |</li>
-        <li><a href="index.html">altimetry tools 0 documentation</a> &raquo;</li>
-          <li><a href="Modules.html" >1. Description of the modules</a> &raquo;</li> 
+        <li class="nav-item nav-item-0"><a href="index.html">altimetry tools 0 documentation</a> &raquo;</li>
+          <li class="nav-item nav-item-1"><a href="Modules.html" >1. Description of the modules</a> &raquo;</li> 
       </ul>
     </div>
-    <div class="footer">
+    <div class="footer" role="contentinfo">
         &copy; Copyright 2013, Renaud Dussurget.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.3.1.
     </div>
   </body>
 </html>
